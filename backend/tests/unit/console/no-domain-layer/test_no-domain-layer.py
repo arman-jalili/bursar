@@ -27,8 +27,9 @@ class TestNoDomainLayer:
 
     def test_the_console_package_has_no_domain_directory(self) -> None:
         """CON-09: the directory is the violation; a layer nothing imports is still a layer."""
+        declared_layers()
         assert not (CONSOLE_PACKAGE / "domain").exists()
 
-    def test_the_only_forbidden_layer_is_domain(self) -> None:
+    def test_no_forbidden_layer_is_among_the_declared_layers(self) -> None:
         """CON-09: infrastructure/application/interfaces are expected; "domain" is the one to refuse."""
-        assert FORBIDDEN_LAYERS == ("domain",)
+        assert not set(declared_layers()) & set(FORBIDDEN_LAYERS)

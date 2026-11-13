@@ -9,8 +9,14 @@ is a false claim about a real household's money — the most expensive sentence 
 
 from __future__ import annotations
 
-from src.console.application.presentation import PAYER_FORBIDDEN_TERMS, PAYOUT_SIMULATED_LABEL
-from src.console.infrastructure.acl import PAYER_BILL_FIELDS, project_payer_bill
+import pytest
+from src.console.application.errors import PayoutNotLabelled
+from src.console.application.presentation import (
+    PAYER_FORBIDDEN_TERMS,
+    PAYOUT_SIMULATED_LABEL,
+    payout_label,
+)
+from src.console.infrastructure.acl import project_payer_bill
 
 SETTLED_UPSTREAM = {
     "invoice_id": "inv-1",
@@ -35,9 +41,17 @@ class TestSimulatedPayout:
         bill = project_payer_bill(SETTLED_UPSTREAM)
         assert PAYOUT_SIMULATED_LABEL in str(bill)
 
+    def test_a_settled_bill_without_the_flag_is_refused(self) -> None:
+        """CON-06: a settlement whose flag was lost is not projected as a real transfer."""
+        without_flag = {
+            key: value for key, value in SETTLED_UPSTREAM.items() if key != "payout_simulated"
+        }
+        with pytest.raises(PayoutNotLabelled):
+            project_payer_bill(without_flag)
+
     def test_the_label_says_the_transfer_is_simulated(self) -> None:
         """CON-06: a bare "Paid" is not enough — the sentence must name the transfer as simulated."""
-        lowered = PAYOUT_SIMULATED_LABEL.lower()
+        lowered = payout_label(True).lower()
         assert "simulated" in lowered
         assert "transfer" in lowered
         assert "demo" in lowered
@@ -45,8 +59,4 @@ class TestSimulatedPayout:
     def test_the_label_itself_uses_household_vocabulary(self) -> None:
         """CON-05/CON-06: the sentence that explains the demo is still payer-facing copy."""
         for term in PAYER_FORBIDDEN_TERMS:
-            assert term not in PAYOUT_SIMULATED_LABEL.lower()
-
-    def test_a_payer_bill_whitelist_keeps_the_flag(self) -> None:
-        """CON-06: dropping `payout_simulated` at the ACL would make the label impossible to derive."""
-        assert "payout_simulated" in PAYER_BILL_FIELDS
+            assert term not in payout_label(True).lower()

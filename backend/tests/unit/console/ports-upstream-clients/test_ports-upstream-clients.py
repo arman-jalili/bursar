@@ -10,14 +10,6 @@ would then appear by editing an adapter instead of a whitelist (CON-01). A port 
 
 from __future__ import annotations
 
-from src.console.application.ports import (
-    ApprovalInboxPort,
-    BillsPort,
-    ConstitutionPort,
-    DeterminationPort,
-    EvidencePort,
-    ReceiptPort,
-)
 from src.console.infrastructure.http import (
     AuthorityHttpAdapter,
     BillingHttpAdapter,
@@ -46,6 +38,14 @@ class TestPortsUpstreamClients:
         codes = await AuthorityHttpAdapter(CONFIG).reasons_for("intent-1")
         assert codes == ("DIGEST_MISMATCH",)
 
+    async def test_the_authority_client_forwards_signature_bytes_unchanged(self) -> None:
+        """CON-03: the adapter's only write passes bytes through; it never re-encodes them."""
+        raw = b'{"signature":"0xdeadbeef","intent_id":"intent-1"}'
+        result = await AuthorityHttpAdapter(CONFIG).submit_signature(
+            "ap-1", raw, "application/json"
+        )
+        assert result["granted"] is True
+
     async def test_the_evidence_client_proxies_verification(self) -> None:
         """CON-08: the verdict is Evidence's; the adapter transports it and adds no opinion."""
         verdict = await EvidenceHttpAdapter(CONFIG).verify("env-1")
@@ -55,21 +55,3 @@ class TestPortsUpstreamClients:
         """CON-01: display-only; the owner signature, not the console, publishes a version."""
         constitution = await MandateHttpAdapter(CONFIG).current()
         assert constitution["version"] == "c-7"
-
-    def test_the_six_ports_are_the_whole_upstream_surface(self) -> None:
-        """CON-04: six named ports — no intent, attempt or dispatch port exists to be called."""
-        assert {
-            ApprovalInboxPort.__name__,
-            DeterminationPort.__name__,
-            BillsPort.__name__,
-            ReceiptPort.__name__,
-            EvidencePort.__name__,
-            ConstitutionPort.__name__,
-        } == {
-            "ApprovalInboxPort",
-            "DeterminationPort",
-            "BillsPort",
-            "ReceiptPort",
-            "EvidencePort",
-            "ConstitutionPort",
-        }

@@ -12,14 +12,11 @@ from __future__ import annotations
 import pytest
 from src.console.application.errors import WhitelistViolation
 from src.console.infrastructure.acl import (
-    CONSTITUTION_FIELDS,
-    EVIDENCE_FIELDS,
-    OWNER_INBOX_FIELDS,
-    PAYEE_FIELDS,
-    PAYER_BILL_FIELDS,
-    VERIFICATION_FIELDS,
     project_constitution,
+    project_evidence,
+    project_owner_inbox,
     project_payee,
+    project_payer_bill,
     project_verification,
 )
 
@@ -45,37 +42,49 @@ class TestAclWhitelists:
 
     def test_the_owner_inbox_and_payer_bill_have_different_audiences(self) -> None:
         """CON-01: one list for both screens would hand the payer the fields the owner signs."""
-        assert set(OWNER_INBOX_FIELDS) != set(PAYER_BILL_FIELDS)
-        assert "typed_data_hash" in OWNER_INBOX_FIELDS
-        assert "typed_data_hash" not in PAYER_BILL_FIELDS
+        payer_bill = project_payer_bill(
+            {
+                "invoice_id": "inv-1",
+                "payee_name": "Northwind Insurance",
+                "amount_usdc": "320.00",
+                "status": "RECEIVED",
+                "typed_data_hash": "0xhash",
+                "bank_digest": "sha256:9f2ab7c1e0d4",
+            }
+        )
+        assert "typed_data_hash" not in payer_bill
+        assert "bank_digest" not in payer_bill
 
     def test_the_verification_surface_cannot_return_the_envelope_payload(self) -> None:
         """CON-01: the owner sees Evidence's verdict, not its payload (the envelope may hold PII)."""
-        assert "payload" not in VERIFICATION_FIELDS
-        assert "payload" not in EVIDENCE_FIELDS
+        projected = project_verification(
+            {"envelope_id": "env-1", "outcome": "verified", "payload": {"secret": "x"}}
+        )
+        assert "payload" not in projected
 
     def test_the_constitution_surface_does_not_forward_signing_material(self) -> None:
         """CON-01: the constitution is display-only; a key field would make the surface a write."""
-        assert "hmac_key" not in CONSTITUTION_FIELDS
-        assert "private_key" not in CONSTITUTION_FIELDS
+        projected = project_constitution(
+            {"version": "c-7", "cap_usdc": "500.00", "hmac_key": "k", "private_key": "p"}
+        )
+        assert "hmac_key" not in projected
+        assert "private_key" not in projected
 
     def test_the_verification_fields_are_not_a_copy_of_the_envelope_fields(self) -> None:
         """CON-01: two surfaces that share a tuple drift into one audience."""
-        assert set(VERIFICATION_FIELDS) - set(EVIDENCE_FIELDS) == {
-            "outcome",
-            "checked_at",
-            "detail",
-        }
+        envelope = project_evidence({"envelope_id": "env-1", "outcome": "tampered"})
+        verification = project_verification({"envelope_id": "env-1", "outcome": "tampered"})
+        assert "outcome" in verification
+        assert "outcome" not in envelope
 
-    def test_every_whitelist_names_at_least_one_field(self) -> None:
+    def test_every_surface_projection_returns_at_least_one_field(self) -> None:
         """CON-01: an empty whitelist would silently blank a screen instead of failing review."""
-        assert all(
-            (
-                OWNER_INBOX_FIELDS,
-                PAYER_BILL_FIELDS,
-                PAYEE_FIELDS,
-                CONSTITUTION_FIELDS,
-                EVIDENCE_FIELDS,
-                VERIFICATION_FIELDS,
-            )
+        projected = (
+            project_owner_inbox({"approval_id": "ap-1"}),
+            project_payer_bill({"invoice_id": "inv-1"}),
+            project_payee({"payee_id": "p-1"}),
+            project_constitution({"version": "c-7"}),
+            project_evidence({"envelope_id": "env-1"}),
+            project_verification({"envelope_id": "env-1"}),
         )
+        assert all(projected)

@@ -10,10 +10,7 @@ or re-derives the digest makes the screen disagree with what the owner signed â€
 
 from __future__ import annotations
 
-from datetime import datetime
-
-from src.console.application.dto import ApprovalInboxItem
-from src.console.infrastructure.acl import OWNER_INBOX_FIELDS, project_owner_inbox
+from src.console.infrastructure.acl import project_owner_inbox
 
 #: Mixed case is the checksum. Lowercasing this string changes the value, not the presentation.
 ADDRESS = "0x7A3fC2b1D4e5F60718293aBcDeF0123456789E9c2"
@@ -34,24 +31,12 @@ class TestExactFields:
 
     def test_an_amount_is_carried_as_the_exact_decimal_string(self) -> None:
         """CON-02: a float round-trip turns 320.00 into 319.99999999999994 before the owner sees it."""
-        item = ApprovalInboxItem(
-            approval_id="ap-1",
-            intent_id="intent-1",
-            invoice_id="inv-1",
-            payee_name="Northwind Insurance",
-            payee_address=ADDRESS,
-            amount_usdc="320.00",
-            bank_digest=DIGEST,
-            is_new_payee=True,
-            requires_owner_signature=True,
-            reason_codes=(),
-            expires_at=datetime(2026, 11, 13, 15, 0),
-            typed_data_hash="0xhash",
-        )
-        assert item.amount_usdc == "320.00"
-        assert str(float(item.amount_usdc)) != item.amount_usdc
+        projected = project_owner_inbox({"amount_usdc": "320.00"})
+        assert projected["amount_usdc"] == "320.00"
+        assert str(float(projected["amount_usdc"])) != projected["amount_usdc"]  # type: ignore[arg-type]
 
     def test_the_owner_surface_keeps_both_bound_fields_on_the_whitelist(self) -> None:
         """CON-02: dropping either field would force the UI to re-derive it from another source."""
-        assert "payee_address" in OWNER_INBOX_FIELDS
-        assert "bank_digest" in OWNER_INBOX_FIELDS
+        projected = project_owner_inbox({"payee_address": ADDRESS, "bank_digest": DIGEST})
+        assert "payee_address" in projected
+        assert "bank_digest" in projected

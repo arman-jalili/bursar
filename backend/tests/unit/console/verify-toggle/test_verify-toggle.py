@@ -11,7 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+import pytest
 from src.console.application.dto import VerificationOutcome
+from src.console.application.errors import VerificationRefused
 from src.console.application.services import ProjectEvidence
 from src.console.infrastructure.acl import project_verification
 from src.console.infrastructure.http import EvidenceHttpAdapter, HttpAdapterConfig
@@ -43,6 +45,11 @@ class TestVerifyToggle:
         result = await ProjectEvidence(_Evidence("tampered")).verify("env-tampered")
         assert result.outcome is VerificationOutcome.TAMPERED
 
+    async def test_an_unrecognised_verdict_is_refused_not_defaulted(self) -> None:
+        """CON-08: an unknown answer must not be rendered as verified or as a truthy default."""
+        with pytest.raises(VerificationRefused):
+            await ProjectEvidence(_Evidence("maybe")).verify("env-1")
+
     def test_the_projection_keeps_the_verdict_distinct_from_the_envelope(self) -> None:
         """CON-08: the toggle renders `outcome`; reusing the envelope shape would lose it."""
         projected = project_verification(
@@ -55,11 +62,3 @@ class TestVerifyToggle:
         """CON-08: the adapter's job is transport; the verdict is Evidence's answer verbatim."""
         verdict = await EvidenceHttpAdapter(CONFIG).verify("env-untouched")
         assert verdict["outcome"] == "verified"
-
-    def test_the_verdict_set_has_no_truthy_default(self) -> None:
-        """CON-08: an unknown result must be explicit; a falsy `verified` flag would read as passed."""
-        assert {outcome.value for outcome in VerificationOutcome} == {
-            "verified",
-            "tampered",
-            "unknown",
-        }

@@ -12,12 +12,7 @@ from __future__ import annotations
 
 import pytest
 from src.console.application.errors import WhitelistViolation
-from src.console.infrastructure.acl import (
-    OWNER_INBOX_FIELDS,
-    PAYER_BILL_FIELDS,
-    project_owner_inbox,
-    project_payer_bill,
-)
+from src.console.infrastructure.acl import project_owner_inbox, project_payer_bill
 
 UPSTREAM_WITH_MODEL_OUTPUT = {
     "approval_id": "ap-1",
@@ -45,13 +40,20 @@ class TestWhitelist:
         assert "debug_trace" not in projected
         assert projected["approval_id"] == "ap-1"
 
-    def test_neither_whitelist_names_model_output_fields(self) -> None:
-        """CON-01: the whitelist is the only door, so an unrestricted key would defeat it."""
-        assert "internal_note" not in OWNER_INBOX_FIELDS
-        assert "raw_payload" not in OWNER_INBOX_FIELDS
-        assert "internal_note" not in PAYER_BILL_FIELDS
+    def test_every_forbidden_upstream_key_is_refused_by_the_owner_projection(self) -> None:
+        """CON-01: each name that looks like model output is a refusal, not a silent drop."""
+        for forbidden in ("internal_note", "raw_payload", "confidence", "agent_guess", "reasoning"):
+            with pytest.raises(WhitelistViolation):
+                project_owner_inbox({"approval_id": "ap-1", forbidden: "model output"})
 
     def test_the_payer_whitelist_keeps_audience_fields_out(self) -> None:
         """CON-01: a payer is not the signer, so the signed fields are not theirs to see."""
-        assert "typed_data_hash" not in PAYER_BILL_FIELDS
-        assert "bank_digest" not in PAYER_BILL_FIELDS
+        projected = project_payer_bill(
+            {
+                "invoice_id": "inv-1",
+                "typed_data_hash": "0xhash",
+                "bank_digest": "sha256:9f2ab7c1e0d4",
+            }
+        )
+        assert "typed_data_hash" not in projected
+        assert "bank_digest" not in projected

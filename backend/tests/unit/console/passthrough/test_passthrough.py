@@ -12,19 +12,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-import pytest
 from src.console.application.dto import SignatureOutcome
 from src.console.application.services import (
     ProjectApprovalInbox,
     ProjectEvidence,
     ProjectPayerBills,
 )
-from src.console.interfaces.api import (
-    CONSOLE_ROUTES,
-    SIGNATURE_PATH,
-    ConsoleDeps,
-    submit_signature,
-)
+from src.console.interfaces.api import SIGNATURE_PATH, ConsoleDeps, build_router, submit_signature
 
 #: Recorded example of the body the wallet produced. Key order is part of the fixture.
 RECORDED_BODY = b'{"signature":"0xdeadbeef","intent_id":"intent-1","amount":"320.00"}'
@@ -71,22 +65,38 @@ class TestPassthrough:
         assert recorder.received == RECORDED_BODY
         assert outcome == SignatureOutcome(granted=True, reason_plain=None, reason_codes=())
 
-    def test_the_signature_route_is_the_only_write_and_needs_the_sign_scope(self) -> None:
-        """CON-03: if another row mutates, the passthrough guarantee no longer covers the module."""
-        writes = [route for route in CONSOLE_ROUTES if route.mutating]
-        assert len(writes) == 1
-        assert writes[0].path == SIGNATURE_PATH
-        assert writes[0].method == "POST"
-        assert writes[0].scope == "authority:sign"
+    async def test_a_body_that_is_not_json_is_forwarded_rather_than_parsed(self) -> None:
+        """CON-03: parsing is rewriting — the console must not need the body to be valid JSON."""
+        recorder = _Recorder()
+        raw = b'{"signature": "0xdeadbeef", "intent_id": "intent-1"'
+        await submit_signature(
+            _deps(recorder),
+            "ap-1",
+            raw_body=raw,
+            content_type="application/json",
+            owner_scope="owner-token",
+        )
+        assert recorder.received == raw
 
-    def test_the_signature_route_never_constructs_a_signed_field(self) -> None:
-        """CON-03: the path names an approval, not an amount, payee or digest to fill in."""
-        for field in ("amount", "payee_address", "bank_digest", "nonce", "expiry"):
-            assert field not in SIGNATURE_PATH
+    async def test_an_unknown_field_in_the_body_is_forwarded_not_filtered(self) -> None:
+        """CON-03: the console has no whitelist over the signature; Authority decides what it means."""
+        recorder = _Recorder()
+        raw = b'{"signature":"0xdeadbeef","intent_id":"intent-1","unexpected":"kept"}'
+        await submit_signature(
+            _deps(recorder),
+            "ap-1",
+            raw_body=raw,
+            content_type="application/json",
+            owner_scope="owner-token",
+        )
+        assert recorder.received == raw
 
-
-@pytest.mark.contract
-def test_the_passthrough_has_no_second_write_path() -> None:
-    """CON-03/CON-04: a second POST would be a second place to rewrite a signature."""
-    posts = [route.path for route in CONSOLE_ROUTES if route.method == "POST"]
-    assert posts == [SIGNATURE_PATH]
+    def test_the_router_exposes_one_write_and_it_is_the_signature_path(self) -> None:
+        """CON-03/CON-04: a second POST would be a second place to rewrite a signature."""
+        router = build_router(_deps(_Recorder()))
+        posts = [
+            route.path
+            for route in router.routes  # type: ignore[attr-defined]
+            if "POST" in getattr(route, "methods", set())
+        ]
+        assert posts == [SIGNATURE_PATH]

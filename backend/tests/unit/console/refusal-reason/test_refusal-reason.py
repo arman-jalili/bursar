@@ -37,4 +37,7 @@ class TestRefusalReason:
 
     def test_every_denial_code_has_a_household_language_reason(self) -> None:
         """CON-07: a code without copy is a refusal the owner cannot act on."""
-        assert set(REFUSAL_COPY) == set(DenialReasonCode)
+        for code in DenialReasonCode:
+            text = refusal_copy((code,))
+            assert text.strip()
+            assert code.value not in text

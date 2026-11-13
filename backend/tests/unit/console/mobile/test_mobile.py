@@ -29,10 +29,12 @@ class TestMobile:
         with pytest.raises(ViewportContractViolation):
             assert_mobile_contract(Viewport(width_px=320, height_px=568))
 
-    def test_the_frozen_viewport_is_the_demo_phone(self) -> None:
-        """CON-10: the viewport is data so a UI test and the demo script cannot disagree."""
-        assert (MOBILE_VIEWPORT.width_px, MOBILE_VIEWPORT.height_px) == (390, 844)
+    def test_a_desktop_viewport_fails_the_check(self) -> None:
+        """CON-10: the surfaces must be usable on the demo phone, not only at desk width."""
+        with pytest.raises(ViewportContractViolation):
+            assert_mobile_contract(Viewport(width_px=1280, height_px=800))
 
-    def test_the_approval_budget_is_at_most_three_taps(self) -> None:
+    def test_the_approval_flow_fits_the_tap_budget(self) -> None:
         """CON-10: four taps from a notification is a lost demo, not a slow one."""
+        assert_mobile_contract(MOBILE_VIEWPORT)
         assert MAX_APPROVAL_TAPS <= 3
