@@ -69,6 +69,13 @@ ignore = [
 # the pipeline's step prompts reference those exact paths. Renaming them would break the handoff,
 # so the PEP-8 module-name rule is waived for those files only.
 "tests/unit/**/test_*-*.py" = ["N999"]
+# The `__init__.py` files that make duplicate suite names importable live in invariant-named directories
+# (`domain-services/`, `repository-interfaces-owned-by-domain/`). The directory names are fixed by the
+# contract-test layout, so the module-name rule is waived for them — the packages exist to satisfy pytest,
+# not to be imported by their path.
+"tests/unit/**/*services*/__init__.py" = ["N999"]
+"tests/unit/**/repository-interfaces-owned-by-domain/__init__.py" = ["N999"]
+"tests/unit/**/layer-purity/__init__.py" = ["N999"]
 # Domain refusal names are frozen by the architecture docs and quoted by acceptance criteria
 # (`ConstitutionCorrupted` in AC #8, `OwnerProofInvalid` in AC #4). The `-Error` suffix rule loses to
 # the ubiquitous language: these are behaviours, not generic exceptions.
@@ -97,9 +104,16 @@ exclude = ['^tests/unit/']
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+# `importlib` rather than the default `prepend`: contract-test directories are named after invariants
+# (`at-most-one-attempt/`, `domain-services/`), and the same suite name recurs across modules. Those
+# directories cannot be packages (a hyphen is not a legal identifier, and an `__init__.py` there breaks
+# mypy), so `prepend` collides on duplicate basenames — `tests/unit/billing/domain-services/` and
+# `tests/unit/authority/domain-services/` both hold `test_domain-services.py`. importlib keys modules by
+# path, so the collision disappears without weakening either suite.
+
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 markers = [
     "acceptance: maps to a numbered acceptance criterion in a module doc",
     "contract: architecture-boundary test (ADR-001/002/007)",
