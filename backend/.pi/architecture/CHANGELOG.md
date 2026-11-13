@@ -337,8 +337,9 @@ Track which changes have been synced to implementation:
 | 2026-11-13 | ADRs 001–007 accepted; diagrams + roadmap generated | all | pending (no `src/`) | not run |
 | 2026-11-13 | **Phase 0 bootstrap** — kernel, config, logging, DB, envelope, 2 deployables, CI | bootstrap (no context) | complete | architecture/model-judgment/language/canonical: pass |
 | 2026-11-13 | Mandate contract freeze v1 — values, aggregates, ports, DTOs, events, 9 contract tests | mandate | complete (stubs) | all four gates pass; 267 tests |
+| 2026-11-14 | **Billing implementation** — value objects, aggregates (B-1…B-7), repositories, migration `002_billing`, HTTP surface, settlement/refusal handlers, contract proofing stage | billing | complete | ci/tests/security/wiring/guards/drift/shell/claims/floors: pass |
 
 ---
 
-*Last updated: 2026-11-13*
+*Last updated: 2026-11-14*
 *Framework version: 1.2.0*
