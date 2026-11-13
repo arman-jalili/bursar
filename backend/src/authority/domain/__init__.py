@@ -10,6 +10,8 @@ Reference: docs/contracts/authority-contract-freeze.md
     determination.py   Determination             (A-5 … A-8)
     cap_ledger.py      CapLedger · Reservation   (A-9 … A-12)
     approval.py        Approval · OwnerSignature (A-13 … A-15)
+    services.py        DeterminationPolicy · ApprovalBinder (stateless domain services)
+    events.py          the twelve frozen event payload schemas
     repositories.py    the four ports
     ports.py           MandateView · AttemptViewPort (ACL to upstream contexts)
 

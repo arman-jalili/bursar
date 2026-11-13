@@ -13,8 +13,11 @@ things make that answer trustworthy, and each is an invariant below:
     2. the cap is reserved **atomically**, so six split invoices cannot jointly overdraw it (A-9)
     3. an escalation is bound to **one exact intent**, single-use and expiring (A-13…A-15)
 
-Absent on purpose: `infrastructure/`, `interfaces/`. No adapters, no router, no migration, and no
-EIP-712 signer implementation — those are Phase B.
+Absent on purpose: adapter and router bodies. `infrastructure/` and `interfaces/` exist as empty
+packages so the layer structure is complete, but they contain no SQLAlchemy models, no client, no
+router and no EIP-712 signer implementation — those are Phase B. The event payloads
+(`domain/events.py`) and the HTTP contract (freeze doc §2.9) *are* frozen here, because downstream
+contexts must be able to build against them before Authority can enforce anything.
 """
 
 __contract_version__ = "1.0.0"

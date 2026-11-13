@@ -12,6 +12,15 @@ if [ -f "poetry.lock" ] && command -v poetry &>/dev/null; then
     fi
 fi
 
+# Prefer the project environment: the system python may be older than requires-python,
+# and a validator that runs the wrong interpreter reports false failures.
+PYTEST_BIN="pytest"
+[ -x ".venv/bin/pytest" ] && PYTEST_BIN=".venv/bin/pytest"
+RUFF_BIN="ruff"
+[ -x ".venv/bin/ruff" ] && RUFF_BIN=".venv/bin/ruff"
+COVERAGE_BIN="coverage"
+[ -x ".venv/bin/coverage" ] && COVERAGE_BIN=".venv/bin/coverage"
+
 ERRORS=()
 WARNINGS=()
 PASS_COUNT=0
@@ -49,8 +58,8 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Tests ---"
-if command -v pytest &>/dev/null; then
-    if PYTHONPATH=src pytest -q 2>/dev/null; then
+if [ -x "$PYTEST_BIN" ] || command -v pytest >/dev/null 2>&1; then
+    if PYTHONPATH=src "$PYTEST_BIN" -q 2>/dev/null; then
         pass "All tests passed"
     else
         fail "Tests failed"
@@ -64,8 +73,8 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Lint ---"
-if command -v ruff &>/dev/null; then
-    if ruff check . 2>/dev/null; then
+if [ -x "$RUFF_BIN" ] || command -v ruff >/dev/null 2>&1; then
+    if "$RUFF_BIN" check . 2>/dev/null; then
         pass "Lint passed"
     else
         fail "Lint failed"
@@ -79,8 +88,8 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Format ---"
-if command -v ruff &>/dev/null; then
-    if ruff format --check . 2>/dev/null; then
+if [ -x "$RUFF_BIN" ] || command -v ruff >/dev/null 2>&1; then
+    if "$RUFF_BIN" format --check . 2>/dev/null; then
         pass "Format check passed"
     else
         fail "Format check failed"
