@@ -23,20 +23,24 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.billing.application.dto import (
+    ApplyDeterminationCommand,
+    ApplyDeterminationResult,
     AttemptView,
     InvoiceView,
     ProposePaymentCommand,
     ProposePaymentResult,
     RecordInvoiceCommand,
     RecordInvoiceResult,
+    SettleInvoiceCommand,
+    SettleInvoiceResult,
 )
 from src.billing.application.services import ProposePayment, RecordInvoice
-from src.billing.domain.events import DuplicateInvoiceDetected
+from src.billing.domain.events import DuplicateInvoiceDetected, InvoiceSettled
 from src.billing.domain.ids import AttemptId, InvoiceId, PayeeId
 from src.billing.domain.invoice import Invoice
 from src.billing.domain.payment_attempt import PaymentAttempt
 from src.billing.domain.ports import DigestReviewPort
-from src.billing.domain.values import BilledAmount, InvoiceHash
+from src.billing.domain.values import AttemptStatus, BilledAmount, InvoiceHash, InvoiceStatus
 from src.billing.infrastructure.repositories import (
     OutboxWriter,
     SqlInvoiceRepository,
@@ -48,11 +52,13 @@ from src.shared.application.unit_of_work import session_scope
 from src.shared.domain.errors import NotFoundError
 
 __all__ = [
+    "ApplyDeterminationService",
     "GetAttemptService",
     "GetInvoiceService",
     "ListInvoicesService",
     "ProposePaymentService",
     "RecordInvoiceService",
+    "SettleInvoiceService",
 ]
 
 
@@ -207,3 +213,86 @@ class GetAttemptService:
             if attempt is None:
                 raise NotFoundError("No attempt with that id.", attempt_id=attempt_id)
             return _attempt_view(attempt)
+
+
+class SettleInvoiceService:
+    """Inbound `SettlementConfirmed` → `InvoiceSettled` (module doc sequence 7, B-2).
+
+    Delivery is at-least-once (ADR-003), so the handler is idempotent **by state**: a second delivery
+    for an already-settled invoice returns the original invoice and writes nothing. That is different
+    from `Invoice.mark_settled`, which refuses a second *fact*; a replayed delivery is not a new fact.
+    """
+
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        self._factory = session_factory
+
+    async def execute(self, command: SettleInvoiceCommand) -> SettleInvoiceResult:
+        async with session_scope(self._factory) as session:
+            invoices = SqlInvoiceRepository(session)
+            invoice = await invoices.find_by_id(InvoiceId(command.invoice_id))
+            if invoice is None:
+                raise NotFoundError("No invoice with that id.", invoice_id=command.invoice_id)
+            if invoice.status is InvoiceStatus.SETTLED:
+                return SettleInvoiceResult(invoice=_invoice_view(invoice), duplicate=True)
+
+            invoice.mark_settled()
+            # The aggregate records "settled"; the application layer owns the delivery payload, which
+            # includes the on-chain transaction hash from `SettlementConfirmed`.
+            events = tuple(
+                InvoiceSettled(
+                    invoice_id=str(invoice.id),
+                    invoice_hash=invoice.hash.value,
+                    tx_hash=command.tx_hash,
+                )
+                if event.event_name == "InvoiceSettled"
+                else event
+                for event in invoice.pull_events()
+            )
+            await invoices.save(invoice)
+            await OutboxWriter(session).append(events)
+            return SettleInvoiceResult(
+                invoice=_invoice_view(invoice),
+                events=tuple(event.event_name for event in events),
+            )
+
+
+class ApplyDeterminationService:
+    """Apply Authority's determination to an attempt (B-7, module doc sequence 7).
+
+    This is the inbound half of ADR-003's `PaymentAllowed`/`PaymentRefused` delivery: an allow or
+    escalate verdict dispatches; every other verdict refuses and returns the invoice to outstanding
+    with no side effect. The decision itself is never made here — the aggregate's allow-list does the
+    enforcing, this service only persists the outcome.
+    """
+
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        self._factory = session_factory
+
+    async def execute(self, command: ApplyDeterminationCommand) -> ApplyDeterminationResult:
+        async with session_scope(self._factory) as session:
+            attempts = SqlPaymentAttemptRepository(session)
+            invoices = SqlInvoiceRepository(session)
+
+            attempt = await attempts.find_by_id(AttemptId(command.attempt_id))
+            if attempt is None:
+                raise NotFoundError("No attempt with that id.", attempt_id=command.attempt_id)
+            invoice = await invoices.find_by_id(attempt.invoice_id)
+
+            if command.determination in {"allow", "escalate"}:
+                attempt.mark_dispatched(determination=command.determination)
+            else:
+                attempt.mark_refused(command.reason or command.determination)
+
+            await attempts.save(attempt)
+            if attempt.status is AttemptStatus.REFUSED and invoice is not None:
+                # B-7: the invoice becomes payable again, and nothing was reserved on this path.
+                invoice.status = InvoiceStatus.OUTSTANDING
+                await invoices.save(invoice)
+
+            events = attempt.pull_events()
+            await OutboxWriter(session).append(events)
+            return ApplyDeterminationResult(
+                attempt=_attempt_view(attempt),
+                invoice=_invoice_view(invoice) if invoice is not None else None,
+                events=tuple(event.event_name for event in events),
+            )
