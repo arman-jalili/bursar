@@ -1,15 +1,11 @@
 {
   "sessions": [
     {
-      "id": "s-mwf40fzc-7douzu",
+      "id": "s-mwfjwq94-zryltr",
       "title": "New session",
-      "createdAt": 1794582376680,
-<<<<<<< Updated upstream
-      "updatedAt": 1794602265766
-=======
-      "updatedAt": 1794607752478
->>>>>>> Stashed changes
+      "createdAt": 1794609077224,
+      "updatedAt": 1794611946678
     }
   ],
-  "activeId": "s-mwf40fzc-7douzu"
+  "activeId": "s-mwfjwq94-zryltr"
 }

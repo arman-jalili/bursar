@@ -43,7 +43,7 @@ guardian_issue:
     - "create: src/billing/application/"
     - "create: src/billing/infrastructure/"
     - "modify: src/billing/interfaces/"
-    -     - "update: tests/ (failing tests already generated — make them pass)"
+    -     - "create: tests/"
 ---
 
 # ISSUE-BILLING-2: Implement Ports — billing
@@ -114,13 +114,10 @@ These acceptance criteria must be satisfied before this issue can be closed:
 ### Steps
 
 1. Read canonical architecture references
-2. Run the pre-generated failing tests: `cd tests && pytest`
-3. Verify tests FAIL (Red phase)
-4. Implement domain entities and interfaces
-5. Implement application service/handler
-6. Add infrastructure connections
-7. Run tests again — they should PASS (Green phase)
-8. Refactor if needed (Refactor phase)
-9. Write integration tests
-10. Run all validators
-11. Create MR
+2. Create domain entities and interfaces
+3. Implement application service/handler
+4. Add infrastructure connections
+5. Write unit tests (≥ 90% coverage)
+6. Write integration tests
+7. Run all validators
+8. Create MR
