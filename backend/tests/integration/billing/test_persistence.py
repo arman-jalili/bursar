@@ -15,6 +15,8 @@ Both are asserted through the real repository adapters, because a fake would not
 
 from __future__ import annotations
 
+import asyncio
+import json
 from collections.abc import AsyncIterator
 from datetime import date
 from pathlib import Path
@@ -88,7 +90,10 @@ class TestDuplicateInvoice:
                 select(OutboxRow).where(OutboxRow.event_name == "DuplicateInvoiceDetected")
             )
             event = result.scalar_one()
-        assert event.payload, "the duplicate must be evidence, not a silently dropped request"
+        payload = json.loads(event.payload)
+        assert payload["invoice_id"] == first.invoice.invoice_id
+        assert payload["original_invoice_id"] == first.invoice.invoice_id
+        assert payload["invoice_hash"] == first.invoice.invoice_hash
 
     async def test_a_one_character_change_is_a_second_bill(
         self, factory: async_sessionmaker[AsyncSession]
@@ -149,6 +154,30 @@ class TestAtMostOneAttempt:
                 proposed.invoice.invoice_id  # type: ignore[arg-type]
             )
         assert invoice is not None and invoice.status is InvoiceStatus.IN_FLIGHT
+
+    async def test_two_concurrent_proposals_produce_exactly_one_attempt(
+        self, factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """AC #3 (concurrency): two proposals racing one invoice → one attempt, one refusal.
+
+        Both services may read the invoice before either commits, so the domain guard alone cannot
+        save us here — the partial unique index is the arbiter, and the adapter translates the
+        integrity error into the same `InvoiceNotPayable` the serial path raises.
+        """
+        proposed = await RecordInvoiceService(factory).execute(_command())
+        service = ProposePaymentService(factory)
+        command = ProposePaymentCommand(invoice_id=proposed.invoice.invoice_id)
+
+        results = await asyncio.gather(
+            service.execute(command), service.execute(command), return_exceptions=True
+        )
+
+        succeeded = [result for result in results if not isinstance(result, BaseException)]
+        refused = [result for result in results if isinstance(result, BaseException)]
+        assert len(succeeded) == 1, f"expected exactly one winner, got {results!r}"
+        assert len(refused) == 1
+        assert isinstance(refused[0], InvoiceNotPayable)
+        assert await _count(factory, PaymentAttemptRow) == 1
 
     async def test_the_partial_unique_index_is_the_last_line_of_defence(
         self, factory: async_sessionmaker[AsyncSession]
