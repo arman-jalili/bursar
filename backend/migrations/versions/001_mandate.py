@@ -121,7 +121,9 @@ def downgrade() -> None:
     op.drop_table("mandate_outbox")
     op.drop_index("ix_mandate_payees_status", table_name="mandate_payees")
     op.drop_table("mandate_payees")
-    op.drop_index("uq_mandate_constitution_one_in_force", table_name="mandate_constitution_versions")
+    op.drop_index(
+        "uq_mandate_constitution_one_in_force", table_name="mandate_constitution_versions"
+    )
     op.drop_table("mandate_constitution_versions")
     op.drop_index("ix_mandate_constitutions_household", table_name="mandate_constitutions")
     op.drop_table("mandate_constitutions")

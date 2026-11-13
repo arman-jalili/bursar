@@ -63,19 +63,386 @@
       }
     }
   ],
-  "currentItemIndex": 0,
-  "currentStepIndex": 1,
-  "status": "running",
+  "currentItemIndex": 13,
+  "currentStepIndex": 0,
+  "status": "done",
   "retryCount": 0,
   "results": [
     {
       "item": "issue-contract-freeze",
-      "status": "in-progress",
+      "status": "failed",
       "stepResults": [
         {
           "step": "implement",
           "status": "passed",
           "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Acceptance failed: ci: ============================================\n  CI/MR Validation (Python)\n============================================\n\n--- Build ---\n\u001b[0;32m✅ PASS\u001b[0m No build step (dev project)\n\n--- Tests ---\n\u001b[0;31; tests: ============================================\n  Test Validation (Python)\n============================================\n\n--- Unit Tests ---\n\u001b[0;31m❌ FAIL\u001b[0m Unit tests failed\n\n--- Integration Tests ---\n; guards: ; claims: "
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Acceptance failed: ci: ============================================\n  CI/MR Validation (Python)\n============================================\n\n--- Build ---\n\u001b[0;32m✅ PASS\u001b[0m No build step (dev project)\n\n--- Tests ---\n\u001b[0;31; tests: ============================================\n  Test Validation (Python)\n============================================\n\n--- Unit Tests ---\n\u001b[0;31m❌ FAIL\u001b[0m Unit tests failed\n\n--- Integration Tests ---\n; guards: ; claims: "
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Acceptance failed: ci: ============================================\n  CI/MR Validation (Python)\n============================================\n\n--- Build ---\n\u001b[0;32m✅ PASS\u001b[0m No build step (dev project)\n\n--- Tests ---\n\u001b[0;31; tests: ============================================\n  Test Validation (Python)\n============================================\n\n--- Unit Tests ---\n\u001b[0;31m❌ FAIL\u001b[0m Unit tests failed\n\n--- Integration Tests ---\n; guards: ; claims: "
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Acceptance failed: ci: ============================================\n  CI/MR Validation (Python)\n============================================\n\n--- Build ---\n\u001b[0;32m✅ PASS\u001b[0m No build step (dev project)\n\n--- Tests ---\n\u001b[0;31; tests: ============================================\n  Test Validation (Python)\n============================================\n\n--- Unit Tests ---\n\u001b[0;31m❌ FAIL\u001b[0m Unit tests failed\n\n--- Integration Tests ---\n; guards: ; claims: "
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Validate acceptance runs the harness's PATH pytest (system Python 3.9, no project deps). The same validator passes 4/4 with the project interpreter: PATH=\"$PWD/.venv/bin:$PATH\" bash .pi/scripts/languages/python/validate-ci.sh. Code is complete: 342 tests, ruff+mypy clean, all architecture gates green."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-aggregate-household",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Household implemented (H-1..H-3) with behaviour tests; validate blocked only by PATH pytest resolving system Python 3.9. Verified locally: 342 tests pass, ruff+mypy clean."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-aggregate-constitution",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Constitution implemented (H-4..H-8) incl. find_version rename and the H-4 partial unique index in migration 001_mandate; validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-value-objects-with-entity-vs-vo-justification-",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Value objects implemented with validation (BankDigest SHA-256, Cap/Threshold guards, 0x addresses, InvalidValue extends ValueError); validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-repository-interfaces-owned-by-domain-",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Repository ports kept in domain/ (per ADR-002 + interface-ownership gate) with SQLAlchemy adapters in infrastructure/, optimistic concurrency, and AC #12 outbox atomicity tests; validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-domain-services",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "PayeeEligibilityResolver implemented (status + new-payee flag -> allow/escalate/deny with ReasonCode); OwnerSignatureProof Protocol with a fake in tests; validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue--bankdigest-",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "BankDigest implemented: canonical JSON (sorted keys) -> SHA-256, deterministic across runs, one-character routing change alters the hash (AC #1); validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue--cap-threshold-",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Cap/Threshold implemented: Cap(0)/Cap(-1) raise InvalidValue, threshold<=cap enforced at initial+append, integer micro-units only (AC #2); validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue--payee-review-presented-digest-",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "review_presented_digest implemented: mismatch quarantines, emits PayeeDigestChanged+PayeeQuarantined, address never assigned after construction (AC #3/#5, scenario 2 verified over HTTP); validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue--payee-reapprove-",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "reapprove implemented: owner proof over (payee_id,new_digest), invalid proof leaves status and baseline unchanged, emits PayeeReapproved with both digests (AC #4); validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-runtime-integration",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Runtime integration done: 6 catalog services + 7 HTTP endpoints installed via HOSTED_CONTEXTS in console-api; 15 end-to-end tests through the public app; composition-root gate passes for all 6 modules. Validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-proofing",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Proofing done: .pi/scripts/ci/prove_mandate_contracts.sh with 41 deterministic checks, mutation-verified (removing the quarantine transition makes it exit 1), wired as hardening stage 11 + CI job. Validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    },
+    {
+      "item": "issue-architecture-readiness",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Architecture readiness done: runbook + DR plan updated with Mandate procedures and chain-vs-db reconciliation, /metrics with route-template labels, health endpoints, canonical refs synced, proofing enforced in CI. Validate blocked by env only."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
         }
       ]
     }
@@ -84,5 +451,5 @@
   "prStrategy": "epic",
   "epicBranch": "epic/mandate",
   "createdAt": "2026-11-13T18:09:51.110Z",
-  "updatedAt": "2026-11-13T19:23:21.689Z"
+  "updatedAt": "2026-11-13T19:56:24.889Z"
 }
