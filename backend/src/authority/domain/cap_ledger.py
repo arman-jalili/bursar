@@ -24,7 +24,13 @@ import enum
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.authority.domain.ids import IntentId, ReservationId
+from src.authority.domain.errors import CapExceeded, ReservationAlreadyResolved
+from src.authority.domain.events import (
+    CapacityCommitted,
+    CapacityReleased,
+    CapacityReserved,
+)
+from src.authority.domain.ids import IntentId, ReservationId, new_id
 from src.authority.domain.values import Money
 from src.shared.domain.aggregate import AggregateRoot
 
@@ -60,7 +66,14 @@ class Reservation:
         cls, intent_id: IntentId, amount: Money, day: str, expires_at: datetime
     ) -> Reservation:
         """Create a HELD reservation. The ledger, not the caller, decides whether it may exist (A-9)."""
-        raise NotImplementedError("A-10 — see module doc")
+        return cls(
+            id=ReservationId(new_id()),
+            intent_id=intent_id,
+            amount=amount,
+            day=day,
+            expires_at=expires_at,
+            status=ReservationStatus.HELD,
+        )
 
     def mark_committed(self) -> None:
         """HELD → COMMITTED, once.
@@ -68,7 +81,7 @@ class Reservation:
         Raises:
             ReservationAlreadyResolved: the reservation was already committed or released (A-10).
         """
-        raise NotImplementedError("A-10 — see module doc")
+        self._resolve_into(ReservationStatus.COMMITTED)
 
     def mark_released(self) -> None:
         """HELD → RELEASED, once.
@@ -76,7 +89,12 @@ class Reservation:
         Raises:
             ReservationAlreadyResolved: the reservation was already resolved (A-10).
         """
-        raise NotImplementedError("A-10 — see module doc")
+        self._resolve_into(ReservationStatus.RELEASED)
+
+    def _resolve_into(self, terminal: ReservationStatus) -> None:
+        if self.status is not ReservationStatus.HELD:
+            raise ReservationAlreadyResolved(self.id, self.status.value)
+        self.status = terminal
 
 
 @dataclass(eq=False)
@@ -91,7 +109,7 @@ class CapLedger(AggregateRoot):
     @property
     def headroom(self) -> Money:
         """`cap - committed - reserved`. Never negative: the invariant forbids the state (A-9)."""
-        raise NotImplementedError("A-9 — see module doc")
+        return self.cap - self.committed - self.reserved
 
     def try_reserve(self, intent_id: IntentId, amount: Money, expires_at: datetime) -> Reservation:
         """Reserve atomically, or refuse (A-9).
@@ -100,7 +118,23 @@ class CapLedger(AggregateRoot):
             CapExceeded: `committed + reserved + amount > cap` — nothing is reserved, so a refusal leaves
                 the ledger untouched (A-8, A-9).
         """
-        raise NotImplementedError("A-9 — see module doc")
+        if self.committed + self.reserved + amount > self.cap:
+            raise CapExceeded(amount.micro_usdc, self.headroom.micro_usdc)
+
+        reservation = Reservation.hold(intent_id, amount, self.day, expires_at)
+        self.reserved = self.reserved + amount
+        self.record(
+            CapacityReserved(
+                aggregate_id=self.day,
+                day=self.day,
+                reservation_id=reservation.id,
+                intent_id=intent_id,
+                amount_micro_usdc=amount.micro_usdc,
+                committed_micro_usdc=self.committed.micro_usdc,
+                reserved_micro_usdc=self.reserved.micro_usdc,
+            )
+        )
+        return reservation
 
     def commit(self, reservation: Reservation) -> None:
         """Turn a hold into committed spend after a confirmed settlement (A-10, A-11).
@@ -108,7 +142,20 @@ class CapLedger(AggregateRoot):
         Raises:
             ReservationAlreadyResolved: the reservation is not HELD (A-10).
         """
-        raise NotImplementedError("A-10 — see module doc")
+        self._require_held(reservation)
+        self.reserved = self.reserved - reservation.amount
+        self.committed = self.committed + reservation.amount
+        reservation.mark_committed()
+        self.record(
+            CapacityCommitted(
+                aggregate_id=self.day,
+                day=self.day,
+                reservation_id=reservation.id,
+                intent_id=reservation.intent_id,
+                amount_micro_usdc=reservation.amount.micro_usdc,
+                committed_micro_usdc=self.committed.micro_usdc,
+            )
+        )
 
     def release(self, reservation: Reservation) -> None:
         """Return a hold to the headroom because the payment provably did not happen (A-10).
@@ -116,4 +163,25 @@ class CapLedger(AggregateRoot):
         Raises:
             ReservationAlreadyResolved: the reservation is not HELD (A-10).
         """
-        raise NotImplementedError("A-10 — see module doc")
+        self._require_held(reservation)
+        self.reserved = self.reserved - reservation.amount
+        reservation.mark_released()
+        self.record(
+            CapacityReleased(
+                aggregate_id=self.day,
+                day=self.day,
+                reservation_id=reservation.id,
+                intent_id=reservation.intent_id,
+                amount_micro_usdc=reservation.amount.micro_usdc,
+                reason="settlement_reverted",
+            )
+        )
+
+    def _require_held(self, reservation: Reservation) -> None:
+        if reservation.status is not ReservationStatus.HELD:
+            raise ReservationAlreadyResolved(reservation.id, reservation.status.value)
+        if reservation.day != self.day:
+            # A-12: a hold belongs to the day it was taken on; a rollover is a different row.
+            raise ReservationAlreadyResolved(
+                reservation.id, reservation.status.value, reservation_day=reservation.day
+            )

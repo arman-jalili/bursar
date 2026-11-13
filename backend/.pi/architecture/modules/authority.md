@@ -41,13 +41,16 @@ Rigorix at Lock 2; `/v1/...` CRUD is for humans and the console. They must not s
 That file is the authoritative frozen surface for this context: the fifteen invariant ids (A-1…A-15) with the
 illegal state each prevents, every signature (`PaymentIntent`, `Determination`, `CapLedger` + `Reservation`,
 `Approval` + `OwnerSignature`, `Money`, `DeterminationVerdict`, the four repository ports, `MandateView` /
-`AttemptViewPort`, and the five catalog application services), the refusal vocabulary, the ordered Phase-B
-work list, and the explicit out-of-scope table (no infrastructure, no router, no migration, no EIP-712
-signer implementation).
+`AttemptViewPort`, and the five catalog application services), the two domain-service interfaces
+(`DeterminationPolicy` / `ApprovalBinder`, `src/authority/domain/services.py`), the twelve event payload
+schemas (`src/authority/domain/events.py`), the HTTP contract and error envelope (§2.9), the refusal
+vocabulary, the ordered Phase-B work list, and the explicit out-of-scope table (no adapter or router
+bodies, no migration, no EIP-712 signer implementation).
 
 Status: frozen for implementation. `src/authority/` contains signatures only — every body raises
-`NotImplementedError("A-n — see module doc")` — and the 22 suites under `tests/unit/authority/` are red by
-design, each naming the invariant it defends. Verify with
+`NotImplementedError("A-n — see module doc")` — and the suites under `tests/unit/authority/` are red by
+design, each naming the invariant it defends. `infrastructure/` and `interfaces/` are empty packages for
+now; their bodies and the router arrive in Phase B. Verify with
 `bash .pi/scripts/freeze.sh verify --module authority`.
 
 ## Related ADRs
