@@ -39,4 +39,4 @@ class Anchor:
         A mismatch is a verification failure, not an "anchor for another envelope" convenience:
         accepting it would let a tampered row borrow a valid on-chain proof.
         """
-        raise NotImplementedError("E-8 — see module doc")
+        return self.envelope_hash == envelope_hash
