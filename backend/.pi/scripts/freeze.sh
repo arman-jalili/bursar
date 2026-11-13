@@ -206,6 +206,20 @@ SHAPE_ASSERT = re.compile(
     r"\bnames\b|annotations\[|startswith\(\s*[\"']set_|__dict__|dir\()"
 )
 
+# Guardian's own generated scaffolding: `assert False, "TODO: ..."`. Red by
+# construction, proves nothing — accepting it is how a "freeze" ends up with no
+# net at all.
+PLACEHOLDER = re.compile(
+    r"(assert\s+False\b|fail\(\s*[\"']TODO|t\.Fatal\(\s*[\"']Test not yet implemented|"
+    r"throw new Error\(\s*[\"']TODO|panic!\(\s*[\"']Test not yet implemented|"
+    r"TODO: uncomment when|TODO: implement dependency test)",
+    re.I,
+)
+
+def is_placeholder(src):
+    return bool(PLACEHOLDER.search(src))
+
+
 def classify(code):
     """Return 'behaviour' | 'structural' | 'none'."""
     asserts = [l for l in code.splitlines() if re.match(r"\s*assert\b", l)]
@@ -231,6 +245,13 @@ def find_tests(slug):
                 if not re.search(r"\.(py|ts|rs|go|java)$", f):
                     continue
                 low = os.path.join(dp, f).lower()
+                if "__pycache__" in low:
+                    continue
+                # Only actual test files: conftest.py, _fixtures.py and
+                # __init__.py are support, not suites (they made counts lie).
+                stem = f.rsplit(".", 1)[0]
+                if not (stem.startswith("test_") or stem.endswith("_test") or stem in ("tests", "test")):
+                    continue
                 if slug in low or slug.replace("-", "") in low.replace("-", ""):
                     hits.append(os.path.join(dp, f))
         if hits:
@@ -239,13 +260,18 @@ def find_tests(slug):
 
 def analyse_tests(slug, tests):
     """Return (total, behaviour, structural_only, ac_named, details)."""
-    total = behaviour = struct_only = ac_named = 0
+    total = behaviour = struct_only = ac_named = placeholders = 0
     details = []
     for f in tests:
         src = read(f)
         if not src.strip():
             continue
         code = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
+        if is_placeholder(code):
+            placeholders += 1
+            details.append(f"{os.path.relpath(f, root)}: placeholder scaffolding (assert False/TODO)")
+            total += 1
+            continue
         kind = classify(code)
         body_struct = kind == "structural"
         body_behav = kind == "behaviour"
@@ -260,7 +286,7 @@ def analyse_tests(slug, tests):
             details.append(f"{os.path.relpath(f, root)}: structural assertions only")
         if acs:
             ac_named += 1
-    return total, behaviour, struct_only, ac_named, details
+    return total, behaviour, struct_only, ac_named, details, placeholders
 
 def run_python_tests(tests):
     """Return (status, reason, sample) where status: red_ok|red_wrong|green|unknown."""
@@ -318,6 +344,8 @@ def verify(slug):
     sig_files = []
     for d in src_dirs:
         for dp, _dn, fs in os.walk(d):
+            if "__pycache__" in dp:
+                continue
             sig_files += [os.path.join(dp, f) for f in fs if re.search(r"\.(py|ts|java|rs|go)$", f)]
     ok_sigs = bool(sig_files)
     checks.append(("frozen signatures", ok_sigs, f"{len(sig_files)} source file(s)" if ok_sigs else f"no src/{slug}/"))
@@ -325,10 +353,16 @@ def verify(slug):
 
     # 3. tests exist, are behaviour (not structural-only), and name ACs
     tests = find_tests(slug)
-    total, behaviour, struct_only, ac_named, tdetails = analyse_tests(slug, tests)
+    total, behaviour, struct_only, ac_named, tdetails, placeholders = analyse_tests(slug, tests)
     ok_tests = bool(tests)
     checks.append(("contract tests", ok_tests, f"{len(tests)} file(s)" if tests else "no tests referencing the module"))
     ok_all &= ok_tests
+
+    ok_placeholder = placeholders == 0
+    checks.append(("no placeholders", ok_placeholder,
+                   "no generated scaffolding" if ok_placeholder
+                   else f"{placeholders} suite(s) are guardian scaffolding (assert False / TODO), not tests"))
+    ok_all &= ok_placeholder
 
     # Advisory only: a syntactic shape-vs-behaviour classifier is always
     # arguable. The objective gate is the RED check below — tests that are GREEN
@@ -347,6 +381,10 @@ def verify(slug):
     # 4. RED for the right reason
     status, reason, sample = run_python_tests(tests) if tests else ("unknown", "no tests", "")
     ok_red = status == "red_ok"
+    if placeholders > 0 and status == "red_ok":
+        ok_red = False
+        reason = (f"{placeholders} placeholder suite(s) fail by construction — "
+                  f"red is not evidence until they assert a rule")
     if status == "green":
         reason = ("tests are GREEN while the module is unimplemented — they assert shape, "
                   "not rules; a freeze needs failing behaviour tests")

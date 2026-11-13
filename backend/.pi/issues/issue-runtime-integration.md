@@ -1,9 +1,9 @@
 ---
 guardian_issue:
   id: "ISSUE-RUNTIME-INTEGRATION"
-  epic: "mandate"
+  epic: "billing"
   component: "Runtime Integration & Legacy Migration"
-  module: "mandate"
+  module: "billing"
   status: planned
   priority: high
   dependencies: []
@@ -21,7 +21,7 @@ guardian_issue:
     - Schema/data migrations (unless the module doc's migration rule requires them)
 
   canonical_references:
-    - module: ".pi/architecture/modules/mandate.md"
+    - module: ".pi/architecture/modules/billing.md"
     - adr: ".pi/architecture/decisions/ADR-009-runtime-wiring-multilang-judgment.md"
 
   acceptance_criteria:
@@ -48,7 +48,7 @@ guardian_issue:
     - "modify: runtime dispatch / composition root (per module doc integration section)"
 ---
 
-# Runtime Integration & Legacy Migration: mandate
+# Runtime Integration & Legacy Migration: billing
 
 ## Intent
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.161",
+  "frameworkVersion": "0.1.162",
   "source": "pi",
   "tools": [
     "pi"
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:5f54eca0e7167846963dbd71698c79bec5a7845a1c632a9b1d14621415a3ff9c",
+      "originalHash": "sha256:0c67aeab4e80a6331f9faf9b3b9d60d10c5fdd735118b3ae3ed12e8ec3ab9047",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1445,7 +1445,7 @@
     },
     ".pi/scripts/freeze.sh": {
       "category": "framework",
-      "originalHash": "sha256:24cea060c84ee9657e0e20ba37a5376f07836a035ab466e76d137235f64933ef",
+      "originalHash": "sha256:92c2a9bc5400bcbaaab3b4f8b68183bd5e93383bbd2c9ba617156e4579a10fe1",
       "status": "unchanged"
     }
   },
@@ -1474,5 +1474,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T20:12:38.952Z"
+  "lastUpdatedAt": "2026-11-13T20:24:08.179Z"
 }

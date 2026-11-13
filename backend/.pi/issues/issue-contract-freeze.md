@@ -1,9 +1,9 @@
 ---
 guardian_issue:
   id: "ISSUE-CONTRACT-FREEZE"
-  epic: "mandate"
+  epic: "billing"
   component: "Contract Freeze"
-  module: "mandate"
+  module: "billing"
   status: planned
   priority: critical
   dependencies: []
@@ -29,7 +29,7 @@ guardian_issue:
       - REST/event contracts
 
   canonical_references:
-    - module: ".pi/architecture/modules/mandate.md"
+    - module: ".pi/architecture/modules/billing.md"
 
   acceptance_criteria:
     - "All component interfaces defined as stubs (TODO bodies)"
@@ -47,31 +47,32 @@ guardian_issue:
     interfaces, types, DTOs, event schemas, API paths, error formats.
 
   file_changes:
-    - "create: src/mandate/domain/"
-    - "create: src/mandate/application/"
-    - "create: src/mandate/infrastructure/"
-    - "create: src/mandate/interfaces/"
+    - "create: src/billing/domain/"
+    - "create: src/billing/application/"
+    - "create: src/billing/infrastructure/"
+    - "create: src/billing/interfaces/"
 ---
 
-# Contract Freeze: mandate
+# Contract Freeze: billing
 
 ## Intent
 
-Define and freeze all public interfaces, contracts, and schemas for the mandate
+Define and freeze all public interfaces, contracts, and schemas for the billing
 epic before any implementation begins. This prevents architecture drift — implementation
 must satisfy contracts, not the other way around.
 
 ## Included Components
 
-- Aggregate: Household
-- Aggregate: Constitution
-- Value Objects (with entity-vs-VO justification)
-- Repository interfaces (owned by `domain/`)
-- Domain Services
-- `BankDigest`
-- `Cap` / `Threshold`
-- `Payee.review_presented_digest`
-- `Payee.reapprove`
+- Persistence contract
+- Ports
+- `InvoiceHash`
+- Duplicate invoice
+- At most one attempt
+- Forbidden fields
+- Settled invoice
+- Digest review
+- Refusal path
+- Layer purity
 
 ## What Must Be Frozen
 
@@ -107,31 +108,24 @@ must satisfy contracts, not the other way around.
 
 | # | Component | Criterion | Verify In |
 |---|-----------|-----------|-----------|
-| 1 | `BankDigest` | Two digests from identical routing details are equal; a one-character change alters the hash. | unit |
-| 2 | `Cap` / `Threshold` | `Cap(0)` and `Cap(-1)` raise; `Threshold > Cap` raises at constitution append. | unit |
-| 3 | `Payee.review_presented_digest` | Mismatch sets `QUARANTINED`, emits `PayeeDigestChanged` + `PayeeQuarantined`, and leaves `address` **byte-identical**. (scenario 2) | unit |
-| 4 | `Payee.reapprove` | Without an owner proof → `OwnerProofInvalid`, status unchanged; with proof → `ELIGIBLE` + `PayeeReapproved`. | unit |
-| 5 | `Payee.freeze` | After freeze, `review_presented_digest` is a no-op and status stays `FROZEN` (P-4). (scenario 3) | unit |
-| 6 | `Payee` state machine | All 4 statuses reachable only via the documented transitions; no other path compiles/passes. | unit |
-| 7 | `Constitution.append` | Requires owner proof; supersedes exactly one version; old version still readable by number. | unit |
-| 8 | `Constitution` in force | `in_force` raises `ConstitutionCorrupted` when 0 or 2 versions are live. | unit |
-| 9 | Agent actor | Any agent-role `PartyRef` on `register_payee`/`freeze`/`append` → `OwnerActionRequired` + HTTP 403. | integration |
-| 10 | Digest endpoint | `POST /v1/payees/{id}/presented-digest` returns 200 and no other state change. | integration |
-| 11 | Eligibility read-through | Two consecutive `GET /v1/payees/{id}/eligibility` calls with a freeze in between return `allow` then `deny` (no caching). | integration |
-| 12 | Events | Each command publishes exactly its documented events to `mandate_outbox` in the same transaction. | integration |
-| 13 | Layer purity | `src/mandate/domain/` imports no FastAPI/SQLAlchemy/httpx (dip-domain gate). | automated |
+| 1 | `InvoiceHash` | Same document → same hash; one changed character → different hash. | unit |
+| 2 | Duplicate invoice | Recording the same hash twice yields the original invoice + `DuplicateInvoiceDetected`, no second row. | integration |
+| 3 | At most one attempt | Two concurrent proposals for one invoice → exactly one `PaymentAttempt`; second gets `InvoiceNotPayable`. | integration (concurrency) |
+| 4 | Forbidden fields | Proposal with `payee_address`, `command`, `cap` or `threshold` → 422 `PROPOSAL_REJECTED`, zero attempts persisted. | integration |
+| 5 | Settled invoice | Proposal against a settled invoice → refused; no attempt row. (scenario 6, app layer) | integration |
+| 6 | Digest review | An invoice whose presented digest ≠ Mandate's verified digest triggers Mandate quarantine and the attempt is refused downstream. (scenario 2) | integration |
+| 7 | Refusal path | A denied determination sets the attempt `REFUSED` and the invoice back to outstanding, with no reservation committed. | integration |
+| 8 | Layer purity | `src/billing/domain/` imports no FastAPI/SQLAlchemy/httpx. | automated |
 
 ## Full Implementation Sequence (for reference)
 
-- 1. Shared kernel: `AggregateRoot`, `ValueObject`, `DomainEvent`, `OwnerSignatureProof`, errors.
-- 2. `BankDigest` + `Cap` + `Threshold` + `PayeeStatus` + validation tests (no I/O, fast).
-- 3. `Payee` aggregate with all six invariants P-1…P-6 and its state machine tests.
-- 4. `Constitution` + `ConstitutionVersion` with H-4…H-8.
-- 5. `Household` + `Owner`/`Payer`/`Agent` with H-1…H-3.
-- 6. Repository interfaces in `domain/`, SQLAlchemy implementations + migrations `001_mandate`.
-- 7. Application services (catalog order) each with one transaction.
-- 8. Interfaces/HTTP + scopes from ADR-005; authorization matrix test.
-- 9. Wire `PayeeQuarantined`/`PayeeFrozen` into Authority's dispatch-time read (scenarios 2, 3).
+- 1. `InvoiceHash`, `BilledAmount`, `AttemptStatus` value objects.
+- 2. `Invoice` + `PaymentAttempt` with B-1…B-7; partial unique index migration.
+- 3. Repository interfaces + SQLAlchemy implementations (with `UNIQUE(hash)`).
+- 4. `RecordInvoice` (including duplicate detection + digest review call to Mandate).
+- 5. `ProposePayment` with `ProposalRejected` for forbidden keys.
+- 6. Fixture loader covering all 7 acceptance scenarios.
+- 7. Event subscribers: `SettlementConfirmed` → `InvoiceSettled`; refusal → `AttemptRefused`.
 
 
 
@@ -142,7 +136,6 @@ must satisfy contracts, not the other way around.
 > 2. Place domain interfaces in domain/, service interfaces in application/, DTOs in application/
 > 3. Controllers/routers are CONCRETE — they do NOT get interfaces. The concrete router/handler class goes directly in interfaces/http/ without a separate contract file.
 > 4. Event schemas go in domain/event/
-> 5. Repository **interfaces/ABCs** go in `domain/`; their implementations go in `infrastructure/repository/`
->    (ADR-002: the domain declares the port, the adapter fulfils it)
+> 5. Repository interfaces go in infrastructure/repository/
 >
 > The goal is a reviewed, frozen contract that implementation issues can depend on.
