@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.157",
+  "frameworkVersion": "0.1.159",
   "source": "pi",
   "tools": [
     "pi"
@@ -205,7 +205,7 @@
     },
     ".pi/extensions/architect-lib/tdd-generator.ts": {
       "category": "framework",
-      "originalHash": "sha256:138805ce06e2175fa49633341af53cff85e4c3ed296ee3f04ee312a5857b4703",
+      "originalHash": "sha256:9cb8220f14cbc68627fed11af49f745798cdbed23c8ceb6259f12c8e78806923",
       "status": "unchanged"
     },
     ".pi/extensions/tsconfig.json": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:af177b010722c934f4dd465096406b57607c3995578fe09b54e7a4c970dd004d",
+      "originalHash": "sha256:808eed54333f29275bccdb1393ad63e3ad6aec49a33053ae292033451287a7fb",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1440,7 +1440,7 @@
     },
     ".pi/scripts/epic-runner.mjs": {
       "category": "framework",
-      "originalHash": "sha256:9495385d826bb0bfd93fc4e5038fb0eddb3f133ac75960b2b2d110a6608ac526",
+      "originalHash": "sha256:8ba13c4d76caa0de533dc43b75fecf8cbf7dc3dd89e09c2d227788bd667f9ba2",
       "status": "unchanged"
     }
   },
@@ -1469,5 +1469,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T18:03:31.147Z"
+  "lastUpdatedAt": "2026-11-13T19:04:53.694Z"
 }

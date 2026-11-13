@@ -62,7 +62,10 @@ const args = ["--mode", "rpc"];
 if (opts.session) args.push("--session-id", opts.session);
 else args.push("--no-session");
 
-const child = spawn("pi", args, {
+// Explicit binary wins: tests and CI set GUARDIAN_PI_BIN so resolution never
+// depends on PATH (a project's node_modules/.bin can contain another `pi`).
+const piBin = process.env.GUARDIAN_PI_BIN || "pi";
+const child = spawn(piBin, args, {
 	cwd: opts.cwd,
 	stdio: ["pipe", "pipe", "pipe"],
 	env: process.env,
