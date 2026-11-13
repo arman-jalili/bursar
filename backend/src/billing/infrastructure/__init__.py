@@ -1,17 +1,17 @@
-"""Billing infrastructure — adapters for the frozen domain ports (Phase B).
+"""Billing infrastructure — adapters for the frozen domain ports.
 
 Canonical: .pi/architecture/modules/billing.md#architecture
-Reference: docs/contracts/billing-contract-freeze.md §5
+Reference: docs/contracts/billing-contract-freeze.md (Persistence contract)
 
-Empty on purpose in Phase A. A contract freeze that also writes persistence hides which guarantees
-are still missing; the SQLAlchemy repositories, the `UNIQUE(hash)` invoice table, the partial unique
-index on the active attempt and the fixture loader arrive with the persistence item.
+What lives here, and nothing else:
 
-What will live here, and nothing else:
+    models.py        SQLAlchemy rows (`billing_invoices`, `billing_attempts`, `billing_outbox`)
+    mappers.py       row ⇄ aggregate translation
+    repositories.py  SQLAlchemy implementations of `domain/repositories.py` + the outbox writer
 
-    repository/     SQLAlchemy implementations of `domain/repositories.py`
-    parser/         fixture-backed `InvoiceDocumentParser`
-    adapters/       `DigestReviewPort` → Mandate HTTP adapter
+The storage mirrors of B-3 (`UNIQUE(invoice_hash)`) and B-1 (partial unique index on the active
+attempt) are in `models.py` and in `migrations/versions/002_billing.py`, because a guarantee the
+database does not enforce is a guarantee a concurrent request can forget.
 
 No domain type is imported *by* this package's consumers; the arrows point inward.
 """

@@ -1,7 +1,7 @@
 {
   "prStrategy": "epic",
   "name": "billing",
-  "trackingIssueId": "58",
+  "trackingIssueId": "190",
   "epicId": null,
   "slices": [
     {
@@ -193,101 +193,90 @@
       "id": "issue-contract-freeze",
       "title": "Contract Freeze: Define interfaces and contracts",
       "status": "planned",
-      "remoteIssueId": "59"
+      "remoteIssueId": "191"
     },
     {
       "id": "issue-persistence-contract",
       "title": "Implement Persistence contract — billing",
       "status": "planned",
-      "remoteIssueId": "60"
+      "remoteIssueId": "192"
     },
     {
       "id": "issue-ports",
       "title": "Implement Ports — billing",
       "status": "planned",
-      "remoteIssueId": "61"
+      "remoteIssueId": "199"
     },
     {
       "id": "issue--invoicehash-",
       "title": "Implement `InvoiceHash` — billing",
       "status": "planned",
-      "remoteIssueId": "62"
+      "remoteIssueId": "203"
     },
     {
       "id": "issue-duplicate-invoice",
       "title": "Implement Duplicate invoice — billing",
       "status": "planned",
-      "remoteIssueId": "63"
+      "remoteIssueId": "207"
     },
     {
       "id": "issue-at-most-one-attempt",
       "title": "Implement At most one attempt — billing",
       "status": "planned",
-      "remoteIssueId": "64"
+      "remoteIssueId": "211"
     },
     {
       "id": "issue-forbidden-fields",
       "title": "Implement Forbidden fields — billing",
       "status": "planned",
-      "remoteIssueId": "65"
+      "remoteIssueId": "215"
     },
     {
       "id": "issue-settled-invoice",
       "title": "Implement Settled invoice — billing",
       "status": "planned",
-      "remoteIssueId": "66"
+      "remoteIssueId": "219"
     },
     {
       "id": "issue-digest-review",
       "title": "Implement Digest review — billing",
       "status": "planned",
-      "remoteIssueId": "67"
+      "remoteIssueId": "223"
     },
     {
       "id": "issue-refusal-path",
       "title": "Implement Refusal path — billing",
       "status": "planned",
-      "remoteIssueId": "68"
+      "remoteIssueId": "227"
     },
     {
       "id": "issue-layer-purity",
       "title": "Implement Layer purity — billing",
       "status": "planned",
-      "remoteIssueId": "69"
+      "remoteIssueId": "231"
     },
     {
       "id": "issue-runtime-integration",
       "title": "Runtime Integration & Legacy Migration",
       "status": "planned",
-      "remoteIssueId": "70"
+      "remoteIssueId": "235"
     },
     {
       "id": "issue-proofing",
       "title": "Proofing: Validation scripts + CI integration",
       "status": "planned",
-      "remoteIssueId": "71"
+      "remoteIssueId": "239"
     },
     {
       "id": "issue-architecture-readiness",
       "title": "Architecture Readiness: Runbook, DR, docs, CI enforcement",
       "status": "planned",
-      "remoteIssueId": "72"
+      "remoteIssueId": "243"
     }
   ],
   "status": "planning",
   "currentIssueIndex": 0,
-  "createdAt": "2026-11-13T20:15:32.569Z",
-  "tdd": true,
-  "tddTestFiles": [
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/persistence-contract/test_persistence-contract.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/ports/test_ports.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/invoicehash/test_invoicehash.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/duplicate-invoice/test_duplicate-invoice.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/at-most-one-attempt/test_at-most-one-attempt.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/forbidden-fields/test_forbidden-fields.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/settled-invoice/test_settled-invoice.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/digest-review/test_digest-review.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/refusal-path/test_refusal-path.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/layer-purity/test_layer-purity.py"
-  ]
+  "createdAt": "2026-11-13T23:17:41.403Z",
+  "tdd": false,
+  "tddTestFiles": []
 }

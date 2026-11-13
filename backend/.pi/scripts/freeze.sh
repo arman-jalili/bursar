@@ -253,7 +253,14 @@ def find_all_test_basenames():
 
 def find_tests(slug):
     """Test files for the module. `tests/` wins; `src/` is a fallback only for
-    projects that colocate tests, so source files are never counted as suites."""
+    projects that colocate tests, so source files are never counted as suites.
+
+    Match the module as a *path segment*, never as a substring of the absolute
+    path: a checkout can live in a directory whose name contains the module
+    (this repo lives in `bursar-billing/`), and `slug in full_path` then counted
+    every test in the project — including other modules' placeholder scaffolding.
+    """
+    slug_parts = {slug, slug.replace("-", "")}
     for base_dir in ("tests", "src"):
         hits = []
         base_path = os.path.join(root, base_dir)
@@ -263,16 +270,17 @@ def find_tests(slug):
             for f in fs:
                 if not re.search(r"\.(py|ts|rs|go|java)$", f):
                     continue
-                low = os.path.join(dp, f).lower()
-                if "__pycache__" in low:
+                full = os.path.join(dp, f)
+                if "__pycache__" in full.lower():
                     continue
                 # Only actual test files: conftest.py, _fixtures.py and
                 # __init__.py are support, not suites (they made counts lie).
                 stem = f.rsplit(".", 1)[0]
                 if not (stem.startswith("test_") or stem.endswith("_test") or stem in ("tests", "test")):
                     continue
-                if slug in low or slug.replace("-", "") in low.replace("-", ""):
-                    hits.append(os.path.join(dp, f))
+                rel_parts = os.path.relpath(full, root).lower().split(os.sep)
+                if slug_parts & set(rel_parts):
+                    hits.append(full)
         if hits:
             return sorted(set(hits))
     return []

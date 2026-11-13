@@ -40,7 +40,7 @@ ServiceName = Literal["authority-service", "console-api"]
 #: skeleton states its gaps rather than implying completeness.
 CONTEXT_PLAN: dict[ServiceName, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "authority-service": ((), ("Authority",)),
-    "console-api": (("Mandate",), ("Billing", "Settlement", "Evidence", "Console")),
+    "console-api": (("Mandate", "Billing"), ("Settlement", "Evidence", "Console")),
 }
 
 

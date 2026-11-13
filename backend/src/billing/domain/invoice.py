@@ -19,15 +19,20 @@ from Mandate, never from the document.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
-from src.billing.domain.ids import InvoiceId, PayeeId
+from src.billing.domain.errors import DuplicateInvoice, InvoiceAlreadySettled
+from src.billing.domain.events import InvoiceRecorded, InvoiceSettled
+from src.billing.domain.ids import InvoiceId, PayeeId, new_id
 from src.billing.domain.values import BilledAmount, InvoiceHash, InvoiceStatus
 from src.mandate.domain.values import BankDigest
 from src.shared.domain.aggregate import AggregateRoot
 
 __all__ = ["Invoice"]
+
+#: Statuses in which a new attempt may be created (B-1, B-2). `IN_FLIGHT` is deliberately absent.
+_PAYABLE_STATUSES = frozenset({InvoiceStatus.RECEIVED, InvoiceStatus.OUTSTANDING})
 
 
 @dataclass(eq=False)
@@ -41,6 +46,10 @@ class Invoice(AggregateRoot):
     due_date: date
     presented_digest: BankDigest
     status: InvoiceStatus
+
+    #: The attempt currently holding the invoice, if any. In-memory guard for B-1; persistence mirrors
+    #: it with status `IN_FLIGHT` + a partial unique index.
+    _active_attempt: object | None = field(default=None, init=False, repr=False, compare=False)
 
     @classmethod
     def from_document(
@@ -67,18 +76,42 @@ class Invoice(AggregateRoot):
         Raises:
             DuplicateInvoice: the hash matches a known invoice (B-3).
         """
-        raise NotImplementedError("B-3 — see module doc")
+        invoice_hash = InvoiceHash.from_document(document)
+        for known in existing_hashes:
+            if invoice_hash.same_as(known):
+                raise DuplicateInvoice(invoice_hash=invoice_hash.value)
+
+        invoice = cls(
+            id=InvoiceId(new_id()),
+            payee_id=payee_id,
+            hash=invoice_hash,
+            amount=amount,
+            due_date=due_date,
+            presented_digest=presented_digest,
+            status=InvoiceStatus.RECEIVED,
+        )
+        invoice.record(
+            InvoiceRecorded(
+                invoice_id=str(invoice.id),
+                payee_id=str(payee_id),
+                invoice_hash=invoice_hash.value,
+                amount_micro_usdc=amount.micro_usdc,
+                due_date_iso=due_date.isoformat(),
+                presented_digest=presented_digest.hash,
+            )
+        )
+        return invoice
 
     def can_accept_attempt(self) -> bool:
         """True when a new attempt may be created (B-1, B-2).
 
         False while an attempt is in flight, and False forever once settled.
         """
-        raise NotImplementedError("B-1 — see module doc")
+        return self.status in _PAYABLE_STATUSES
 
     def is_duplicate_of(self, other: InvoiceHash) -> bool:
         """True when `other` identifies this same bill (B-3)."""
-        raise NotImplementedError("B-3 — see module doc")
+        return self.hash.same_as(other)
 
     def mark_settled(self) -> None:
         """Close the invoice after a confirmed settlement (B-2).
@@ -87,4 +120,14 @@ class Invoice(AggregateRoot):
             InvoiceAlreadySettled: called twice — a settlement is final, so a second call is a bug, not
                 an idempotent no-op. Silently accepting it would let a replayed settlement look normal.
         """
-        raise NotImplementedError("B-2 — see module doc")
+        if self.status is InvoiceStatus.SETTLED:
+            raise InvoiceAlreadySettled(str(self.id))
+        self.status = InvoiceStatus.SETTLED
+        self._active_attempt = None
+        self.record(
+            InvoiceSettled(
+                invoice_id=str(self.id),
+                invoice_hash=self.hash.value,
+                tx_hash="",
+            )
+        )
