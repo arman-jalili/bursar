@@ -204,6 +204,16 @@ export function generateEpicTestFiles(options: TddGenerateOptions): string[] {
 
 		mkdirSync(testDir, { recursive: true });
 
+		// Python: a unique __init__.py per test package. Without it pytest's
+		// default "prepend" import mode imports test modules by BASENAME, so
+		// <module>/domain-services/test_domain-services.py collides with
+		// <other-module>/domain-services/test_domain-services.py and the whole
+		// suite fails to collect once two modules share a component name.
+		if (language === "python") {
+			const initPath = join(testDir, "__init__.py");
+			if (!existsSync(initPath)) writeFileSync(initPath, "", "utf-8");
+		}
+
 		const fileName = getTestFileName(componentId, language);
 		const filePath = join(testDir, fileName);
 

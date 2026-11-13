@@ -16,13 +16,14 @@
 #   freeze.sh status  [--root DIR]
 #   freeze.sh list    [--root DIR]
 #   freeze.sh next    [--root DIR]   # next module eligible to freeze, in order
+#   freeze.sh unfreeze --module <m> --reason "<why>" [--root DIR]
 #
 # Exit: 0 pass · 1 verification failed · 2 usage/state error
 # ============================================================================
 set -uo pipefail
 
 CMD="${1:-}"; shift || true
-MODULE=""; ROOT_OPT=""; BASE="main"; JSON_OUT=0; COMMIT=""
+MODULE=""; ROOT_OPT=""; BASE="main"; JSON_OUT=0; COMMIT=""; REASON=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -31,6 +32,7 @@ while [ $# -gt 0 ]; do
 	--base) BASE="${2:-main}"; shift 2 ;;
 	--commit) COMMIT="${2:-}"; shift 2 ;;
 	--json) JSON_OUT=1; shift ;;
+	--reason) REASON="${2:-}"; shift 2 ;;
 	*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
@@ -54,15 +56,15 @@ usage() {
 }
 
 case "$CMD" in
-verify | record | status | list | next) ;;
+verify | record | status | list | next | unfreeze) ;;
 *) usage; exit 2 ;;
 esac
 
-exec python3 - "$CMD" "$ROOT" "$GIT_TOP" "$STATE" "$MODULE" "$BASE" "$JSON_OUT" "$COMMIT" <<'PY'
+exec python3 - "$CMD" "$ROOT" "$GIT_TOP" "$STATE" "$MODULE" "$BASE" "$JSON_OUT" "$COMMIT" "$REASON" <<'PY'
 import json, os, re, subprocess, sys
 from datetime import datetime, timezone
 
-cmd, root, git_top, state_path, module, base, json_out, commit = sys.argv[1:9]
+cmd, root, git_top, state_path, module, base, json_out, commit, reason = sys.argv[1:10]
 json_out = json_out == "1"
 
 MODS = os.path.join(root, ".pi", "architecture", "modules")
@@ -232,6 +234,23 @@ def classify(code):
 
 AC_ID = re.compile(r"\b[A-Z]{1,3}-\d{1,3}\b")
 
+def find_all_test_basenames():
+    """basename -> [paths] for every test file in the project."""
+    out = {}
+    for base_dir in ("tests",):
+        base_path = os.path.join(root, base_dir)
+        if not os.path.isdir(base_path):
+            continue
+        for dp, _dn, fs in os.walk(base_path):
+            if "__pycache__" in dp:
+                continue
+            for f in fs:
+                stem = f.rsplit(".", 1)[0]
+                if stem.startswith("test_") or stem.endswith("_test"):
+                    out.setdefault(f, []).append(os.path.join(dp, f))
+    return out
+
+
 def find_tests(slug):
     """Test files for the module. `tests/` wins; `src/` is a fallback only for
     projects that colocate tests, so source files are never counted as suites."""
@@ -391,6 +410,106 @@ def verify(slug):
     checks.append(("red state", ok_red, f"{status}: {reason}"))
     ok_all &= ok_red
 
+    # 3b. static types — a frozen contract that does not type-check is a defect.
+    #     This is what caught `Invoice.record` shadowing `AggregateRoot.record`
+    #     (a classmethod factory hiding the event recorder) inside a frozen module.
+    pyproject = read(os.path.join(root, "pyproject.toml"))
+    has_mypy_cfg = ("[tool.mypy]" in pyproject
+                    or os.path.exists(os.path.join(root, "mypy.ini"))
+                    or "[mypy]" in read(os.path.join(root, "setup.cfg")))
+    mypy = os.path.join(root, ".venv", "bin", "mypy")
+    # dedupe: for a slug without hyphens both candidates are the same path, and
+    # passing it twice makes mypy report "Duplicate module named …"
+    pkg_dirs = sorted({d for d in (os.path.join(root, "src", slug),
+                                   os.path.join(root, "src", slug.replace("-", "_")))
+                       if os.path.isdir(d)})
+    if has_mypy_cfg and pkg_dirs and (os.path.exists(mypy) or os.path.exists("/usr/bin/env")):
+        try:
+            tc = subprocess.run([mypy if os.path.exists(mypy) else "mypy", *pkg_dirs],
+                                cwd=root, capture_output=True, text=True, timeout=600)
+            ok_tc = tc.returncode == 0
+            tail = [l for l in (tc.stdout or "").splitlines() if ": error:" in l][:3]
+            checks.append(("type check", ok_tc,
+                           "mypy clean" if ok_tc else "mypy errors: " + " | ".join(tail)))
+            ok_all &= ok_tc
+        except Exception as e:
+            checks.append(("type check", True, f"skipped ({e})"))
+
+    # 3c. test isolation: duplicate test basenames across packages break pytest
+    #     collection entirely (prepend import mode imports by basename), which
+    #     silently hides every suite behind "2 errors during collection".
+    if tests:
+        by_base = {}
+        for t in tests:
+            by_base.setdefault(os.path.basename(t), []).append(t)
+        for base, paths in find_all_test_basenames().items():
+            if len(paths) < 2:
+                continue
+            dirs = {os.path.dirname(p) for p in paths}
+            isolated = all(os.path.exists(os.path.join(d, "__init__.py")) for d in dirs)
+            if not isolated:
+                checks.append(("test isolation", False,
+                               f"'{base}' exists in {len(dirs)} packages without __init__.py — "
+                               f"pytest collection collides; add __init__.py or set import-mode=importlib"))
+                ok_all = False
+                break
+
+    # 4b. recorded evidence must still hold (spec: a contract change means
+    #     the module is no longer frozen and must be re-frozen).
+    st_rec = load_state()
+    ent = entry(st_rec, slug)
+    if ent.get("state") == "frozen" and (ent.get("evidence") or {}).get("commit"):
+        ev = ent["evidence"]
+        sha = ev["commit"]
+        base_ref = ev.get("branch") or base
+        # realpath both sides: on macOS /tmp is a symlink to /private/tmp, and a
+        # symlinked project dir made relpath produce ../../../tmp/... so git saw
+        # a path outside the repo and reported "no changes".
+        rel = os.path.relpath(os.path.realpath(root), os.path.realpath(git_top))
+        prefix = "" if rel == "." else f"{rel}/"
+
+        on_base = subprocess.run(
+            ["git", "-C", git_top, "merge-base", "--is-ancestor", sha, base_ref],
+            capture_output=True).returncode == 0
+        checks.append(("recorded commit", on_base,
+                       f"{sha[:8]} is an ancestor of {base_ref}" if on_base
+                       else f"{sha[:8]} is NOT an ancestor of {base_ref}"))
+        ok_all &= on_base
+
+        missing = [p for p in (ev.get("contracts") or []) if not os.path.exists(os.path.join(root, p))]
+        checks.append(("evidence files", not missing,
+                       "recorded contract/test files exist" if not missing
+                       else "missing: " + ", ".join(missing)))
+        ok_all &= not missing
+
+        def changed_since(paths):
+            """Files changed since the freeze — committed OR uncommitted.
+
+            `git diff <sha> -- <paths>` compares the recorded commit against the
+            WORKING TREE, so it catches both later commits and local edits.
+            Diffing commit-to-commit silently ignored uncommitted tampering.
+            """
+            if not paths:
+                return []
+            args = ["git", "-C", git_top, "diff", "--name-only", sha, "--"]
+            args += [f"{prefix}{p}" for p in paths]
+            out = subprocess.run(args, capture_output=True, text=True).stdout.strip()
+            if os.environ.get("GUARDIAN_FREEZE_DEBUG"):
+                print(f"DEBUG changed_since args={args} out={out!r}", file=sys.stderr)
+            return [l for l in out.splitlines() if l.strip()]
+
+        contract_changes = changed_since(ev.get("contracts") or [])
+        checks.append(("contracts unchanged", not contract_changes,
+                       "contracts unchanged since the freeze" if not contract_changes
+                       else "changed after the freeze — re-freeze: " + ", ".join(contract_changes)))
+        ok_all &= not contract_changes
+
+        test_changes = changed_since(ev.get("tests") or [])
+        checks.append(("tests unchanged", not test_changes,
+                       "frozen test files unchanged" if not test_changes
+                       else "tests changed after the freeze — re-freeze: " + ", ".join(test_changes[:3])))
+        ok_all &= not test_changes
+
     # 5. dependencies frozen/implemented
     bad_deps = []
     st = load_state()
@@ -463,6 +582,31 @@ if cmd == "next":
     print("no eligible module: every module is frozen/implemented or blocked by an unfrozen dependency")
     raise SystemExit(1)
 
+if cmd == "unfreeze":
+    if not module:
+        print("usage: freeze.sh unfreeze --module <m> --reason \"why\"", file=sys.stderr)
+        raise SystemExit(2)
+    if not reason:
+        print("refusing to unfreeze without a reason: a contract change must be recorded",
+              file=sys.stderr)
+        raise SystemExit(2)
+    slug = slugify(module)
+    st = load_state()
+    e = entry(st, slug)
+    if not e:
+        print(f"{slug} is not recorded — nothing to unfreeze", file=sys.stderr)
+        raise SystemExit(2)
+    history = e.get("history") or []
+    if e.get("evidence"):
+        history.append({"evidence": e["evidence"], "state": e.get("state"),
+                        "unfrozenAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "reason": reason})
+    set_entry(st, slug, state="unfrozen", contractFrozen=False, evidence=None, history=history)
+    save_state(st)
+    print(f"unfrozen: {slug} — {reason}")
+    print("Re-run Phase A for the changed contract, then record again.")
+    raise SystemExit(0)
+
 # ── commands ────────────────────────────────────────────────────────────────
 if cmd == "list":
     st = load_state()
@@ -481,8 +625,8 @@ if cmd == "list":
 
 if cmd == "status":
     if not module:
-        print("usage: freeze.sh status --module <m>", file=sys.stderr)
-        raise SystemExit(2)
+        # no module given: same as list
+        cmd = "list"
     slug = slugify(module)
     st = load_state()
     e = entry(st, slug)

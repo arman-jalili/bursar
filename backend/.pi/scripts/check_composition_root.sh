@@ -68,7 +68,30 @@ if [ "${#SHALLS[@]}" -eq 0 ]; then
 fi
 
 echo "App shell(s): ${SHALLS[*]}"
-SHELL_TEXT=$(cat "${SHALLS[@]}" 2>/dev/null)
+
+# Only CODE counts. A module named in a comment or a docstring is not installed:
+# the first version of this check passed BECAUSE the shell listed the upcoming
+# modules in a comment ("Billing (Phase 2), Settlement (Phase 4) ...").
+SHELL_TEXT=$(python3 - "${SHALLS[@]}" <<'PY'
+import re, sys
+out = []
+for path in sys.argv[1:]:
+    try:
+        src = open(path, encoding="utf-8", errors="ignore").read()
+    except OSError:
+        continue
+    src = re.sub('"""[\s\S]*?"""', "", src)
+    src = re.sub("'''[\\s\\S]*?'''", "", src)
+    src = re.sub(r"/\*[\s\S]*?\*/", "", src)
+    lines = []
+    for line in src.splitlines():
+        code = re.sub(r"\s*(#|//).*$", "", line)
+        if code.strip():
+            lines.append(code)
+    out.append("\n".join(lines))
+print("\n".join(out))
+PY
+)
 
 # ── modules that claim implementation ────────────────────────────────────────
 MODS=()
@@ -78,12 +101,18 @@ if [ -d .pi/architecture/modules ]; then
 		[ "$b" = "module-template" ] && continue
 		# Skip docs that explicitly declare they are not runtime-installed.
 		grep -qiE "not wired by design|bootstrap only|no runtime integration|not part of the runtime" "$f" && continue
-		MODS+=("$b")
+		# Only IMPLEMENTED modules can be "implemented but never wired". A frozen
+		# but unimplemented module has no router yet; demanding one is noise.
+		status=$(grep -m1 -oiE '\*\*Status:\*\* *[A-Za-z]+' "$f" | sed -E 's/.*\*\* *//' | tr '[:upper:]' '[:lower:]')
+		case "$status" in
+			implemented | done | complete) MODS+=("$b") ;;
+			*) continue ;;
+		esac
 	done < <(find .pi/architecture/modules -name "*.md" -type f | sort)
 fi
 
 if [ "${#MODS[@]}" -eq 0 ]; then
-	echo "no module docs — skipping"
+	echo "no implemented modules yet — nothing to install (frozen/planned modules are not demanded)"
 	exit 0
 fi
 

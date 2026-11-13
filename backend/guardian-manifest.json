@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.162",
+  "frameworkVersion": "0.1.166",
   "source": "pi",
   "tools": [
     "pi"
@@ -205,7 +205,7 @@
     },
     ".pi/extensions/architect-lib/tdd-generator.ts": {
       "category": "framework",
-      "originalHash": "sha256:9cb8220f14cbc68627fed11af49f745798cdbed23c8ceb6259f12c8e78806923",
+      "originalHash": "sha256:29ad8db88e3c4c002a09e222d68b40f7efe013e392b43c11f45c36186121fdfe",
       "status": "unchanged"
     },
     ".pi/extensions/tsconfig.json": {
@@ -670,7 +670,7 @@
     },
     ".pi/scripts/check_composition_root.sh": {
       "category": "framework",
-      "originalHash": "sha256:14aa165c2e5f66c8df763225fa8fc56803222ca7e817f06599fb0e7572ef43c0",
+      "originalHash": "sha256:e4e0f41cbd880d4749ea61c81255fe034937e99c36964737e76a3332e12d397f",
       "status": "unchanged"
     },
     ".pi/scripts/validate-integration.sh": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:0c67aeab4e80a6331f9faf9b3b9d60d10c5fdd735118b3ae3ed12e8ec3ab9047",
+      "originalHash": "sha256:c368dac3a5f9b8696b429466eda76f3576a009dfead99c0e62b7583dd5114f5f",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1445,7 +1445,7 @@
     },
     ".pi/scripts/freeze.sh": {
       "category": "framework",
-      "originalHash": "sha256:92c2a9bc5400bcbaaab3b4f8b68183bd5e93383bbd2c9ba617156e4579a10fe1",
+      "originalHash": "sha256:a9fab5259ef3f1f03938ba26120949efc97ccebfa315a834d92852ced3b0af77",
       "status": "unchanged"
     }
   },
@@ -1474,5 +1474,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T20:24:08.179Z"
+  "lastUpdatedAt": "2026-11-13T22:18:20.886Z"
 }
