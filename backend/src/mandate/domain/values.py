@@ -13,21 +13,23 @@ Every type here is a value object, and the module doc argues why each one is *no
     Eligibility   the derived verdict Authority consumes; pure data, no lifecycle
     EvmAddress / PayeeAddress / DisplayName / PayeeName   validated primitives
 
-Contract-freeze note: this item freezes **shape** (fields, types, constructors). Validation rules
-(`Cap(0)` raises, digest equality over routing details, address checksum) belong to the
-`bankdigest` / `cap-threshold` / `value-objects` implementation items and are deliberately *not*
-written here — a stub that half-validates is worse than an obvious TODO, because it hides which
-guarantees already hold.
+Every invariant a value object can carry is enforced in `__post_init__`: an invalid value must be
+*unconstructible*, not merely rejected later, so no downstream check has to trust its input.
 """
 
 from __future__ import annotations
 
 import enum
+import hashlib
+import json
+import re
 from dataclasses import dataclass
+from decimal import Decimal
 
-from src.mandate.domain.errors import OwnerProofInvalid  # noqa: F401  (re-exported for callers)
-from src.mandate.domain.ids import PayeeId
+from src.mandate.domain.errors import InvalidValue
 from src.shared.domain.value_object import ValueObject
+
+_EVM_ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 __all__ = [
     "BankDigest",
@@ -69,9 +71,13 @@ class PartyRef(ValueObject):
 
 @dataclass(frozen=True, slots=True)
 class EvmAddress(ValueObject):
-    """A 0x-prefixed 20-byte address. Checksum validation lands with the value-objects item."""
+    """A 0x-prefixed 20-byte address (checksum case is preserved, not normalised)."""
 
     value: str
+
+    def __post_init__(self) -> None:
+        if not _EVM_ADDRESS.match(self.value):
+            raise InvalidValue(f"not an EVM address: {self.value!r}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +90,10 @@ class PayeeAddress(ValueObject):
 
     value: str
 
+    def __post_init__(self) -> None:
+        if not _EVM_ADDRESS.match(self.value):
+            raise InvalidValue(f"not a payee address: {self.value!r}")
+
 
 @dataclass(frozen=True, slots=True)
 class DisplayName(ValueObject):
@@ -91,12 +101,24 @@ class DisplayName(ValueObject):
 
     value: str
 
+    def __post_init__(self) -> None:
+        if not self.value.strip():
+            raise InvalidValue("display name cannot be blank")
+        if len(self.value) > 120:
+            raise InvalidValue("display name is too long (120 chars)")
+
 
 @dataclass(frozen=True, slots=True)
 class PayeeName(ValueObject):
     """A payee's name as the owner typed it; uniqueness is per household."""
 
     value: str
+
+    def __post_init__(self) -> None:
+        if not self.value.strip():
+            raise InvalidValue("payee name cannot be blank")
+        if len(self.value) > 120:
+            raise InvalidValue("payee name is too long (120 chars)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,12 +150,27 @@ class BankDigest(ValueObject):
 
     @classmethod
     def from_routing_details(cls, details: RoutingDetails) -> BankDigest:
-        """Deterministic digest over routing details. Implementation: `bankdigest` item."""
-        raise NotImplementedError("BankDigest.from_routing_details — see module doc AC #1")
+        """Deterministic digest over the routing fields.
+
+        Canonical JSON with sorted keys, then SHA-256, hex-encoded. Deterministic across runs and
+        processes, and field order cannot matter: a one-character change in any field changes the
+        digest, which is exactly the scam signal (AC #1).
+        """
+        canonical = json.dumps(
+            {
+                "scheme": details.scheme,
+                "account_number": details.account_number,
+                "routing_number": details.routing_number,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+        return cls(hash=hashlib.sha256(canonical).hexdigest())
 
     def matches(self, other: BankDigest) -> bool:
-        """True when both digests describe the same destination."""
-        raise NotImplementedError("BankDigest.matches — see module doc AC #1")
+        """True when both digests describe the same destination (constant-time is unnecessary: not a secret)."""
+        return self.hash == other.hash
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,25 +178,41 @@ class Cap(ValueObject):
     """The daily USDC ceiling, summed across all payees (H-6, A-9).
 
     `micro_usdc` is integer micro-units (ADR-002): a float would let a payment pass a cap check it
-    should fail. Validation `> 0` lands with the `cap-threshold` item.
+    should fail. A cap of zero or less would make every payment unpayable in a way that looks like a
+    bug, so it cannot be constructed (AC #2).
     """
 
     micro_usdc: int
 
+    def __post_init__(self) -> None:
+        _require_micro_usdc(self.micro_usdc, "cap", allow_zero=False)
+
     def at_least(self, amount_micro: int) -> bool:
         """True when this cap can cover `amount_micro`."""
-        raise NotImplementedError("Cap.at_least — see module doc AC #2")
+        _require_micro_usdc(amount_micro, "amount", allow_zero=True)
+        return amount_micro <= self.micro_usdc
 
 
 @dataclass(frozen=True, slots=True)
 class Threshold(ValueObject):
-    """Per-payment amount above which an owner signature is mandatory (H-6, A-4)."""
+    """Per-payment amount above which an owner signature is mandatory (H-6, A-4).
+
+    Zero is legal (every payment escalates); negative is not.
+    """
 
     micro_usdc: int
 
+    def __post_init__(self) -> None:
+        _require_micro_usdc(self.micro_usdc, "threshold", allow_zero=True)
+
     def exceeded_by(self, amount_micro: int) -> bool:
-        """True when a payment of `amount_micro` must be escalated to the owner."""
-        raise NotImplementedError("Threshold.exceeded_by — see module doc AC #2")
+        """True when a payment of `amount_micro` must be escalated to the owner.
+
+        Strictly greater: paying exactly the threshold does not escalate (the threshold is the
+        auto-pay limit, so the limit itself is still automatic).
+        """
+        _require_micro_usdc(amount_micro, "amount", allow_zero=True)
+        return amount_micro > self.micro_usdc
 
 
 class PayeeStatus(enum.StrEnum):
@@ -258,6 +311,25 @@ class Eligibility(ValueObject):
         return self.verdict is EligibilityVerdict.DENY
 
 
-def _payee_ref(payee_id: PayeeId, status: PayeeStatus) -> Eligibility:  # pragma: no cover
-    """Placeholder so the intended mapping is visible in one place; see `Payee.eligibility`."""
-    raise NotImplementedError
+def _require_micro_usdc(value: object, label: str, *, allow_zero: bool) -> None:
+    """Shared guard: integer micro-units only (no float, no bool, no negative)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise InvalidValue(f"{label} must be integer micro-USDC, got {type(value).__name__}")
+    if value < 0:
+        raise InvalidValue(f"{label} cannot be negative: {value}")
+    if value == 0 and not allow_zero:
+        raise InvalidValue(f"{label} must be greater than zero")
+
+
+def usdc_to_micro(amount: str | Decimal) -> int:
+    """Parse a human USDC amount ('42.50') into integer micro-units, refusing excess precision."""
+    if isinstance(amount, float):
+        raise InvalidValue("refusing float USDC input; pass a str or Decimal")
+    try:
+        parsed = Decimal(amount)
+    except (ArithmeticError, ValueError, TypeError) as exc:
+        raise InvalidValue(f"not a USDC amount: {amount!r}") from exc
+    micro = parsed * 1_000_000
+    if micro != micro.to_integral_value():
+        raise InvalidValue(f"USDC has 6 decimals; {amount!r} is too precise")
+    return int(micro)

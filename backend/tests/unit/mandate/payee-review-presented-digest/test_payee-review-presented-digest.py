@@ -106,10 +106,15 @@ class TestPayeeRegistrationIsTheOnlyEntryPoint:
     def test_registration_event_exists(self) -> None:
         assert PayeeRegistered.event_name == "PayeeRegistered"
 
-    @pytest.mark.parametrize(
-        "method", ["freeze", "unfreeze", "reapprove", "review_presented_digest"]
-    )
+    @pytest.mark.parametrize("method", ["freeze", "reapprove", "review_presented_digest"])
     def test_no_direct_status_assignment_api(self, method: str) -> None:
         """Every status change has an intention-named method; there is no `set_status`."""
         assert callable(getattr(Payee, method))
         assert not hasattr(Payee, "set_status")
+
+    def test_frozen_is_terminal_within_a_mandate(self) -> None:
+        """No `unfreeze`: the state diagram has FROZEN -> [*] only.
+
+        Resuming a relationship is a re-registration with fresh owner proof, not a state flip —
+        an undocumented transition with no event type would be a silent authority change (P-4)."""
+        assert not hasattr(Payee, "unfreeze")

@@ -168,16 +168,37 @@ class TestEntitiesAreNotValueObjects:
             assert not [n for n in public if n.startswith("set_")], entity.__name__
 
 
-class TestNoBehaviourLeakedIntoFreeze:
-    """The frozen contract exposes shape; behaviour bodies land with the implementation items."""
+class TestValueObjectsBehaveNotJustExist:
+    """The behaviour half: the frozen shape is now backed by real semantics."""
 
-    def test_bank_digest_hashing_is_not_yet_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            BankDigest.from_routing_details(RoutingDetails(scheme="sepa", account_number="1"))
+    def test_bank_digest_is_deterministic_and_sensitive(self) -> None:
+        routing = RoutingDetails(scheme="sepa", account_number="DE89370400440532013000")
+        first = BankDigest.from_routing_details(routing)
+        second = BankDigest.from_routing_details(
+            RoutingDetails(scheme="sepa", account_number="DE89370400440532013000")
+        )
+        changed = BankDigest.from_routing_details(
+            RoutingDetails(scheme="sepa", account_number="DE89370400440532013001")
+        )
+        assert first == second and first.matches(second)
+        assert first != changed and not first.matches(changed)
+        assert len(first.hash) == 64
 
-    def test_cap_comparison_is_not_yet_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            Cap(micro_usdc=10).at_least(5)
+    def test_cap_and_threshold_compare_sanely(self) -> None:
+        assert Cap(micro_usdc=150_000_000).at_least(25_000_000)
+        assert not Cap(micro_usdc=150_000_000).at_least(150_000_001)
+        assert Threshold(micro_usdc=25_000_000).exceeded_by(25_000_001)
+        assert not Threshold(micro_usdc=25_000_000).exceeded_by(25_000_000)
+
+    def test_invalid_values_are_unconstructible(self) -> None:
+        with pytest.raises(ValueError):
+            Cap(micro_usdc=0)
+        with pytest.raises(ValueError):
+            Cap(micro_usdc=-1)
+        with pytest.raises(ValueError):
+            EvmAddress(value="not-an-address")
+        with pytest.raises(ValueError):
+            PayeeAddress(value="not-an-address")
 
     def test_payee_status_has_no_transition_methods(self) -> None:
         """Transitions belong to `Payee`, not to the enum — the aggregate guards the invariants."""

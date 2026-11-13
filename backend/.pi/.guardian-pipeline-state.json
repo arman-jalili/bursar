@@ -64,13 +64,25 @@
     }
   ],
   "currentItemIndex": 0,
-  "currentStepIndex": 0,
+  "currentStepIndex": 1,
   "status": "running",
   "retryCount": 0,
-  "results": [],
+  "results": [
+    {
+      "item": "issue-contract-freeze",
+      "status": "in-progress",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        }
+      ]
+    }
+  ],
   "mergeOnValid": true,
   "prStrategy": "epic",
   "epicBranch": "epic/mandate",
   "createdAt": "2026-11-13T18:09:51.110Z",
-  "updatedAt": "2026-11-13T18:09:51.110Z"
+  "updatedAt": "2026-11-13T19:23:21.689Z"
 }

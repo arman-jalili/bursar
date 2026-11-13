@@ -86,7 +86,8 @@ class TestOwnerGuardsArePartOfTheContract:
     def test_change_owner_requires_proof(self) -> None:
         """H-5: rotating the signer is itself an owner-signed act, not a key operation."""
         signature = inspect.signature(Household.change_owner)
-        assert list(signature.parameters) == ["self", "new_owner", "proof"]
+        assert list(signature.parameters) == ["self", "new_owner", "proof", "actor"]
+        assert signature.parameters["actor"].kind is inspect.Parameter.KEYWORD_ONLY
 
     def test_no_setters(self) -> None:
         public = [n for n in dir(Household) if not n.startswith("_")]

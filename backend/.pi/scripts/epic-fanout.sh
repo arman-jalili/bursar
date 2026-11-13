@@ -34,8 +34,8 @@ FORCE_FREEZE=0
 DRY_RUN=0
 NO_SPAWN=0
 SPAWN=0
-ASSUME_FROZEN=0
 ALLOW_REMOTE=0
+STOP=0
 BASE="main"
 TIMEOUT_MS=0
 
@@ -48,7 +48,12 @@ while [ $# -gt 0 ]; do
 	--dry-run) DRY_RUN=1; shift ;;
 	--no-spawn) NO_SPAWN=1; shift ;;
 	--spawn) SPAWN=1; shift ;;
-	--assume-frozen) ASSUME_FROZEN=1; shift ;;
+	--assume-frozen)
+		echo "⛔ --assume-frozen no longer exists: there is no bypass for the freeze gate." >&2
+		echo "   Freeze the module properly:  /architect --freeze --module <m>" >&2
+		exit 2
+		;;
+	--stop) STOP=1; shift ;;
 	--allow-remote-issues) ALLOW_REMOTE=1; shift ;;
 	--base) BASE="${2:-main}"; shift 2 ;;
 	--timeout-ms) TIMEOUT_MS="${2:-0}"; shift 2 ;;
@@ -84,6 +89,39 @@ NODE_BIN="$(command -v node || command -v bun || true)"
 if [ -z "$NODE_BIN" ]; then
 	echo "neither node nor bun found — required to spawn headless agents" >&2
 	exit 1
+fi
+
+# ── Stop: kill every spawned agent recorded in the registry ─────────────────
+if [ "$STOP" -eq 1 ]; then
+	PIDS="$(python3 - "$COMMON_ABS/guardian/epics.json" <<'PY' 2>/dev/null
+import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    raise SystemExit
+for mod, e in (d.get("epics") or {}).items():
+    if isinstance(e, dict) and e.get("pid"):
+        print(f"{e['pid']} {mod}")
+PY
+)"
+	if [ -z "$PIDS" ]; then
+		echo "No agents recorded in the registry — nothing to stop."
+		exit 0
+	fi
+	echo "Stopping spawned agents:"
+	while read -r pid mod; do
+		[ -z "$pid" ] && continue
+		if kill "$pid" 2>/dev/null; then
+			echo "  stopped $mod (pid $pid)"
+			bash "$REGISTRY" set "$mod" "status=stopped" "pid=" >/dev/null 2>&1
+		else
+			echo "  $mod (pid $pid) not running"
+			bash "$REGISTRY" set "$mod" "status=stopped" "pid=" >/dev/null 2>&1
+		fi
+	done <<<"$PIDS"
+	echo ""
+	echo "Note: each agent's own pi child is terminated with its runner."
+	exit 0
 fi
 
 # ── Resolve the module list ─────────────────────────────────────────────────
@@ -192,6 +230,39 @@ if [ "$SPAWN" -eq 1 ] && [ "$MAX" -le 0 ]; then
 		exit 1
 	fi
 fi
+
+# ── Freeze gate (spec v1): Phase B only runs FROZEN modules ──────────────────
+# A module is frozen when freeze.sh verify passes: contracts merged, signatures
+# present, behaviour tests RED for the right reason, ACs referenced, deps frozen.
+# There is no bypass: this is the one decision a human makes.
+FREEZE_SH="$ROOT/.pi/scripts/freeze.sh"
+if [ ! -f "$FREEZE_SH" ]; then
+	echo "⛔ missing .pi/scripts/freeze.sh — run guardian update" >&2
+	exit 1
+fi
+
+UNFROZEN=""
+for m in ${MODULES[@]+"${MODULES[@]}"}; do
+	if ! bash "$FREEZE_SH" verify --module "$m" >/tmp/guardian-freeze-$$.log 2>&1; then
+		UNFROZEN="$UNFROZEN$m
+"
+	fi
+done
+
+if [ -n "$UNFROZEN" ]; then
+	echo "⛔ Not frozen — Phase B only runs frozen modules:"
+	printf '%s' "$UNFROZEN" | sed 's/^/   - /'
+	echo ""
+	echo "   Freeze first (one module at a time, in dependency order):"
+	echo "     /architect --freeze --module <m>"
+	echo "   then merge the contract-freeze PR and record it:"
+	echo "     bash .pi/scripts/freeze.sh record --module <m> --commit <sha>"
+	echo ""
+	echo "   Detail for the first module:"
+	bash "$FREEZE_SH" verify --module "$(printf '%s' "$UNFROZEN" | head -1)"
+	exit 2
+fi
+rm -f /tmp/guardian-freeze-$$.log
 
 # ── Pre-flight: the spawned agents inherit THIS project's .pi/ ──────────────
 # Without extensions, /architect is not a command: the prompt falls through to
@@ -421,45 +492,6 @@ PY
 	exit 0
 fi
 
-# ── Contract-freeze gate (the module itself) ────────────────────────────────
-# Freeze is a human act: it asserts the module's public contracts are reviewed
-# and merged. This script must never assert that for you — doing so is what let
-# a fan-out start six agents on unreviewed contracts.
-if [ "$ASSUME_FROZEN" -eq 0 ]; then
-	UNFROZEN="$(python3 - "$COMMON_ABS/guardian/epics.json" ${MODULES[@]+"${MODULES[@]}"} <<'PY'
-import json, re, sys
-
-path, batch = sys.argv[1], sys.argv[2:]
-frozen = set()
-try:
-    for mod, entry in (json.load(open(path, encoding="utf-8")).get("epics") or {}).items():
-        if isinstance(entry, dict) and entry.get("contractFrozen"):
-            frozen.add(re.sub(r"[^a-z0-9]+", "-", mod.lower()).strip("-"))
-except Exception:
-    pass
-
-missing = []
-for m in batch:
-    slug = re.sub(r"[^a-z0-9]+", "-", m.lower()).strip("-")
-    if slug not in frozen:
-        missing.append(m)
-print("\n".join(missing))
-PY
-)"
-	if [ -n "$UNFROZEN" ]; then
-		echo "⛔ Contracts are not frozen for:"
-		echo "$UNFROZEN" | sed 's/^/   - /'
-		echo ""
-		echo "   Freeze is YOUR assertion that the module's public contracts are"
-		echo "   reviewed and merged. Review the module doc, merge its contract"
-		echo "   freeze, then record it:"
-		echo "     bash .pi/scripts/epic-registry.sh freeze \"<Module>\" --frozen"
-		echo ""
-		echo "   Bypass only if you are certain: --assume-frozen"
-		exit 2
-	fi
-fi
-
 # ── Freeze, create worktrees, spawn ─────────────────────────────────────────
 mkdir -p "$LOGDIR"
 STARTED=()
@@ -474,9 +506,7 @@ for m in ${MODULES[@]+"${MODULES[@]}"}; do
 
 
 	# 2. worktree + epic branch (gated on the freeze we just recorded)
-	WT_ARGS=("$m" --base "$BASE")
-	[ "$ASSUME_FROZEN" -eq 1 ] && WT_ARGS+=(--assume-frozen)
-	WT_OUT="$(bash "$PARALLEL" "${WT_ARGS[@]}" 2>&1)"
+	WT_OUT="$(bash "$PARALLEL" "$m" --base "$BASE" 2>&1)"
 	WT_RC=$?
 	if [ "$WT_RC" -ne 0 ]; then
 		echo "  ✗ worktree failed (exit $WT_RC)"

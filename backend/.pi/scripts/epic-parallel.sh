@@ -13,10 +13,9 @@ set -uo pipefail
 
 MODULE="${1:-}"
 shift || true
-BASE="main"; DIR=""; ASSUME_FROZEN=0
+BASE="main"; DIR=""
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--assume-frozen) ASSUME_FROZEN=1; shift ;;
 		--base) BASE="${2:-main}"; shift 2 ;;
 		--dir) DIR="${2:-}"; shift 2 ;;
 		*) shift ;;
@@ -59,7 +58,7 @@ PY
 )
 fi
 
-if [ "$FROZEN" != "true" ] && [ "$ASSUME_FROZEN" -eq 0 ]; then
+if [ "$FROZEN" != "true" ]; then
 	# NOTE: block here (before worktree creation) and exit 2 — a non-zero,
 	# distinguishable code so callers/agents cannot mistake it for success.
 	echo "⛔ Blocked: contracts for '$MODULE' are not frozen (registry: $FROZEN)."
