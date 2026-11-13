@@ -115,9 +115,32 @@ function handleLine(line) {
 	// The prompt was accepted by an extension command?
 	if (msg.type === "response" && msg.command === "prompt" && msg.success === true) {
 		const d = msg.data?.disposition;
-		if (d === "handled") handled = true;
-		else if (d === "started" || d === "queued") handled = true;
-		if (handled) armGrace();
+		// "handled" = an extension command consumed it (what we need).
+		// "started"/"queued" = it went to the MODEL. For a /command that means
+		// the extension was not loaded (wrong cwd, missing .pi/extensions) — the
+		// model then improvises the workflow, which looks like success and burns
+		// tokens. Treat that as a hard error.
+		const isCommand = opts.command.startsWith("/");
+		if (d === "handled") {
+			handled = true;
+			armGrace();
+		} else if (isCommand) {
+			emit(
+				JSON.stringify({
+					type: "runner_error",
+					reason: "command_not_dispatched",
+					detail:
+						`'${opts.command.split(/\s+/)[0]}' was routed to the model ` +
+						`(disposition "${d}") — the extension is not loaded in ${opts.cwd}. ` +
+						"Check that .pi/extensions exists in that directory.",
+				}),
+			);
+			failed = true;
+			finish(3);
+		} else {
+			handled = true;
+			armGrace();
+		}
 	}
 	if (msg.type === "response" && msg.command === "prompt" && msg.success === false) {
 		emit(JSON.stringify({ type: "runner_error", reason: "prompt rejected" }));

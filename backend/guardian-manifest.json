@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.153",
+  "frameworkVersion": "0.1.157",
   "source": "pi",
   "tools": [
     "pi"
@@ -180,7 +180,7 @@
     },
     ".pi/extensions/architect.ts": {
       "category": "framework",
-      "originalHash": "sha256:b737d83b3fe9704ab604fdde9c81c9b3dcc905f2a6a533c284d5a632ecbb40b4",
+      "originalHash": "sha256:e939628ef5e2625bd41ba846423b089c67c561576702aa7800fe2460223ca733",
       "status": "unchanged"
     },
     ".pi/extensions/architect-lib/helpers.ts": {
@@ -375,7 +375,7 @@
     },
     ".pi/scripts/install_coverage_tools.sh": {
       "category": "framework",
-      "originalHash": "sha256:8ce21074f6e3e66b05629aaf29768d3562167200661e1d93e5439ad1d0ab8c60",
+      "originalHash": "sha256:4e00de494d4e341e9c481432a2eb94d2bf1a4527cbd7ad1098f7d6dc3ef4961d",
       "status": "unchanged"
     },
     ".pi/scripts/validate-operations.sh": {
@@ -400,12 +400,12 @@
     },
     ".pi/scripts/validate-ubiquitous-language.sh": {
       "category": "framework",
-      "originalHash": "sha256:d9886f03dcc186d367c92dcd8f0547768534413c50f32d396d3d55ea3d016fb0",
+      "originalHash": "sha256:7567d3d4e7a76204353fdb04089439f73d343f824efca36fd8932272f7a62b7f",
       "status": "unchanged"
     },
     ".pi/scripts/epic-parallel.sh": {
       "category": "framework",
-      "originalHash": "sha256:097865ee4e2d345f67ce8d98064a430a81413139c32f389308df4e72ac9bd1ec",
+      "originalHash": "sha256:fdcf26b9593b46a2e559c4aff7181cccfbb0dec1f0f53379183b2c38adca5364",
       "status": "unchanged"
     },
     ".pi/scripts/ci/stage_security.sh": {
@@ -495,7 +495,7 @@
     },
     ".pi/scripts/ci/stage_lint.sh": {
       "category": "framework",
-      "originalHash": "sha256:673d841371ba66a87e7afa4aadbf12bf827fc020995965f631fc07e3600ae3ca",
+      "originalHash": "sha256:068f03cc601eb9be6a6cb75ca2d1c36fa376f2157ba5ebf9a7b057f488f085e6",
       "status": "unchanged"
     },
     ".pi/scripts/ci/check_architecture_conformance.sh": {
@@ -655,7 +655,7 @@
     },
     ".pi/scripts/epic-registry.sh": {
       "category": "framework",
-      "originalHash": "sha256:509b0695034c4dbdda6a877d9f0f72dace134e7f271d783e892cbbc58d2df71d",
+      "originalHash": "sha256:b2ac7718eb3277fa158a89d5024c25393573e36338c44ab0b9249a7e92fc99ee",
       "status": "unchanged"
     },
     ".pi/scripts/validate-exploration-depth.sh": {
@@ -715,7 +715,7 @@
     },
     ".pi/scripts/coverage.sh": {
       "category": "framework",
-      "originalHash": "sha256:bd43c374529eea1285a52dee813a2791ea42952487731c24db233371d3353cf9",
+      "originalHash": "sha256:4475ef41fac8cb475b2ef34b3cf01ab939f4f7642222c60558f044eb9bc85755",
       "status": "unchanged"
     },
     ".pi/prompts/epic-parallel.md": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:947c4c596758e1414bece6026138a4d2ef5fd683d4139ff6f943b73453f15b18",
+      "originalHash": "sha256:af177b010722c934f4dd465096406b57607c3995578fe09b54e7a4c970dd004d",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1432,6 +1432,16 @@
       "category": "framework",
       "originalHash": "sha256:f43e804d6c2e5cbc95a011df2b105963ed639c9f9aaf6dfa6445a2539b44451f",
       "status": "unchanged"
+    },
+    ".pi/scripts/epic-fanout.sh": {
+      "category": "framework",
+      "originalHash": "sha256:76f13a041008e30326dd2a611f3ae2e7b5b254e8abd5ef95030a1eb52dacfacb",
+      "status": "unchanged"
+    },
+    ".pi/scripts/epic-runner.mjs": {
+      "category": "framework",
+      "originalHash": "sha256:9495385d826bb0bfd93fc4e5038fb0eddb3f133ac75960b2b2d110a6608ac526",
+      "status": "unchanged"
     }
   },
   "exports": {},
@@ -1459,5 +1469,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T16:49:04.283Z"
+  "lastUpdatedAt": "2026-11-13T18:03:31.147Z"
 }

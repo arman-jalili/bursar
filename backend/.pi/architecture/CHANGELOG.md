@@ -48,6 +48,64 @@ Each entry follows this structure:
 
 ## Entries
 
+## [2026-11-13] - Phase 0: Project Bootstrap (implementation started)
+
+### Changed
+- Module: **all** (bootstrap only — no bounded context was built, and `src/` contains no
+  `<context>/` package, per ADR-008 phase discipline)
+  - Shared kernel: `Money` (integer micro-USDC, float-refusing), `ValueObject`, `AggregateRoot`
+    (event recorder, kw_only, no setters), `DomainEvent` (immutable fact + delivery metadata),
+    `Repository` (PEP 695 generics, no commit), `Clock` (`SystemClock`/`FrozenClock`),
+    `BursarError`/`RefusalError` + closed `ErrorCode` set
+  - Application layer: `unit_of_work.session_scope` — the single sanctioned transaction boundary
+  - Infrastructure: `Settings` (pydantic-settings, `SecretStr`, address/decimal validators,
+    `safe_dump`), JSON logging with `RedactingFilter`, SQLite engine with `journal_mode=WAL`,
+    `synchronous=FULL`, `busy_timeout`, correlation-id middleware
+  - Interfaces: ADR-004 error envelope, `RefusalError → 409`, `/healthz`, `/readyz`
+  - Deployables: `authority-service` (:8001, no CORS) and `console-api` (:8000), both booting
+
+### Added
+- `pyproject.toml` (Python 3.12, hatchling, ruff, mypy, pytest), `uv.lock`, `.python-version`
+- `Makefile` (install/test/lint/typecheck/validate/run/db/anvil/contracts/freeze-check)
+- `.env.example` (24 variables, parity-tested against `Settings`), `.gitignore` (secrets + WAL files)
+- `alembic.ini` + `migrations/` with `000_bootstrap` (creates no tables), two-database selector
+  (`-x db=authority|console`)
+- `foundry.toml` + `contracts/` scaffold (empty by design; `PaymentRouter.sol` is Phase 4)
+- `.github/workflows/ci.yml`: quality (ruff/mypy/pytest), architecture gates, migrations round-trip
+- `README.md`, `LICENSE` (MIT)
+- 68 tests: kernel semantics, config parity + secret hygiene, log redaction, WAL pragmas,
+  unit-of-work commit/rollback, both deployables booting, error envelope, CORS asymmetry
+
+### Impact Analysis
+- Files affected: new `src/`, `tests/`, toolchain and CI files as listed above
+- Canonical refs: every source file carries a `Canonical:` header (validated: 25 files, 8 ADRs)
+- Validators required: architecture (pass), model-judgment (pass), language-consistency (pass),
+  canonical (pass)
+
+### Known environment false positives (not defects)
+- `check_architecture_conformance.sh` reports "Python 3.9 < 3.10": it probes the **system**
+  `python3`, while the project targets 3.12 (`.python-version`, `requires-python >=3.12`, venv
+  3.12.13, ruff/mypy/pytest all run under 3.12).
+- The same script reports env collisions between `.env` and `.env.example`: the demo deliberately
+  ships working Anvil values so `cp .env.example .env` runs, and `.env` is git-ignored. Faking
+  differences to satisfy the check would hide nothing and prove nothing.
+- `check_composition_root.sh` reports contexts "implemented but not installed": none are
+  implemented yet. Deferred to the phase that builds each context (mirrored in CI and the Makefile).
+
+### Migration Steps
+1. `make install`
+2. `cp .env.example .env` and rotate `BURSAR_HMAC_KEY`
+3. `make test && make check && make validate`
+4. Phase 1 (Mandate) creates `src/mandate/` and registers its router in
+   `src/apps/shell.py:register_routers`
+
+### Status
+- [x] Architecture doc updated (roadmap Phase 0 ticked + deviations recorded)
+- [x] CHANGELOG entry added
+- [x] Implementation updated
+- [x] Canonical refs updated
+- [x] Validators run
+
 ## [2026-11-13] - Complete Architecture Package (all 6 bounded contexts)
 
 ### Changed
@@ -154,6 +212,7 @@ Track which changes have been synced to implementation:
 | 2026-11-13 | Service-depth enrichment — envelope/HMAC/anchor, append-only store | evidence | pending (no `src/`) | not run |
 | 2026-11-13 | Adapter-depth enrichment — ACL whitelists, read models, no domain layer | console | pending (no `src/`) | not run |
 | 2026-11-13 | ADRs 001–007 accepted; diagrams + roadmap generated | all | pending (no `src/`) | not run |
+| 2026-11-13 | **Phase 0 bootstrap** — kernel, config, logging, DB, envelope, 2 deployables, CI | bootstrap (no context) | complete | architecture/model-judgment/language/canonical: pass |
 
 ---
 

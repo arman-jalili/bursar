@@ -82,12 +82,44 @@ Bootstrap only — no bounded contexts.
 
 ### Acceptance Criteria
 
-- [ ] `make install && make test` passes on an empty suite.
-- [ ] Both services boot and answer `/healthz` and `/readyz`.
-- [ ] `ruff`, `mypy`, `pytest`, and the architecture validators are green.
-- [ ] Alembic upgrades and downgrades a clean database.
-- [ ] `.env.example` documents every variable; no secret is committed.
-- [ ] `src/` contains no `<context>/` package yet (bootstrap purity).
+- [x] `make install && make test` passes on an empty suite. *(68 tests green)*
+- [x] Both services boot and answer `/healthz` and `/readyz`. *(`/readyz` reports phase 0 and the
+      pending contexts — a skeleton states its gaps)*
+- [x] `ruff`, `mypy`, `pytest`, and the architecture validators are green.
+      *(`validate-architecture`, `check_model_judgment`, `check_language_consistency`,
+      `validate-canonical` all pass; `check_composition_root` is deferred until contexts exist,
+      exactly as `.github/workflows/ci.yml` does)*
+- [x] Alembic upgrades and downgrades a clean database. *(`000_bootstrap` on both `console` and
+      `authority`)*
+- [x] `.env.example` documents every variable; no secret is committed.
+      *(`tests/shared/test_config.py` fails if `.env.example` and `Settings` drift, and asserts no
+      64-hex blob is committed)*
+- [x] `src/` contains no `<context>/` package yet (bootstrap purity).
+
+### Delivered (2026-11-13)
+
+```
+pyproject.toml  uv.lock  .python-version  .env.example  .gitignore  Makefile  README.md  LICENSE
+alembic.ini  migrations/{env.py,script.py.mako,versions/000_bootstrap.py}
+foundry.toml  contracts/{README.md,src,test}
+.github/workflows/ci.yml            quality · architecture · migrations jobs
+src/shared/domain/                  Money · ValueObject · AggregateRoot · DomainEvent ·
+                                    Repository · Clock · ErrorCode/BursarError/RefusalError
+src/shared/application/unit_of_work.py   the one sanctioned transaction boundary
+src/shared/infrastructure/          config (pydantic-settings, SecretStr) · logging + redaction ·
+                                    SQLite/WAL engine · correlation-id middleware
+src/shared/interfaces/              error envelope (ADR-004) · /healthz · /readyz
+src/apps/authority_service/app.py   :8001 — no CORS, its own DB file
+src/apps/console_api/app.py         :8000 — browser-facing
+```
+
+**Deviations from this plan, and why**
+
+- `/project create` could not be used: no `guardian` CLI in this environment. The bootstrap was
+  executed by hand against the deliverables table above; every artefact it names exists.
+- `session_scope` was moved from `infrastructure/db.py` to `application/unit_of_work.py` because the
+  ADR-008 `txn-placement` gate correctly rejected a commit outside `application/`. A unit of work is
+  an application concept; the gate stays strict rather than gaining an exception.
 
 ---
 

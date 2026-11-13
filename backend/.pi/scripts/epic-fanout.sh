@@ -13,8 +13,14 @@
 #
 # Usage:
 #   epic-fanout.sh [--modules a,b,c] [--tdd] [--max N]
-#                  [--force-freeze] [--dry-run] [--no-spawn]
+#                  [--spawn] [--dry-run] [--assume-frozen] [--local]
 #                  [--base main] [--timeout-ms N]
+#
+# SAFETY: nothing is spawned without --spawn. The default prepares worktrees
+# and prints the exact commands, so you can inspect before any agent runs.
+# Contracts must ALREADY be frozen in the registry; this script never freezes
+# on your behalf (that made the gate meaningless and started agents on
+# unreviewed contracts).
 #
 # Exit: 0 started/prepared · 2 blocked by a dependency · 1 error
 # ============================================================================
@@ -27,6 +33,9 @@ MAX=0
 FORCE_FREEZE=0
 DRY_RUN=0
 NO_SPAWN=0
+SPAWN=0
+ASSUME_FROZEN=0
+ALLOW_REMOTE=0
 BASE="main"
 TIMEOUT_MS=0
 
@@ -38,6 +47,9 @@ while [ $# -gt 0 ]; do
 	--force-freeze) FORCE_FREEZE=1; shift ;;
 	--dry-run) DRY_RUN=1; shift ;;
 	--no-spawn) NO_SPAWN=1; shift ;;
+	--spawn) SPAWN=1; shift ;;
+	--assume-frozen) ASSUME_FROZEN=1; shift ;;
+	--allow-remote-issues) ALLOW_REMOTE=1; shift ;;
 	--base) BASE="${2:-main}"; shift 2 ;;
 	--timeout-ms) TIMEOUT_MS="${2:-0}"; shift 2 ;;
 	-h | --help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -58,6 +70,16 @@ RUNNER="$ROOT/.pi/scripts/epic-runner.mjs"
 [ -f "$RUNNER" ] || { echo "missing $RUNNER — run guardian update" >&2; exit 1; }
 
 # The runner is a Node script; bun also executes it.
+# The project directory is the one that owns .pi/ (this script lives in
+# <project>/.pi/scripts). It is NOT necessarily the git top level: a monorepo
+# often keeps the app in <repo>/backend with .pi/ inside it. Agents must run in
+# the project dir, otherwise pi finds no extensions and /architect is not a
+# command at all.
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+GIT_TOP="$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_DIR")"
+PROJECT_REL="${PROJECT_DIR#"$GIT_TOP"}"
+PROJECT_REL="${PROJECT_REL#/}"
+
 NODE_BIN="$(command -v node || command -v bun || true)"
 if [ -z "$NODE_BIN" ]; then
 	echo "neither node nor bun found — required to spawn headless agents" >&2
@@ -158,6 +180,30 @@ while IFS= read -r modline; do
 	[ -n "$modline" ] && MODULES+=("$modline")
 done <<<"$SELECTED"
 
+# ── Batch-size guard ────────────────────────────────────────────────────────
+# An unbounded automated batch is how six agents started at once. Spawning
+# requires an explicit bound: --max N, or an explicit --modules list of <= 3.
+if [ "$SPAWN" -eq 1 ] && [ "$MAX" -le 0 ]; then
+	COUNT=${#MODULES[@]}
+	if [ "$COUNT" -gt 3 ]; then
+		echo "⛔ Refusing to spawn ${COUNT} agents unbounded." >&2
+		echo "   Add --max N (recommended 1-3) or pass an explicit --modules list of at most 3." >&2
+		echo "   Nothing was created." >&2
+		exit 1
+	fi
+fi
+
+# ── Pre-flight: the spawned agents inherit THIS project's .pi/ ──────────────
+# Without extensions, /architect is not a command: the prompt falls through to
+# the model, which then improvises (expensive and wrong). Fail before spawning.
+if [ "$NO_SPAWN" -eq 0 ] && [ "$DRY_RUN" -eq 0 ]; then
+	if [ ! -d "$PROJECT_DIR/.pi/extensions" ]; then
+		echo "⛔ $PROJECT_DIR/.pi/extensions is missing — the agent would have no /architect command." >&2
+		echo "   Run guardian update in $PROJECT_DIR, or use --no-spawn." >&2
+		exit 1
+	fi
+fi
+
 echo "============================================"
 echo "  Parallel epic fan-out"
 echo "============================================"
@@ -178,20 +224,6 @@ registry_path = sys.argv[2]
 batch = sys.argv[3:]
 mods_dir = os.path.join(root, ".pi/architecture/modules")
 
-# A dependency is satisfied when it is IMPLEMENTED or its CONTRACTS ARE FROZEN.
-# Freeze is the gate for parallel work — that is what "merge the contract freeze
-# issue first" means in practice. Implementation is the stricter, also-accepted
-# case. A dependency earlier in this same batch is frozen before the dependent
-# starts (fan-out freezes in order), so it counts as frozen.
-frozen = set()
-try:
-    import json
-    reg = json.load(open(registry_path, encoding="utf-8"))
-    for mod, entry in (reg.get("epics") or {}).items():
-        if entry.get("contractFrozen"):
-            frozen.add(slugify(mod))
-except Exception:
-    pass
 
 def doc_path(slug):
     p = os.path.join(mods_dir, f"{slug}.md")
@@ -300,6 +332,19 @@ def deps_of(slug):
 def slugify(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
+# Registry state: which modules have frozen contracts. Freeze is the gate for
+# parallel work ("merge the contract-freeze issue first"), implementation the
+# stricter also-accepted case. Loaded here because it needs slugify().
+frozen = set()
+try:
+    import json
+    _reg = json.load(open(registry_path, encoding="utf-8"))
+    for _mod, _entry in (_reg.get("epics") or {}).items():
+        if isinstance(_entry, dict) and _entry.get("contractFrozen"):
+            frozen.add(slugify(_mod))
+except Exception:
+    frozen = set()
+
 problems = []
 for idx, slug in enumerate(batch):
     for dep_name in deps_of(slug):
@@ -347,6 +392,25 @@ if [ "$DEP_RC" -ne 0 ]; then
 fi
 
 if [ "$DRY_RUN" -eq 1 ]; then
+	echo "Contract freeze status (a real run refuses unfrozen modules):"
+	for m in ${MODULES[@]+"${MODULES[@]}"}; do
+		slug="$(echo "$m" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+		st="$(python3 - "$COMMON_ABS/guardian/epics.json" "$slug" <<'PY' 2>/dev/null
+import json, re, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    print("no"); raise SystemExit
+want = sys.argv[2]
+for mod, e in (d.get("epics") or {}).items():
+    if isinstance(e, dict) and re.sub(r"[^a-z0-9]+", "-", mod.lower()).strip("-") == want:
+        print("yes" if e.get("contractFrozen") else "no"); raise SystemExit
+print("no")
+PY
+)"
+		[ "$st" = "yes" ] && echo "  ✓ $m" || echo "  ✗ $m  (not frozen)"
+	done
+	echo ""
 	echo "Would do, per module:"
 	for m in ${MODULES[@]+"${MODULES[@]}"}; do
 		slug="$(echo "$m" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
@@ -355,6 +419,45 @@ if [ "$DRY_RUN" -eq 1 ]; then
 		[ "$NO_SPAWN" -eq 0 ] && echo "  • spawn    pi (rpc) → log .git/guardian/logs/$slug.log"
 	done
 	exit 0
+fi
+
+# ── Contract-freeze gate (the module itself) ────────────────────────────────
+# Freeze is a human act: it asserts the module's public contracts are reviewed
+# and merged. This script must never assert that for you — doing so is what let
+# a fan-out start six agents on unreviewed contracts.
+if [ "$ASSUME_FROZEN" -eq 0 ]; then
+	UNFROZEN="$(python3 - "$COMMON_ABS/guardian/epics.json" ${MODULES[@]+"${MODULES[@]}"} <<'PY'
+import json, re, sys
+
+path, batch = sys.argv[1], sys.argv[2:]
+frozen = set()
+try:
+    for mod, entry in (json.load(open(path, encoding="utf-8")).get("epics") or {}).items():
+        if isinstance(entry, dict) and entry.get("contractFrozen"):
+            frozen.add(re.sub(r"[^a-z0-9]+", "-", mod.lower()).strip("-"))
+except Exception:
+    pass
+
+missing = []
+for m in batch:
+    slug = re.sub(r"[^a-z0-9]+", "-", m.lower()).strip("-")
+    if slug not in frozen:
+        missing.append(m)
+print("\n".join(missing))
+PY
+)"
+	if [ -n "$UNFROZEN" ]; then
+		echo "⛔ Contracts are not frozen for:"
+		echo "$UNFROZEN" | sed 's/^/   - /'
+		echo ""
+		echo "   Freeze is YOUR assertion that the module's public contracts are"
+		echo "   reviewed and merged. Review the module doc, merge its contract"
+		echo "   freeze, then record it:"
+		echo "     bash .pi/scripts/epic-registry.sh freeze \"<Module>\" --frozen"
+		echo ""
+		echo "   Bypass only if you are certain: --assume-frozen"
+		exit 2
+	fi
 fi
 
 # ── Freeze, create worktrees, spawn ─────────────────────────────────────────
@@ -369,11 +472,11 @@ for m in ${MODULES[@]+"${MODULES[@]}"}; do
 	echo "────────────────────────────────────────────"
 	echo "▶ $m"
 
-	# 1. record the contract freeze (the gate below requires it)
-	bash "$REGISTRY" freeze "$m" --frozen >/dev/null 2>&1
 
 	# 2. worktree + epic branch (gated on the freeze we just recorded)
-	WT_OUT="$(bash "$PARALLEL" "$m" --base "$BASE" 2>&1)"
+	WT_ARGS=("$m" --base "$BASE")
+	[ "$ASSUME_FROZEN" -eq 1 ] && WT_ARGS+=(--assume-frozen)
+	WT_OUT="$(bash "$PARALLEL" "${WT_ARGS[@]}" 2>&1)"
 	WT_RC=$?
 	if [ "$WT_RC" -ne 0 ]; then
 		echo "  ✗ worktree failed (exit $WT_RC)"
@@ -388,16 +491,27 @@ for m in ${MODULES[@]+"${MODULES[@]}"}; do
 	fi
 	echo "  ✓ worktree $WT"
 
-	if [ "$NO_SPAWN" -eq 1 ]; then
-		echo "  → run:  cd \"$WT\" && /architect --epic \"$m\"$( [ "$TDD" -eq 1 ] && echo " --tdd")"
+	if [ "$SPAWN" -eq 0 ] || [ "$NO_SPAWN" -eq 1 ]; then
+		echo "  → run:  cd \"$WT${PROJECT_REL:+/$PROJECT_REL}\" && /architect --epic \"$m\"$( [ "$TDD" -eq 1 ] && echo " --tdd")"
 		STARTED+=("$m")
 		continue
 	fi
 
 	# 3. spawn one headless agent in the worktree (RPC mode dispatches the command)
+	#    cwd must be the PROJECT dir inside the worktree (where .pi/ lives).
+	SPAWN_CWD="$WT"
+	[ -n "$PROJECT_REL" ] && SPAWN_CWD="$WT/$PROJECT_REL"
+	if [ ! -d "$SPAWN_CWD/.pi/extensions" ]; then
+		echo "  ✗ $SPAWN_CWD/.pi/extensions missing — refusing to spawn a blind agent"
+		FAILED+=("$m")
+		continue
+	fi
+	# GUARDIAN_LOCAL_ONLY keeps the spawned epic from creating remote issues
+	# unless the caller explicitly allowed it (--allow-remote-issues).
+	export GUARDIAN_LOCAL_ONLY="$([ "$ALLOW_REMOTE" -eq 1 ] && echo 0 || echo 1)"
 	"$NODE_BIN" "$RUNNER" \
 		"/architect --epic \"$m\"$( [ "$TDD" -eq 1 ] && echo " --tdd")" \
-		--cwd "$WT" --log "$log" ${TIMEOUT_MS:+--timeout-ms "$TIMEOUT_MS"} \
+		--cwd "$SPAWN_CWD" --log "$log" ${TIMEOUT_MS:+--timeout-ms "$TIMEOUT_MS"} \
 		>/dev/null 2>&1 &
 	PID=$!
 	bash "$REGISTRY" set "$m" "pid=$PID" "log=$log" "spawnedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1
@@ -409,8 +523,13 @@ echo "────────────────────────�
 echo ""
 echo "Started ${#STARTED[@]}/${#MODULES[@]} epic(s)."
 [ "${#FAILED[@]}" -gt 0 ] && echo "Failed: ${FAILED[*]:-}"
+if [ "$SPAWN" -eq 0 ] || [ "$NO_SPAWN" -eq 1 ]; then
+	echo ""
+	echo "Nothing was spawned (default). Worktrees are ready and empty."
+	echo "Re-run with --spawn to launch agents, or run the commands above yourself."
+fi
 
-if [ "${#STARTED[@]}" -gt 0 ]; then
+if [ "${#STARTED[@]}" -gt 0 ] && [ "$SPAWN" -eq 1 ] && [ "$NO_SPAWN" -eq 0 ]; then
 	echo ""
 	echo "Monitor:"
 	echo "  bash .pi/scripts/epic-registry.sh list"

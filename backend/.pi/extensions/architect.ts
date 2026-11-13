@@ -209,7 +209,11 @@ class EpicManager {
 			runScript(this.cwd, 'git commit -m "Initial Guardian scaffold"');
 		}
 
-		const repoTool = readRepoTool(this.cwd);
+		// GUARDIAN_LOCAL_ONLY=1 forces local-only: no remote issues are created.
+		// epic-fanout.sh sets this so an automated run cannot write to a forge
+		// without a human explicitly asking for it.
+		const localOnly = process.env.GUARDIAN_LOCAL_ONLY === "1";
+		const repoTool = localOnly ? "local" : readRepoTool(this.cwd);
 		const repository = readRepository(this.cwd);
 		const targetRepo = repository || slice.module;
 		let hasRemote = false;
@@ -880,16 +884,22 @@ export default function architectExtension(pi: ExtensionAPI) {
 			// roadmap order is used (implemented modules are skipped).
 			const modulesFlag = findFlag(tokens, "--modules");
 			const parallelMode = parallelFlag || useWorktree;
-			try {
-				const epicStatePath = join(ctx.cwd, ".pi", ".guardian-epic-state.json");
-				const st = existsSync(epicStatePath)
-					? (JSON.parse(readFileSync(epicStatePath, "utf-8")) as Record<string, unknown>)
-					: {};
-				st.prStrategy = epicPrStrategy;
-				mkdirSync(join(ctx.cwd, ".pi"), { recursive: true });
-				writeFileSync(epicStatePath, JSON.stringify(st, null, 2), "utf-8");
-			} catch {
-				// ignore — strategy falls back to epic
+			// In parallel mode fan-out owns the state: each spawned agent writes its
+			// own epic state INSIDE its worktree. Writing here would leave a stray
+			// .guardian-epic-state.json in the main checkout that makes
+			// `/architect status` report an epic that does not exist.
+			if (!parallelMode) {
+				try {
+					const epicStatePath = join(ctx.cwd, ".pi", ".guardian-epic-state.json");
+					const st = existsSync(epicStatePath)
+						? (JSON.parse(readFileSync(epicStatePath, "utf-8")) as Record<string, unknown>)
+						: {};
+					st.prStrategy = epicPrStrategy;
+					mkdirSync(join(ctx.cwd, ".pi"), { recursive: true });
+					writeFileSync(epicStatePath, JSON.stringify(st, null, 2), "utf-8");
+				} catch {
+					// ignore — strategy falls back to epic
+				}
 			}
 			const tddEnabled = tokens.includes("--tdd");
 
@@ -905,11 +915,15 @@ export default function architectExtension(pi: ExtensionAPI) {
 			}
 
 			try {
-				if (!epicName || epicName.trim() === "") {
+				// Duplicate of the guard above (kept for the try/catch boundary),
+				// but it MUST honour parallel mode too: /architect --epic --parallel
+				// has no epic name by design.
+				if ((!epicName || epicName.trim() === "") && !parallelMode) {
 					ctx.ui.notify(
-					'Usage: /architect --epic "Epic Name" [--tracking-issue N] [--tdd] [--pr-per epic|issue] [--parallel|--worktree]',
-					"error",
-				);
+						'Usage: /architect --epic "Epic Name" [--tracking-issue N] [--tdd] [--pr-per epic|issue]\n' +
+							"       /architect --epic --parallel [--modules a,b,c] [--tdd] [--max N] [--force-freeze] [--dry-run]",
+						"error",
+					);
 					return;
 				}
 
@@ -948,17 +962,6 @@ export default function architectExtension(pi: ExtensionAPI) {
 					if (res.exitCode !== 0) {
 						ctx.ui.notify(`Fan-out failed:\n${out.trim().slice(-600)}`, "error");
 						return;
-					}
-					// Record orchestration on the state so later steps stay consistent.
-					try {
-						const p = join(ctx.cwd, ".pi/.guardian-epic-state.json");
-						const st = existsSync(p) ? (JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>) : {};
-						st.prStrategy = epicPrStrategy;
-						st.parallel = true;
-						st.modules = list || "(roadmap order)";
-						writeFileSync(p, JSON.stringify(st, null, 2), "utf-8");
-					} catch {
-						// ignore
 					}
 					ctx.ui.notify(out.trim().split("\n").slice(-12).join("\n"), "info");
 					return;

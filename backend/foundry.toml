@@ -1,0 +1,24 @@
+# Foundry configuration — PaymentRouter.sol (ADR-007, Lock 3 of the enforcement engine).
+#
+# Canonical: .pi/architecture/modules/settlement.md#components
+# Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+#
+# Phase 0: toolchain + empty scaffold only. The contract (nullifier map, EIP-712 verification,
+# anchor event) is written in Phase 4 — see settlement.md invariant S-1..S-6.
+
+[profile.default]
+src = "contracts/src"
+test = "contracts/test"
+out = "out"
+libs = ["contracts/lib"]
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+# Base Sepolia and Anvil both run an EVM equivalent to this; pinning it stops "works locally,
+# reverts on the live claim" surprises.
+evm_version = "paris"
+fs_permissions = [{ access = "read", path = "./var" }]
+
+[profile.default.rpc_endpoints]
+anvil = "http://127.0.0.1:8545"
+sepolia = "${BASE_SEPOLIA_RPC_URL}"

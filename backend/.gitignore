@@ -1,0 +1,44 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Secrets — never commit (ADR-005) ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+var/hmac.key
+var/settlement-wallet.json
+
+# ── Local state (SQLite WAL databases, ADR-002) ──────────────────────────────
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# ── Foundry / Anvil ──────────────────────────────────────────────────────────
+out/
+cache/
+broadcast/
+contracts/lib/
+
+# ── Node (React console) ─────────────────────────────────────────────────────
+node_modules/
+dist-ui/
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
