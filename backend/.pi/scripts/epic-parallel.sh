@@ -79,8 +79,14 @@ else
 fi
 
 # ── Register in the shared registry ─────────────────────────────────────────
-if [ -x "$ROOT/.pi/scripts/epic-registry.sh" ]; then
-	bash "$ROOT/.pi/scripts/epic-registry.sh" register "$MODULE" --branch "$BRANCH" --worktree "$DIR" --status running
+# Register in the shared registry. The script lives in the PROJECT dir (which
+# owns .pi/), not necessarily at the git top level — looking at $ROOT skipped
+# registration silently in a monorepo, leaving list with branch=? worktree=?.
+EPIC_REG="$PROJECT_DIR/.pi/scripts/epic-registry.sh"
+if [ -x "$EPIC_REG" ]; then
+	bash "$EPIC_REG" register "$MODULE" --branch "$BRANCH" --worktree "$DIR" --status running
+else
+	echo "  (warning: epic-registry.sh not found at $EPIC_REG — branch/worktree not recorded)" >&2
 fi
 
 echo ""

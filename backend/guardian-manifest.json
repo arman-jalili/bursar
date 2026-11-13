@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.166",
+  "frameworkVersion": "0.1.167",
   "source": "pi",
   "tools": [
     "pi"
@@ -405,7 +405,7 @@
     },
     ".pi/scripts/epic-parallel.sh": {
       "category": "framework",
-      "originalHash": "sha256:487a1abdb7a0fd1785142aa90ef8fb0a8a673e938ae3315adfcc851ce8f3811c",
+      "originalHash": "sha256:b876643b8b262ecca55c10adf37554d56e0da44a673993abba9e293b38d4fd6f",
       "status": "unchanged"
     },
     ".pi/scripts/ci/stage_security.sh": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:c368dac3a5f9b8696b429466eda76f3576a009dfead99c0e62b7583dd5114f5f",
+      "originalHash": "sha256:ae3ba106514db76d4a6c4bb2847b1503beb481ef978519f9d12b816687bbcbc1",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1474,5 +1474,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T22:18:20.886Z"
+  "lastUpdatedAt": "2026-11-13T22:29:15.992Z"
 }
