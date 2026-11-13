@@ -31,8 +31,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-#: Per-context metadata is registered here as contexts are built. Deliberately empty in Phase 0.
-target_metadata = None
+#: Metadata for every built context, used by `--autogenerate` and by `compare_metadata`.
+from src.mandate.infrastructure.models import Base as MandateBase  # noqa: E402
+
+target_metadata = [MandateBase.metadata]
 
 
 def _selected_database() -> str:
