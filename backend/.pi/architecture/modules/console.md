@@ -195,13 +195,27 @@ Each screen gets an explicit whitelist so a new upstream field can never leak by
 Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md"""
 
 OWNER_INBOX_FIELDS = (
-    "approval_id", "intent_id", "invoice_id", "payee_name", "payee_address",
-    "amount_usdc", "bank_digest", "is_new_payee", "requires_owner_signature",
-    "reason_codes", "expires_at", "typed_data_hash",
+    "approval_id",
+    "intent_id",
+    "invoice_id",
+    "payee_name",
+    "payee_address",
+    "amount_usdc",
+    "bank_digest",
+    "is_new_payee",
+    "requires_owner_signature",
+    "reason_codes",
+    "expires_at",
+    "typed_data_hash",
 )
 PAYER_BILL_FIELDS = (
-    "invoice_id", "payee_name", "amount_usdc", "status_plain",
-    "settled_at", "tx_hash", "payout_simulated",
+    "invoice_id",
+    "payee_name",
+    "amount_usdc",
+    "status_plain",
+    "settled_at",
+    "tx_hash",
+    "payout_simulated",
 )
 
 

@@ -24,7 +24,6 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
 from src.shared.infrastructure.config import get_settings
 from src.shared.infrastructure.db import sqlite_path
 
@@ -88,9 +87,7 @@ def _do_run_migrations(connection: Connection) -> None:
 async def _run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = _database_url()
-    engine = async_engine_from_config(
-        configuration, prefix="sqlalchemy.", poolclass=pool.NullPool
-    )
+    engine = async_engine_from_config(configuration, prefix="sqlalchemy.", poolclass=pool.NullPool)
     async with engine.connect() as connection:
         await connection.run_sync(_do_run_migrations)
     await engine.dispose()

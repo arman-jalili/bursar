@@ -270,9 +270,9 @@ class PaymentIntent:
     id: IntentId
     invoice_id: str
     payee: PayeeRef
-    payee_address: PayeeAddress          # from Mandate, never from the proposal
-    amount: Money                         # from the invoice via Billing, re-checked here
-    bank_digest: BankDigest               # the VERIFIED digest, not the presented one
+    payee_address: PayeeAddress  # from Mandate, never from the proposal
+    amount: Money  # from the invoice via Billing, re-checked here
+    bank_digest: BankDigest  # the VERIFIED digest, not the presented one
     is_new_payee: bool
     requires_owner_signature: bool
     constitution_version: str
@@ -282,15 +282,15 @@ class PaymentIntent:
         cls, attempt: PaymentAttemptView, mandate: MandateView, invoice: InvoiceView
     ) -> "PaymentIntent":
         """ACL boundary: everything agent-supplied is discarded except the ids."""
-        if not attempt.amount.equals(invoice.amount):          # A-3
+        if not attempt.amount.equals(invoice.amount):  # A-3
             raise AmountMismatch(attempt.amount, invoice.amount)
         return cls(
             id=IntentId.new(),
             invoice_id=invoice.id,
             payee=invoice.payee,
-            payee_address=mandate.verified_address(invoice.payee),   # A-2
+            payee_address=mandate.verified_address(invoice.payee),  # A-2
             amount=invoice.amount,
-            bank_digest=mandate.verified_digest(invoice.payee),      # A-2
+            bank_digest=mandate.verified_digest(invoice.payee),  # A-2
             is_new_payee=mandate.is_new(invoice.payee),
             requires_owner_signature=(
                 mandate.is_new(invoice.payee) or mandate.threshold.exceeded_by(invoice.amount)
@@ -301,9 +301,12 @@ class PaymentIntent:
     def signed_payload(self) -> dict:
         """The EIP-712 message. One definition, consumed by Python AND Solidity."""
         return {
-            "intentId": self.id.value, "invoiceId": self.invoice_id,
-            "payee": self.payee.id, "payeeAddress": self.payee_address.value,
-            "amountUsdc": self.amount.micro_usdc, "bankDigest": self.bank_digest.hash,
+            "intentId": self.id.value,
+            "invoiceId": self.invoice_id,
+            "payee": self.payee.id,
+            "payeeAddress": self.payee_address.value,
+            "amountUsdc": self.amount.micro_usdc,
+            "bankDigest": self.bank_digest.hash,
             "isNewPayee": self.is_new_payee,
             "requiresOwnerSignature": self.requires_owner_signature,
         }
@@ -359,9 +362,10 @@ The one aggregate that makes split-invoice structuring impossible.
 # src/authority/domain/cap_ledger.py
 """Canonical: .pi/architecture/modules/authority.md#aggregate-cap-ledge"""
 
+
 @dataclass
 class CapLedger(AggregateRoot):
-    day: str                 # ISO date in household timezone
+    day: str  # ISO date in household timezone
     cap: Money
     committed: Money
     reserved: Money
@@ -372,7 +376,7 @@ class CapLedger(AggregateRoot):
 
     def try_reserve(self, intent: PaymentIntent) -> Reservation:
         """Atomicity is delegated to one conditional UPDATE in infrastructure (ADR-002)."""
-        if self.headroom < intent.amount:                    # A-9
+        if self.headroom < intent.amount:  # A-9
             raise CapacityExceeded(needed=intent.amount, headroom=self.headroom)
         reservation = Reservation.hold(intent)
         self.reserved = self.reserved + intent.amount
@@ -380,7 +384,7 @@ class CapLedger(AggregateRoot):
         return reservation
 
     def commit(self, reservation: Reservation) -> None:
-        if reservation.status is not ReservationStatus.HELD:   # A-10
+        if reservation.status is not ReservationStatus.HELD:  # A-10
             raise ReservationAlreadyResolved(reservation.id)
         self.reserved = self.reserved - reservation.amount
         self.committed = self.committed + reservation.amount
@@ -388,7 +392,7 @@ class CapLedger(AggregateRoot):
         self.record(CapacityCommitted(...))
 
     def release(self, reservation: Reservation) -> None:
-        if reservation.status is not ReservationStatus.HELD:   # A-10
+        if reservation.status is not ReservationStatus.HELD:  # A-10
             raise ReservationAlreadyResolved(reservation.id)
         self.reserved = self.reserved - reservation.amount
         reservation.mark_released()
@@ -430,11 +434,13 @@ cycle and carries the signature, nonce and expiry.
 # src/authority/domain/repositories.py
 """Canonical: .pi/architecture/modules/authority.md#components"""
 
+
 class PaymentIntentRepository(ABC):
     @abstractmethod
     async def find_by_id(self, id_: IntentId) -> PaymentIntent | None: ...
     @abstractmethod
     async def save(self, intent: PaymentIntent) -> None: ...
+
 
 class DeterminationRepository(ABC):
     @abstractmethod
@@ -442,17 +448,17 @@ class DeterminationRepository(ABC):
     @abstractmethod
     async def find_by_intent(self, intent_id: IntentId) -> Determination | None: ...
 
+
 class CapLedgerRepository(ABC):
     @abstractmethod
-    async def try_reserve_atomic(
-        self, day: str, amount: Money, reservation: Reservation
-    ) -> bool:
+    async def try_reserve_atomic(self, day: str, amount: Money, reservation: Reservation) -> bool:
         """Returns False when the conditional UPDATE matched no row (cap exceeded)."""
 
     @abstractmethod
     async def resolve(self, reservation_id: ReservationId, outcome: str) -> None: ...
     @abstractmethod
     async def ledger_for(self, day: str) -> CapLedger: ...
+
 
 class ApprovalRepository(ABC):
     @abstractmethod
@@ -467,6 +473,7 @@ class ApprovalRepository(ABC):
 # src/authority/domain/ports.py
 class MandateView(ABC):
     """Read-through port. Implementations MUST NOT cache (moment-of-consequence rule)."""
+
     @abstractmethod
     async def constitution_in_force(self, household_id) -> ConstitutionView: ...
     @abstractmethod
@@ -476,8 +483,10 @@ class MandateView(ABC):
     @abstractmethod
     async def verified_digest(self, payee_id) -> BankDigest: ...
 
+
 class AttemptViewPort(ABC):
     """ACL from Billing: only ids and invoice amount survive."""
+
     @abstractmethod
     async def load(self, attempt_id) -> tuple[PaymentAttemptView, InvoiceView]: ...
 ```

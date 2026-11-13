@@ -1,3 +1,262 @@
 {
-  "prStrategy": "epic"
+  "prStrategy": "epic",
+  "name": "mandate",
+  "trackingIssueId": "42",
+  "epicId": null,
+  "slices": [
+    {
+      "module": "mandate",
+      "components": [
+        {
+          "name": "Aggregate: Household",
+          "status": "planned",
+          "description": "The single tenancy root. Guards that exactly one constitution version is in force.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Aggregate: Constitution",
+          "status": "planned",
+          "description": "Append-only lineage. Publishing supersedes; it never mutates.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Aggregate: Payee",
+          "status": "payeestatus",
+          "description": "The eligibility gate. This aggregate is where the bank-detail-change scam dies.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Value Objects (with entity-vs-VO justification)",
+          "status": "planned",
+          "description": "Value objects are `frozen=True` dataclasses with validation in `__post_init__` — an invalid",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Repository interfaces (owned by `domain/`)",
+          "status": "planned",
+          "description": "\"\"\"Canonical: .pi/architecture/modules/mandate.md#components",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Domain Services",
+          "status": "planned",
+          "description": "Domain Services component",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`BankDigest`",
+          "status": "planned",
+          "description": "Two digests from identical routing details are equal; a one-character change alters the hash.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`Cap` / `Threshold`",
+          "status": "planned",
+          "description": "`Cap(0)` and `Cap(-1)` raise; `Threshold > Cap` raises at constitution append.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`Payee.review_presented_digest`",
+          "status": "planned",
+          "description": "Mismatch sets `QUARANTINED`, emits `PayeeDigestChanged` + `PayeeQuarantined`, and leaves `address` **byte-identical**. (scenario 2)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`Payee.reapprove`",
+          "status": "planned",
+          "description": "Without an owner proof → `OwnerProofInvalid`, status unchanged; with proof → `ELIGIBLE` + `PayeeReapproved`.",
+          "dependencies": [
+            "none"
+          ]
+        }
+      ],
+      "nextLogicalSlice": [
+        {
+          "name": "Aggregate: Household",
+          "status": "planned",
+          "description": "The single tenancy root. Guards that exactly one constitution version is in force.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Aggregate: Constitution",
+          "status": "planned",
+          "description": "Append-only lineage. Publishing supersedes; it never mutates.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Value Objects (with entity-vs-VO justification)",
+          "status": "planned",
+          "description": "Value objects are `frozen=True` dataclasses with validation in `__post_init__` — an invalid",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Repository interfaces (owned by `domain/`)",
+          "status": "planned",
+          "description": "\"\"\"Canonical: .pi/architecture/modules/mandate.md#components",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Domain Services",
+          "status": "planned",
+          "description": "Domain Services component",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`BankDigest`",
+          "status": "planned",
+          "description": "Two digests from identical routing details are equal; a one-character change alters the hash.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`Cap` / `Threshold`",
+          "status": "planned",
+          "description": "`Cap(0)` and `Cap(-1)` raise; `Threshold > Cap` raises at constitution append.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`Payee.review_presented_digest`",
+          "status": "planned",
+          "description": "Mismatch sets `QUARANTINED`, emits `PayeeDigestChanged` + `PayeeQuarantined`, and leaves `address` **byte-identical**. (scenario 2)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "`Payee.reapprove`",
+          "status": "planned",
+          "description": "Without an owner proof → `OwnerProofInvalid`, status unchanged; with proof → `ELIGIBLE` + `PayeeReapproved`.",
+          "dependencies": [
+            "none"
+          ]
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue-contract-freeze",
+      "title": "Contract Freeze: Define interfaces and contracts",
+      "status": "planned",
+      "remoteIssueId": "43"
+    },
+    {
+      "id": "issue-aggregate-household",
+      "title": "Implement Aggregate: Household — mandate",
+      "status": "planned",
+      "remoteIssueId": "44"
+    },
+    {
+      "id": "issue-aggregate-constitution",
+      "title": "Implement Aggregate: Constitution — mandate",
+      "status": "planned",
+      "remoteIssueId": "45"
+    },
+    {
+      "id": "issue-value-objects-with-entity-vs-vo-justification-",
+      "title": "Implement Value Objects (with entity-vs-VO justification) — mandate",
+      "status": "planned",
+      "remoteIssueId": "46"
+    },
+    {
+      "id": "issue-repository-interfaces-owned-by-domain-",
+      "title": "Implement Repository interfaces (owned by `domain/`) — mandate",
+      "status": "planned",
+      "remoteIssueId": "47"
+    },
+    {
+      "id": "issue-domain-services",
+      "title": "Implement Domain Services — mandate",
+      "status": "planned",
+      "remoteIssueId": "48"
+    },
+    {
+      "id": "issue--bankdigest-",
+      "title": "Implement `BankDigest` — mandate",
+      "status": "planned",
+      "remoteIssueId": "49"
+    },
+    {
+      "id": "issue--cap-threshold-",
+      "title": "Implement `Cap` / `Threshold` — mandate",
+      "status": "planned",
+      "remoteIssueId": "50"
+    },
+    {
+      "id": "issue--payee-review-presented-digest-",
+      "title": "Implement `Payee.review_presented_digest` — mandate",
+      "status": "planned",
+      "remoteIssueId": "51"
+    },
+    {
+      "id": "issue--payee-reapprove-",
+      "title": "Implement `Payee.reapprove` — mandate",
+      "status": "planned",
+      "remoteIssueId": "52"
+    },
+    {
+      "id": "issue-runtime-integration",
+      "title": "Runtime Integration & Legacy Migration",
+      "status": "planned",
+      "remoteIssueId": "53"
+    },
+    {
+      "id": "issue-proofing",
+      "title": "Proofing: Validation scripts + CI integration",
+      "status": "planned",
+      "remoteIssueId": "54"
+    },
+    {
+      "id": "issue-architecture-readiness",
+      "title": "Architecture Readiness: Runbook, DR, docs, CI enforcement",
+      "status": "planned",
+      "remoteIssueId": "55"
+    }
+  ],
+  "status": "planning",
+  "currentIssueIndex": 0,
+  "createdAt": "2026-11-13T18:09:51.098Z",
+  "tdd": true,
+  "tddTestFiles": [
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/aggregate-household/test_aggregate-household.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/aggregate-constitution/test_aggregate-constitution.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/value-objects-with-entity-vs-vo-justification/test_value-objects-with-entity-vs-vo-justification.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/repository-interfaces-owned-by-domain/test_repository-interfaces-owned-by-domain.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/domain-services/test_domain-services.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/bankdigest/test_bankdigest.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/cap-threshold/test_cap-threshold.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/payee-review-presented-digest/test_payee-review-presented-digest.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/payee-reapprove/test_payee-reapprove.py"
+  ]
 }

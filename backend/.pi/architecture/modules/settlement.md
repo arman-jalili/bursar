@@ -211,7 +211,7 @@ class SettlementOrder(AggregateRoot):
     id: OrderId
     intent_id: IntentId
     invoice_id: str
-    payee_address: PayeeAddress        # from the intent, frozen here
+    payee_address: PayeeAddress  # from the intent, frozen here
     amount: Money
     nullifier: Nullifier
     network: ChainNetwork
@@ -219,49 +219,64 @@ class SettlementOrder(AggregateRoot):
     command_ref: str = PAYMENT_COMMAND
 
     @classmethod
-    def order(cls, intent: PaymentIntentView, network: ChainNetwork,
-              determination: DeterminationView) -> "SettlementOrder":
-        if not determination.permits_dispatch():            # S-1
+    def order(
+        cls, intent: PaymentIntentView, network: ChainNetwork, determination: DeterminationView
+    ) -> "SettlementOrder":
+        if not determination.permits_dispatch():  # S-1
             raise DispatchWithoutAuthority(determination.verdict)
         return cls(
-            id=OrderId.new(), intent_id=intent.id, invoice_id=intent.invoice_id,
-            payee_address=intent.payee_address,             # S-2 frozen from intent
+            id=OrderId.new(),
+            intent_id=intent.id,
+            invoice_id=intent.invoice_id,
+            payee_address=intent.payee_address,  # S-2 frozen from intent
             amount=intent.amount,
             nullifier=Nullifier.derive(intent.invoice_hash, intent.household_id),
-            network=network, status=SettlementStatus.ORDERED,
+            network=network,
+            status=SettlementStatus.ORDERED,
         )
 
     def command_params(self) -> dict:
         """Structured params for run_command. Generated here, never accepted from a caller."""
         return {
-            "intent_id": self.intent_id.value, "invoice_id": self.invoice_id,
-            "payee": self.payee_address.value, "payee_address": self.payee_address.value,
+            "intent_id": self.intent_id.value,
+            "invoice_id": self.invoice_id,
+            "payee": self.payee_address.value,
+            "payee_address": self.payee_address.value,
             "amount_usdc": self.amount.micro_usdc,
-            "bank_digest": self.intent_bank_digest,   # carried from the intent
+            "bank_digest": self.intent_bank_digest,  # carried from the intent
             "is_new_payee": self.intent_is_new_payee,
             "requires_owner_signature": self.intent_requires_signature,
             "command": self.command_ref,
         }
 
     def mark_submitted(self, tx_hash: str) -> None:
-        if self.status is not SettlementStatus.ORDERED:      # S-3
+        if self.status is not SettlementStatus.ORDERED:  # S-3
             raise IllegalTransition(self.status, "SUBMITTED")
-        self.tx_hash = tx_hash          # persisted BEFORE broadcast (write-ahead)
+        self.tx_hash = tx_hash  # persisted BEFORE broadcast (write-ahead)
         self.status = SettlementStatus.SUBMITTED
         self.record(SettlementSubmitted(order_id=self.id, tx_hash=tx_hash))
 
     def conclude(self, receipt: ChainReceipt) -> None:
-        if self.status in (SettlementStatus.CONFIRMED, SettlementStatus.REVERTED,
-                           SettlementStatus.ABANDONED):     # S-4
+        if self.status in (
+            SettlementStatus.CONFIRMED,
+            SettlementStatus.REVERTED,
+            SettlementStatus.ABANDONED,
+        ):  # S-4
             raise OrderAlreadyConcluded(self.id)
         if receipt.confirmed:
             self.status = SettlementStatus.CONFIRMED
-            self.record(SettlementConfirmed(order_id=self.id, tx_hash=receipt.tx_hash,
-                                            confirmations=receipt.confirmations))
+            self.record(
+                SettlementConfirmed(
+                    order_id=self.id, tx_hash=receipt.tx_hash, confirmations=receipt.confirmations
+                )
+            )
         else:
             self.status = SettlementStatus.REVERTED
-            self.record(SettlementReverted(order_id=self.id, tx_hash=receipt.tx_hash,
-                                           revert_reason=receipt.revert_reason))
+            self.record(
+                SettlementReverted(
+                    order_id=self.id, tx_hash=receipt.tx_hash, revert_reason=receipt.revert_reason
+                )
+            )
 ```
 
 **Invariants (aggregate-local):**
@@ -289,6 +304,7 @@ class SettlementOrder(AggregateRoot):
 # src/settlement/domain/repositories.py
 """Canonical: .pi/architecture/modules/settlement.md#components"""
 
+
 class SettlementOrderRepository(ABC):
     @abstractmethod
     async def find_by_id(self, id_: OrderId) -> SettlementOrder | None: ...
@@ -297,12 +313,14 @@ class SettlementOrderRepository(ABC):
     @abstractmethod
     async def save(self, order: SettlementOrder) -> None: ...
 
+
 class NullifierRepository(ABC):
     @abstractmethod
     async def is_spent(self, nullifier: Nullifier) -> bool: ...
     @abstractmethod
     async def spend(self, nullifier: Nullifier, order_id: OrderId) -> None:
         """Raises DuplicateNullifier on unique violation — the DB is the last local lock."""
+
 
 class ChainReceiptRepository(ABC):
     @abstractmethod

@@ -202,6 +202,7 @@ Python:
 ```python
 class DomainError(Exception):
     """Base domain error."""
+
     def __init__(self, message: str, code: str = "VALIDATION"):
         super().__init__(message)
         self.code = code

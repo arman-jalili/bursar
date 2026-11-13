@@ -181,6 +181,7 @@ sequenceDiagram
 # src/evidence/domain/evidence_envelope.py
 """Canonical: .pi/architecture/modules/evidence.md#components"""
 
+
 @dataclass(frozen=True)
 class EvidenceEnvelope:
     id: EnvelopeId
@@ -193,19 +194,27 @@ class EvidenceEnvelope:
     actor: str
     occurred_at: datetime
     hmac: str
-    previous_hash: str | None        # chain link: append-only, not a rewrite
-    anchor_mode: str                  # per_envelope | batched | demo_only
+    previous_hash: str | None  # chain link: append-only, not a rewrite
+    anchor_mode: str  # per_envelope | batched | demo_only
 
     def canonical_bytes(self) -> bytes:
         """Deterministic encoding — sorted keys, no floats, explicit nulls."""
         return json.dumps(
-            {"event_type": self.event_type, "payload": self.payload,
-             "subject": {"intent": self.subject_intent_id,
-                         "invoice": self.subject_invoice_id,
-                         "payee": self.subject_payee_id},
-             "constitution_version": self.constitution_version, "actor": self.actor,
-             "occurred_at": self.occurred_at.isoformat(), "previous_hash": self.previous_hash},
-            sort_keys=True, separators=(",", ":"),
+            {
+                "event_type": self.event_type,
+                "payload": self.payload,
+                "subject": {
+                    "intent": self.subject_intent_id,
+                    "invoice": self.subject_invoice_id,
+                    "payee": self.subject_payee_id,
+                },
+                "constitution_version": self.constitution_version,
+                "actor": self.actor,
+                "occurred_at": self.occurred_at.isoformat(),
+                "previous_hash": self.previous_hash,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
         ).encode()
 
     def hash(self) -> EnvelopeHash:

@@ -184,14 +184,15 @@ captured — see the Modeling Depth Note).
 # src/billing/domain/invoice.py
 """Canonical: .pi/architecture/modules/billing.md#components-invoice"""
 
+
 @dataclass
 class Invoice(AggregateRoot):
     id: InvoiceId
     payee_id: PayeeId
-    hash: InvoiceHash            # duplicate key AND nullifier seed
+    hash: InvoiceHash  # duplicate key AND nullifier seed
     amount: BilledAmount
     due_date: date
-    presented_digest: BankDigest # NEVER authoritative for routing
+    presented_digest: BankDigest  # NEVER authoritative for routing
     status: InvoiceStatus
 
     def can_accept_attempt(self) -> bool:
@@ -200,7 +201,7 @@ class Invoice(AggregateRoot):
 
     def mark_settled(self) -> None:
         if self.status is InvoiceStatus.SETTLED:
-            raise InvoiceAlreadySettled(self.id)      # B-2
+            raise InvoiceAlreadySettled(self.id)  # B-2
         self.status = InvoiceStatus.SETTLED
         self.record(InvoiceSettled(invoice_id=self.id, hash=self.hash))
 ```
@@ -213,10 +214,18 @@ B-4 `presented_digest` is stored for comparison only and never used for routing.
 
 ```python
 # src/billing/domain/payment_attempt.py
-FORBIDDEN_PROPOSAL_KEYS = frozenset({
-    "command", "command_path", "payee_address", "cap", "threshold",
-    "constitution_version", "requires_owner_signature", "is_new_payee",
-})
+FORBIDDEN_PROPOSAL_KEYS = frozenset(
+    {
+        "command",
+        "command_path",
+        "payee_address",
+        "cap",
+        "threshold",
+        "constitution_version",
+        "requires_owner_signature",
+        "is_new_payee",
+    }
+)
 
 
 @dataclass
@@ -228,13 +237,14 @@ class PaymentAttempt(AggregateRoot):
     @classmethod
     def from_proposal(cls, payload: dict, invoice: Invoice) -> "PaymentAttempt":
         offending = FORBIDDEN_PROPOSAL_KEYS & payload.keys()
-        if offending:                                   # B-5
+        if offending:  # B-5
             raise ProposalRejected(sorted(offending))
-        if not invoice.can_accept_attempt():            # B-1 / B-2
+        if not invoice.can_accept_attempt():  # B-1 / B-2
             raise InvoiceNotPayable(invoice.status)
         attempt = cls(AttemptId.new(), invoice.id, AttemptStatus.PROPOSED)
-        attempt.record(PaymentProposed(attempt_id=attempt.id, invoice_id=invoice.id,
-                                       amount=invoice.amount))
+        attempt.record(
+            PaymentProposed(attempt_id=attempt.id, invoice_id=invoice.id, amount=invoice.amount)
+        )
         return attempt
 ```
 

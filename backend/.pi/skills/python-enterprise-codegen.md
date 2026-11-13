@@ -271,6 +271,7 @@ from ..domain.errors import DomainError, ErrorCode
 
 router = APIRouter()
 
+
 def create_controller(svc: Service) -> APIRouter:
     @router.post("/execute", status_code=status.HTTP_201_CREATED)
     async def execute(cmd: ExecuteRequest) -> EntityResponse:

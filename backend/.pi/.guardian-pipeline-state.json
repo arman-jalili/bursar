@@ -1,0 +1,76 @@
+{
+  "id": "PL-5182",
+  "name": "mandate",
+  "items": [
+    "issue-contract-freeze",
+    "issue-aggregate-household",
+    "issue-aggregate-constitution",
+    "issue-value-objects-with-entity-vs-vo-justification-",
+    "issue-repository-interfaces-owned-by-domain-",
+    "issue-domain-services",
+    "issue--bankdigest-",
+    "issue--cap-threshold-",
+    "issue--payee-review-presented-digest-",
+    "issue--payee-reapprove-",
+    "issue-runtime-integration",
+    "issue-proofing",
+    "issue-architecture-readiness"
+  ],
+  "steps": [
+    {
+      "name": "implement",
+      "prompt": ".pi/prompts/issue-implementation-series.md",
+      "acceptance": {
+        "type": "validator",
+        "validators": [
+          "ci"
+        ]
+      }
+    },
+    {
+      "name": "validate",
+      "acceptance": {
+        "type": "validator",
+        "validators": [
+          "ci",
+          "tests",
+          "security",
+          "wiring",
+          "guards",
+          "drift",
+          "shell",
+          "claims",
+          "floors"
+        ]
+      }
+    },
+    {
+      "name": "create-mr",
+      "prompt": ".pi/prompts/epic-closeout.md",
+      "acceptance": {
+        "type": "none"
+      }
+    },
+    {
+      "name": "merge",
+      "prompt": ".pi/prompts/epic-closeout.md",
+      "acceptance": {
+        "type": "validator",
+        "validators": [
+          "ci",
+          "canonical"
+        ]
+      }
+    }
+  ],
+  "currentItemIndex": 0,
+  "currentStepIndex": 0,
+  "status": "running",
+  "retryCount": 0,
+  "results": [],
+  "mergeOnValid": true,
+  "prStrategy": "epic",
+  "epicBranch": "epic/mandate",
+  "createdAt": "2026-11-13T18:09:51.110Z",
+  "updatedAt": "2026-11-13T18:09:51.110Z"
+}
