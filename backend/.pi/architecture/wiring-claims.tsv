@@ -1,0 +1,13 @@
+# Wiring claims (ADR-009): make "it is wired" claims checkable.
+#
+# validate-wiring-claims.sh fails both ways:
+#   * a CONFIRMED row whose evidence disappears — the wiring was removed and
+#     the doc still claims it;
+#   * a GAP row whose evidence appears (promote it) or whose module doc stops
+#     declaring the gap.
+#
+# Columns (tab-separated): claim  module  status  evidence  note
+#   status    CONFIRMED | GAP
+#   evidence  path or path:symbol that proves (or disproves) the wiring
+#
+# claim	module	status	evidence	note

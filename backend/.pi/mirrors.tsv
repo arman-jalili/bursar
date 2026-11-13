@@ -1,0 +1,9 @@
+# Extra trees compared by validate-script-drift.sh (one path per line).
+#
+Each path is a directory containing a `scripts/` subtree whose files are
+compared against every other tree by path. The repo root .pi/ and every
+immediate subdirectory carrying .pi/scripts are always compared; list here
+trees that are NOT in that shape.
+#
+This repo ships a canonical tree (templates/pi) and mirrors it to .pi/.
+templates/pi

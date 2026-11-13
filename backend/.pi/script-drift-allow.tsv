@@ -1,0 +1,13 @@
+# Recorded per-tree differences for mirrored .pi/scripts (ADR-010).
+#
+# validate-script-drift.sh fails when a file mirrored across trees (the repo
+# root plus any subdirectory carrying a .pi/ directory) differs and is NOT
+# matched by a pattern here.
+#
+# Columns (tab-separated): pattern  trees  reason
+#   pattern  glob matched against the path relative to <tree>/.pi/scripts
+#   trees    which trees carry the file (informational)
+#   reason   why the difference is tolerated
+#
+# pattern	trees	reason
+ci/stage_security.sh	templates/pi,.pi	guardian generates a project-specific security stage (secret scan + dep audit) into .pi/scripts/ci; the template carries the dispatcher stub, same as stage_build.sh and stage_test.sh

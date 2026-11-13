@@ -1,0 +1,33 @@
+# Self-owned guard registry (ADR-010).
+#
+# Every root .pi/scripts/validate-*.sh MUST appear here. `validate-guards.sh`
+# fails when a guard exists but is unclassified, so a new guard cannot be
+# silently left un-gated.
+#
+# Columns (tab-separated):
+#   guard      path to the guard script, relative to the repo root
+#   class      the pattern class it owns
+#   tier       gating | advisory
+#              gating   = a non-zero exit fails a mandatory path
+#              advisory = informational; it does not stop a merge
+#   run_here   yes | no   (yes = `validate-guards.sh --run` executes it)
+#   owner      who is accountable for the class
+#   notes      how it gates / what it does
+#
+# guard	class	tier	run_here	owner	notes
+.pi/scripts/validate-guards.sh	guards	advisory	no	architecture	meta: registry integrity; --run executes the gating set
+.pi/scripts/validate-script-drift.sh	script-drift	gating	yes	architecture	mirrored .pi/scripts differ and are unrecorded
+.pi/scripts/validate-wiring-claims.sh	wiring-claims	gating	yes	architecture	wiring claims need live evidence; gaps must stay documented
+.pi/scripts/validate-coverage-floors.sh	coverage-floors	gating	yes	quality	a coverage floor may not be lowered or removed
+.pi/scripts/validate-shell-exit-status.sh	shell-exit	gating	yes	quality	arithmetic statement returns 1 on a passing path
+.pi/scripts/validate-architecture.sh	architecture	gating	yes	architecture	dispatches the per-language architecture checks
+.pi/scripts/validate-canonical.sh	canonical	gating	yes	architecture	canonical headers and references resolve
+.pi/scripts/validate-tests.sh	tests	gating	yes	quality	tests exist, run and cover the contract
+.pi/scripts/validate-security.sh	security	gating	yes	security	secret scan and unsafe-pattern gates
+.pi/scripts/validate-ci.sh	ci	gating	yes	platform	CI pipeline matches the blueprint
+.pi/scripts/validate-integration.sh	integration	gating	yes	architecture	components integrate through their declared seams
+.pi/scripts/validate-operations.sh	operations	gating	yes	platform	readiness: observability, error handling, cancellation
+.pi/scripts/validate-runtime-wiring.sh	runtime-wiring	gating	yes	architecture	implemented modules are reachable at runtime
+.pi/scripts/validate-architecture-readiness.sh	readiness	advisory	no	architecture	architecture docs are complete enough to implement
+.pi/scripts/validate-exploration-depth.sh	exploration-depth	advisory	no	architecture	domain exploration depth is sufficient
+.pi/scripts/validate-ubiquitous-language.sh	ubiquitous-language	gating	yes	architecture	code and docs share the canonical glossary
