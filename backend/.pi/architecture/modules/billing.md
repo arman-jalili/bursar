@@ -30,6 +30,20 @@ ever reach Authority.
 | **Infrastructure** | SQLAlchemy repositories, invoice-hash computation, fixture loader | `src/billing/infrastructure/` |
 | **Interfaces** | REST handlers, Mandate digest-review call, event publishers | `src/billing/interfaces/` |
 
+## Contract Freeze
+
+**Phase A artifact: [`docs/contracts/billing-contract-freeze.md`](../../docs/contracts/billing-contract-freeze.md).**
+
+That file is the authoritative frozen surface for this context: the seven invariant ids (B-1…B-7) with
+the illegal state each prevents, every signature (`Invoice`, `PaymentAttempt`, `InvoiceHash`,
+`BilledAmount`, `InvoiceStatus`, `AttemptStatus`, the two repository ports, `RecordInvoice`,
+`ProposePayment`), the refusal vocabulary, and the ordered list of behaviour Phase B must implement.
+
+Status: frozen for implementation. `src/billing/` contains signatures only — every body raises
+`NotImplementedError("B-n — see module doc")` — and the 10 suites under `tests/unit/billing/` are red
+by design, each naming the invariant it defends. Verify with
+`bash .pi/scripts/freeze.sh verify --module billing`.
+
 ## Related ADRs
 
 | ADR | Relevance |
