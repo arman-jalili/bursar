@@ -5,9 +5,18 @@ Reference: docs/contracts/billing-contract-freeze.md §2.5
 
 Every refusal here extends the shared `RefusalError`, so:
 
-* the API layer needs **no Billing-specific exception handling** — a refusal is a documented `409` with a
+* the API layer needs **no Billing-specific exception handling** — a refusal is a documented error with a
   domain code everywhere in this context (ADR-004);
 * a test can assert `pytest.raises(RefusalError)` and still be specific about the cause.
+
+Transport status is part of the frozen contract and is deliberately not uniform:
+
+* **409** for a *state conflict* — the request was well-formed and the current state says no
+  (`DuplicateInvoice`, `InvoiceNotPayable`, `InvoiceAlreadySettled`, `AmountMismatch`).
+* **422** only for `ProposalRejected`: a proposal carrying forbidden keys is malformed *input*, not a
+  conflict with state. The module AC (#4) and the endpoint scenario both name `422 PROPOSAL_REJECTED`,
+  so this carries an explicit, documented carve-out from ADR-004's blanket `409` — see
+  `docs/contracts/billing-contract-freeze.md` §2.5.
 
 Each class exists because one invariant needs it named:
 
@@ -79,6 +88,11 @@ class ProposalRejected(BillingRefusal):
 
     Rejected, not sanitized: silently dropping the field would teach the caller which fields survive, and
     the next attempt would omit only the ones that are checked.
+
+    `422`, not the base `409`: a forbidden key is malformed *input*, not a conflict with the invoice's
+    state. This is the one documented carve-out from ADR-004's blanket `409` for refusals — AC #4 and
+    the endpoint scenario both pin `422 PROPOSAL_REJECTED`, and a contract that says otherwise would
+    make the integration test assert the wrong thing.
     """
 
     def __init__(self, offending_fields: tuple[str, ...] = (), **extra: str) -> None:
@@ -91,6 +105,7 @@ class ProposalRejected(BillingRefusal):
             },
         )
         self.reason_code = ErrorCode.PROPOSAL_REJECTED.value
+        self.http_status = 422
 
 
 class AmountMismatch(BillingRefusal):
