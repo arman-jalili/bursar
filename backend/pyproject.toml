@@ -85,6 +85,7 @@ ignore = [
 "src/billing/domain/errors.py" = ["N818"]
 "src/authority/domain/errors.py" = ["N818"]
 "src/evidence/domain/errors.py" = ["N818"]
+"src/settlement/domain/errors.py" = ["N818"]
 
 # ── mypy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]
