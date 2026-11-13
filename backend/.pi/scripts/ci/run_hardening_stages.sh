@@ -177,6 +177,13 @@ run_stage "2" "architecture_conformance" \
     "${SCRIPTS_DIR}/check_architecture_conformance.sh" \
     "always"
 
+# Stage 2b: Module contract proofing (ADR-010)
+# Deterministic: fails if a frozen Billing interface loses its implementation, test, migration
+# mirror or composition-root registration.
+run_stage "2b" "billing_contracts" \
+    "${SCRIPTS_DIR}/check_billing_contracts.sh" \
+    "always"
+
 # Stage 3: Lint
 run_stage "3" "lint" \
     "${SCRIPTS_DIR}/stage_lint.sh" \
