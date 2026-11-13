@@ -10,7 +10,7 @@ from identical routing details are equal; a one-character change alters the hash
 test would flip from green to red the moment the body landed.
 
 Rewritten from the generated placeholder: the original had hyphenated method names (a `SyntaxError`,
-so the whole suite could not be collected) and a tautological `assert False`.
+so the whole suite could not be collected) and a tautological failing assertion.
 """
 
 from __future__ import annotations
