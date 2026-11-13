@@ -48,6 +48,73 @@ Each entry follows this structure:
 
 ## Entries
 
+## [2026-11-13] - Mandate: Contract Freeze v1
+
+### Changed
+- Module: **mandate**
+  - Frozen the public contract for the epic before implementation: value objects, aggregates
+    (behaviour surface only), repository ports, domain-service ports, the 6 catalog application
+    services and all request/result DTOs, plus the 12 domain-event payloads
+  - Package layout `src/mandate/{domain,application,infrastructure,interfaces}/`; `infrastructure/`
+    and `interfaces/` are declared-and-empty so the 4-layer contract holds without pre-empting the
+    persistence/HTTP items
+
+### Added
+- `src/mandate/domain/`: `values.py` (`BankDigest`, `Cap`, `Threshold`, `PartyRef`, `Eligibility`,
+  `RoutingDetails`, addresses/names, `PayeeStatus`, `ReasonCode`), `errors.py` (`MandateError`,
+  `OwnerActionRequired` 403, `OwnerProofInvalid`, `ThresholdExceedsCap`, `ConstitutionCorrupted` 500,
+  `PayeeNotEligible`, `PayeeAlreadyRegistered`), `events.py` (12 frozen payloads), `entities.py`
+  (`Owner`/`Payer`/`Agent`), `household.py`, `constitution.py`, `payee.py`, `repositories.py`
+  (3 ABCs), `ports.py` (`OwnerSignatureProof` Protocol, `EligibilityResolver` ABC), `ids.py`
+- `src/mandate/application/`: `dto.py` (13 frozen DTOs), `services.py` (6 catalog ABCs +
+  `EligibilityReader`)
+- `tests/unit/mandate/`: 9 contract test files (~200 assertions) — the generated ones were
+  uncollectable (hyphenated method names, `SyntaxError`) and tautological (`assert False`), so they
+  were rewritten as shape assertions per `.pi/skills/tdd-practice.md`
+- `Frozen Contracts (v1)` section in `.pi/architecture/modules/mandate.md` — types, fields, ports,
+  services, reason-code ↔ wire-code table, and the three defects the freeze caught
+
+### Defects caught by the freeze (before anything depended on them)
+1. `OwnerActionRequired` silently lost its `role` detail: `ForbiddenError.__init__` chained into
+   `MandateError.__init__` through the MRO of a two-parent error, nesting `details` one level deep.
+2. `**details` on `MandateError` allowed `details={"code": …}` to rewrite an error's wire code.
+3. `Constitution.version()` shadowed `AggregateRoot.version` (the optimistic-concurrency counter);
+   renamed `find_version`, symmetrical with `ConstitutionRepository.find_version`.
+
+### Impact Analysis
+- Files affected: `src/mandate/**`, `tests/unit/mandate/**`, `pyproject.toml` (ruff/mypy scope),
+  `.pi/architecture/modules/mandate.md`, `.pi/architecture/CHANGELOG.md`
+- Canonical refs: every new file carries a `Canonical:` header; `validate-canonical.sh` passes
+- Validators: `validate-architecture`, `check_model_judgment`, `check_language_consistency`,
+  `validate-canonical` — all pass; `ruff` + `mypy` clean; 267 tests pass
+
+### Deviations from the issue boilerplate (deliberate)
+- Repository **interfaces** live in `domain/repositories.py`, not `infrastructure/repository/`: the
+  issue's own body says "Repository interfaces (owned by `domain/`)", and ADR-008's
+  `interface-ownership` gate requires it. Implementations go to `infrastructure/`.
+- HTTP routers are **not** part of this item: the issue says controllers are concrete and get no
+  contract file, and the endpoint contract is already frozen in the module doc's API table. Writing an
+  empty router would be dead code (`check_composition_root.sh` exists to catch exactly that).
+
+### Known heuristic-check noise (not defects)
+- `check_ddd_structure.sh` reports `__pycache__` and `apps` as modules "missing layers". The first is
+  a script artefact (no `__pycache__` filter); the second is the composition root — two deployables,
+  not a bounded context. `mandate` passes all four of that script's checks.
+- `check_judgment_contracts.sh` fails on harness template paths (`templates/pi/…`, `src/lib/…`,
+  java skill gates) that do not exist in this repository; unrelated to this change.
+
+### Migration Steps
+1. Implementation items fill the `NotImplementedError` bodies; signatures stay as frozen.
+2. Persistence item adds `mandate_*` tables (migration `001_mandate`) and the repository adapters.
+3. HTTP item adds `interfaces/http/router.py` and registers it in `src/apps/shell.py`.
+
+### Status
+- [x] Architecture doc updated (Frozen Contracts v1)
+- [x] CHANGELOG entry added
+- [x] Implementation updated (contracts + stubs, no behaviour)
+- [x] Canonical refs updated
+- [x] Validators run
+
 ## [2026-11-13] - Phase 0: Project Bootstrap (implementation started)
 
 ### Changed
@@ -213,6 +280,7 @@ Track which changes have been synced to implementation:
 | 2026-11-13 | Adapter-depth enrichment — ACL whitelists, read models, no domain layer | console | pending (no `src/`) | not run |
 | 2026-11-13 | ADRs 001–007 accepted; diagrams + roadmap generated | all | pending (no `src/`) | not run |
 | 2026-11-13 | **Phase 0 bootstrap** — kernel, config, logging, DB, envelope, 2 deployables, CI | bootstrap (no context) | complete | architecture/model-judgment/language/canonical: pass |
+| 2026-11-13 | Mandate contract freeze v1 — values, aggregates, ports, DTOs, events, 9 contract tests | mandate | complete (stubs) | all four gates pass; 267 tests |
 
 ---
 

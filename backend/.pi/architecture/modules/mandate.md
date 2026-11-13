@@ -334,22 +334,29 @@ class Constitution(AggregateRoot):
         return live[0]
 
     def append(
-        self, cap: Cap, threshold: Threshold, require_signature_for_new_payee: bool,
-        actor: PartyRef, proof: OwnerSignatureProof,
+        self,
+        cap: Cap,
+        threshold: Threshold,
+        require_signature_for_new_payee: bool,
+        actor: PartyRef,
+        proof: OwnerSignatureProof,
     ) -> ConstitutionVersion:
         self.assert_owner_acts(actor)
-        if not proof.signs(self.household_id, cap, threshold):   # H-5
+        if not proof.signs(self.household_id, cap, threshold):  # H-5
             raise OwnerProofInvalid()
-        if threshold.micro_usdc > cap.micro_usdc:                 # H-6
+        if threshold.micro_usdc > cap.micro_usdc:  # H-6
             raise ThresholdExceedsCap(threshold, cap)
 
         previous = self.in_force
         next_version = previous.next_version(cap, threshold, require_signature_for_new_payee)
 
-        previous.supersede()          # immutable afterwards — no setters exist
+        previous.supersede()  # immutable afterwards — no setters exist
         self._versions.append(next_version)
-        self.record(ConstitutionVersionPublished(
-            version=next_version.version, content_hash=next_version.content_hash))
+        self.record(
+            ConstitutionVersionPublished(
+                version=next_version.version, content_hash=next_version.content_hash
+            )
+        )
         if cap != previous.cap:
             self.record(CapChanged(from_=previous.cap, to=cap))
         if threshold != previous.threshold:
@@ -386,14 +393,14 @@ class Payee(AggregateRoot):
     id: PayeeId
     household_id: HouseholdId
     name: PayeeName
-    address: PayeeAddress          # verified payout address — never from invoice text
-    verified_digest: BankDigest    # owner-approved baseline
+    address: PayeeAddress  # verified payout address — never from invoice text
+    verified_digest: BankDigest  # owner-approved baseline
     status: PayeeStatus
 
     @classmethod
     def register(cls, name, address, digest, actor: PartyRef, proof) -> "Payee":
         if actor.role is not Role.OWNER:
-            raise OwnerActionRequired(actor.role)          # P-1
+            raise OwnerActionRequired(actor.role)  # P-1
         if not proof.signs(digest, address):
             raise OwnerProofInvalid()
         payee = cls(PayeeId.new(), actor.household_id, name, address, digest, PayeeStatus.NEW)
@@ -403,28 +410,29 @@ class Payee(AggregateRoot):
     def review_presented_digest(self, presented: BankDigest) -> None:
         """Called when an invoice arrives. Mismatch quarantines; it never rebinds."""
         if self.status is PayeeStatus.FROZEN:
-            return                                          # P-4 freeze dominates
+            return  # P-4 freeze dominates
         if presented.matches(self.verified_digest):
             return
-        self.status = PayeeStatus.QUARANTINED               # P-2
-        self.record(PayeeDigestChanged(payee_id=self.id, presented=presented,
-                                       verified=self.verified_digest))
+        self.status = PayeeStatus.QUARANTINED  # P-2
+        self.record(
+            PayeeDigestChanged(payee_id=self.id, presented=presented, verified=self.verified_digest)
+        )
         self.record(PayeeQuarantined(payee_id=self.id, reason="bank_digest_mismatch"))
         # NOTE: self.address is deliberately NOT updated.
 
     def reapprove(self, new_digest: BankDigest, actor: PartyRef, proof) -> None:
-        if actor.role is not Role.OWNER:                    # P-3
+        if actor.role is not Role.OWNER:  # P-3
             raise OwnerActionRequired(actor.role)
         if not proof.signs(self.id, new_digest):
             raise OwnerProofInvalid()
-        self.verified_digest = new_digest                   # P-5 only path to change
+        self.verified_digest = new_digest  # P-5 only path to change
         self.status = PayeeStatus.ELIGIBLE
         self.record(PayeeReapproved(payee_id=self.id, digest=new_digest))
 
     def freeze(self, actor: PartyRef) -> None:
         if actor.role is not Role.OWNER:
             raise OwnerActionRequired(actor.role)
-        self.status = PayeeStatus.FROZEN                    # P-4 stronger than quarantine
+        self.status = PayeeStatus.FROZEN  # P-4 stronger than quarantine
         self.record(PayeeFrozen(payee_id=self.id))
 
     def eligibility(self) -> Eligibility:
@@ -630,6 +638,104 @@ values (CQS). No anemic `PayeeService.setStatus`.
 Deliberately **not** introduced: a `Rule` strategy hierarchy (no second variant exists), a
 `Household` event-sourcing store (no requirement), an abstract `Party` base class (three roles
 share nothing but a name).
+
+## Frozen Contracts (v1) — 2026-11-13
+
+The public surface below is **frozen**. Implementation items fill in stub bodies; changing a name, a
+field or a signature on this page is a contract version bump (`__contract_version__` in
+`src/mandate/__init__.py`), not a refactor.
+
+### Value objects — `src/mandate/domain/values.py`
+
+| Type | Fields (name: type) | Why a value object, not an entity |
+|---|---|---|
+| `BankDigest` | `hash: str` | Two equal digests *are* the same destination |
+| `Cap` | `micro_usdc: int` | Defined entirely by its amount |
+| `Threshold` | `micro_usdc: int` | Same — positional inside a `ConstitutionVersion` |
+| `PartyRef` | `role: Role, id: str, household_id: str` | A reference to another object's identity |
+| `Eligibility` | `verdict: EligibilityVerdict, reason: str or None` | Pure derived data, no lifecycle |
+| `RoutingDetails` | `scheme: str, account_number: str, routing_number: str` | Ordered input to the digest |
+| `EvmAddress` / `PayeeAddress` / `DisplayName` / `PayeeName` | `value: str` | Validated primitives |
+
+Enumerations: `Role{owner,payer,agent}` · `PayeeStatus{new,eligible,quarantined,frozen}` ·
+`EligibilityVerdict{allow,escalate,deny}` · `ReasonCode` (below) · `VersionStatus{in_force,superseded}`.
+
+### Reason codes — domain vocabulary (lowercase) vs wire codes (uppercase)
+
+`ReasonCode` is what gets sealed into evidence and translated by the console copy table; `ErrorCode`
+is what the ADR-004 envelope carries. Both are needed, and a contract test asserts they stay aligned.
+
+| `ReasonCode` | `ErrorCode` | Escalate or refuse |
+|---|---|---|
+| `new_payee` | *(none — not an error)* | escalate |
+| `digest_mismatch` | `DIGEST_MISMATCH` | refuse |
+| `payee_quarantined` | `PAYEE_QUARANTINED` | refuse |
+| `payee_frozen` | `PAYEE_FROZEN` | refuse |
+| `cap_exceeded` | `CAP_EXCEEDED` | refuse |
+| `duplicate_invoice` | `DUPLICATE_INVOICE` | refuse |
+| `approval_invalid` | `APPROVAL_INVALID` | refuse |
+| `amount_mismatch` | `AMOUNT_MISMATCH` | refuse |
+| `budget_exhausted` | `BUDGET_EXHAUSTED` | refuse |
+
+### Aggregates — behaviour surface only (no setters anywhere)
+
+| Aggregate | Factory | Operations | Invariants |
+|---|---|---|---|
+| `Household` | `open(*, owner, payer, agent, constitution, actor)` | `change_owner`, `assert_owner_acts` | H-1…H-3 |
+| `Constitution` | `initial(household_id, cap, threshold)` | `append`, `in_force` (property), `find_version`, `versions` | H-4…H-8 |
+| `Payee` | `register(*, household_id, name, address, digest, actor, proof)` | `review_presented_digest`, `reapprove`, `freeze`, `unfreeze`, `eligibility` | P-1…P-6 |
+
+`Constitution.find_version` is **not** `version`: `AggregateRoot.version` is the optimistic-concurrency
+counter (ADR-002), and a method of that name would shadow it.
+
+### Ports — `src/mandate/domain/`
+
+| Port | Kind | Operations |
+|---|---|---|
+| `HouseholdRepository` | ABC | `find_by_id`, `save` |
+| `ConstitutionRepository` | ABC | `find_by_id`, `find_in_force`, `find_version`, `save` |
+| `PayeeRepository` | ABC | `find_by_id`, `find_by_household`, `save` |
+| `EligibilityResolver` | ABC (domain service) | `resolve(status, *, require_signature_for_new_payee)` |
+| `OwnerSignatureProof` | `Protocol` | `signs(*subjects) -> bool` |
+
+No repository exposes `commit`, `flush` or `begin`: the unit of work belongs to
+`src/shared/application/unit_of_work.py` (`txn-placement` gate).
+
+### Application contracts — `src/mandate/application/`
+
+Services (exact names, from the exploration use-cases pass):
+`CreateMandate` (FR-001) · `PublishConstitutionVersion` (FR-002) · `RegisterPayee` (FR-004) ·
+`QuarantinePayee` (FR-005) · `ReapprovePayeeDigest` (FR-005) · `FreezePayee` (FR-006) ·
+`EligibilityReader` (FR-012, supporting).
+
+DTOs (frozen dataclasses; amounts in integer micro-USDC, digests as hex, **never** routing details):
+`CreateMandateCommand/Result` · `PublishConstitutionVersionCommand/Result` ·
+`RegisterPayeeCommand/Result` · `ReviewPresentedDigestCommand/Result` ·
+`ReapprovePayeeDigestCommand/Result` · `FreezePayeeCommand/Result` ·
+`ConstitutionVersionView` · `PayeeView` · `EligibilityView`.
+
+### Corrections made during the freeze
+
+Three defects the contract tests and gates caught *before* any implementation depended on them:
+
+1. **`OwnerActionRequired` lost its `role` detail.** Multiple inheritance from `ForbiddenError` and
+   `MandateError` made `ForbiddenError.__init__` chain into `MandateError.__init__`, nesting `details`
+   one level deep. Fixed with a single `__init__` on `MandateError` plus `default_code` /
+   `default_status`.
+2. **`**details` could rewrite an error's wire code.** A `**kwargs` tail let `details={"code": …}`
+   override `code`. Replaced with an explicit `details: Mapping[str, str] | None` parameter.
+3. **`Constitution.version()` shadowed `AggregateRoot.version`.** Renamed to `find_version`, matching
+   the repository port.
+
+(1) and (2) were found by the contract tests; (3) by `mypy`. That is the freeze doing its job.
+
+### Test artefacts
+
+`tests/unit/mandate/` holds 9 contract test files (~200 assertions) asserting **shape** — types,
+signatures, immutability, abstractness, layer purity — rather than behaviour, so they stay green as
+behaviour lands. The generated originals were uncollectable (hyphenated method names → `SyntaxError`)
+and tautological (`assert False`); they were rewritten per `.pi/skills/tdd-practice.md`
+("tests are living artifacts").
 
 ## Acceptance Criteria
 

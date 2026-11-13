@@ -142,6 +142,7 @@ must satisfy contracts, not the other way around.
 > 2. Place domain interfaces in domain/, service interfaces in application/, DTOs in application/
 > 3. Controllers/routers are CONCRETE — they do NOT get interfaces. The concrete router/handler class goes directly in interfaces/http/ without a separate contract file.
 > 4. Event schemas go in domain/event/
-> 5. Repository interfaces go in infrastructure/repository/
+> 5. Repository **interfaces/ABCs** go in `domain/`; their implementations go in `infrastructure/repository/`
+>    (ADR-002: the domain declares the port, the adapter fulfils it)
 >
 > The goal is a reviewed, frozen contract that implementation issues can depend on.

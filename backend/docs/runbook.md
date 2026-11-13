@@ -1,5 +1,18 @@
 # Bursar Runbook (24-hour demo)
 
+## Local CI / tests
+
+The project targets **Python 3.12** (`uv`). The Guardian scripts resolve tools from `PATH`, so on a
+machine where a system `pytest`/`ruff` shadows the venv they will report failures that are really
+interpreter mismatches:
+
+```bash
+make check                                    # canonical: ruff + mypy + pytest via uv
+PATH="$PWD/.venv/bin:$PATH" bash .pi/scripts/ci/run_preflight.sh   # harness preflight
+```
+
+`tests/conftest.py` raises an explicit error if it is imported by an interpreter older than 3.12.
+
 ## Start
 
 ```bash

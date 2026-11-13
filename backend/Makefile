@@ -41,12 +41,13 @@ test-unit: ## Shared-kernel unit tests only (no server, fast)
 test-contract: ## Architecture-boundary tests
 	$(UV) run pytest -m contract -q
 
-lint: ## Ruff lint
-	$(UV) run ruff check src tests
+lint: ## Ruff lint (whole repo, including migrations)
+	$(UV) run ruff check .
+	$(UV) run ruff format --check .
 
 fmt: ## Ruff format (writes)
-	$(UV) run ruff format src tests
-	$(UV) run ruff check --fix src tests
+	$(UV) run ruff format .
+	$(UV) run ruff check --fix .
 
 typecheck: ## Mypy (strict-ish)
 	$(UV) run mypy
