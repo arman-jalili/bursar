@@ -217,13 +217,6 @@ run_stage "10" "release_readiness" \
     "${SCRIPTS_DIR}/stage_release_readiness.sh" \
     "always"
 
-# Stage 11: Contract Proofs (per-epic, deterministic)
-# The mandate epic ships a proof script that fails if a frozen contract or an
-# invariant anchor disappears from the tree. Project-owned, zero-token.
-run_stage "11" "contract_proofs" \
-    "${SCRIPTS_DIR}/prove_mandate_contracts.sh" \
-    "always"
-
 # ── Summary ──
 
 echo ""

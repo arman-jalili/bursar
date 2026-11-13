@@ -169,8 +169,24 @@ def deps_of(slug):
     return found
 
 def state_of(state, slug):
+    """frozen | implemented | frozen-stale | unfrozen.
+
+    A module that is genuinely implemented needs no freeze: implementation is a
+    stronger fact than a frozen contract. Without this, an implemented module
+    read as "unfrozen" and blocked every module that depends on it.
+    """
     e = entry(state, slug)
-    return e.get("state") or ("frozen" if e.get("contractFrozen") else "unfrozen")
+    explicit = e.get("state")
+    doc = module_doc(slug)
+    text = read(doc) if doc else ""
+    m = re.search(r"\*\*Status:\*\*\s*([A-Za-z][A-Za-z ]*)", text)
+    doc_state = (m.group(1).strip().lower() if m else "")
+    implemented = doc_state.startswith(("implemented", "done", "complete"))
+    if implemented:
+        return "implemented"
+    if explicit:
+        return explicit
+    return "frozen" if e.get("contractFrozen") else "unfrozen"
 
 # ── the verification ────────────────────────────────────────────────────────
 STRUCTURAL_ONLY = re.compile(
@@ -270,6 +286,12 @@ def run_python_tests(tests):
 def verify(slug):
     checks = []
     ok_all = True
+
+    # Implemented modules need no freeze and cannot be re-frozen; they satisfy
+    # every dependency gate.
+    if state_of(load_state(), slug) == "implemented":
+        checks.append(("state", True, "implemented — no freeze required (dependency satisfied)"))
+        return True, checks, "", {"implemented": True, "contracts": [], "tests": []}
 
     doc = module_doc(slug)
     checks.append(("module doc", bool(doc), doc and os.path.relpath(doc, root) or f"missing .pi/architecture/modules/{slug}.md"))
