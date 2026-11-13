@@ -81,14 +81,26 @@ class PaymentIntent:
 
     @classmethod
     def issue(
-        cls, attempt: AttemptView, mandate: MandateView, invoice: InvoiceView,
-        *, household_id: str = "",
+        cls,
+        attempt: AttemptView,
+        mandate: MandateView,
+        invoice: InvoiceView,
+        *,
+        household_id: str = "",
     ) -> PaymentIntent: ...  # A-2 … A-4
     @classmethod
-    def from_reads(cls, *, invoice_id, payee, constitution_version,
-                   require_signature_for_new_payee, threshold, amount) -> PaymentIntent: ...
+    def from_reads(
+        cls,
+        *,
+        invoice_id,
+        payee,
+        constitution_version,
+        require_signature_for_new_payee,
+        threshold,
+        amount,
+    ) -> PaymentIntent: ...
     def signed_payload(self) -> dict[str, Any]: ...  # A-1/A-13
-    def typed_data_hash(self) -> str: ...             # A-13
+    def typed_data_hash(self) -> str: ...  # A-13
 ```
 
 Frozen for two reasons. `slots=True, frozen=True` makes A-1 unrepresentable-if-violated rather than a
@@ -290,12 +302,13 @@ the original outcome without consuming twice.
 
 ```python
 class DeterminationPolicy(ABC):
-    def decide(self, *, intent, constitution, payee, ledger, read_at,
-               duplicate_invoice=False) -> Determination: ...   # A-5 … A-8
+    def decide(
+        self, *, intent, constitution, payee, ledger, read_at, duplicate_invoice=False
+    ) -> Determination: ...  # A-5 … A-8
 
 
 class ApprovalBinder(ABC):
-    def typed_data(self, intent) -> Mapping[str, Any]: ...        # A-13
+    def typed_data(self, intent) -> Mapping[str, Any]: ...  # A-13
     def recover_signer(self, *, typed_data_hash, signature_hex) -> EvmAddress: ...  # A-15
 ```
 

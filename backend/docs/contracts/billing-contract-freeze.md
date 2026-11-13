@@ -41,14 +41,17 @@ of them does not belong in the suite.
 @dataclass(frozen=True, slots=True)
 class InvoiceHash(ValueObject):
     value: str
+
     @classmethod
-    def from_document(cls, document: Mapping[str, object]) -> InvoiceHash: ...   # B-3
+    def from_document(cls, document: Mapping[str, object]) -> InvoiceHash: ...  # B-3
+
 
 @dataclass(frozen=True, slots=True)
 class BilledAmount(ValueObject):
     micro_usdc: int
+
     @classmethod
-    def from_usdc(cls, amount: str | Decimal) -> BilledAmount: ...               # B-6
+    def from_usdc(cls, amount: str | Decimal) -> BilledAmount: ...  # B-6
 ```
 
 * `InvoiceHash` is the **duplicate key off-chain and the nullifier seed on-chain** — one value, two
@@ -59,8 +62,12 @@ class BilledAmount(ValueObject):
 ### 2.2 Enumerations — `domain/values.py`
 
 ```python
-class InvoiceStatus(StrEnum):   RECEIVED | OUTSTANDING | IN_FLIGHT | SETTLED
-class AttemptStatus(StrEnum):   PROPOSED | ESCALATED | APPROVED | DISPATCHED | SETTLED | REFUSED | EXPIRED
+class InvoiceStatus(StrEnum):
+    RECEIVED | OUTSTANDING | IN_FLIGHT | SETTLED
+
+
+class AttemptStatus(StrEnum):
+    PROPOSED | ESCALATED | APPROVED | DISPATCHED | SETTLED | REFUSED | EXPIRED
 ```
 
 Both are **closed sets with one-way transitions**: `SETTLED` and `REFUSED` are terminal. There is no
@@ -81,11 +88,12 @@ class Invoice(AggregateRoot):
     status: InvoiceStatus
 
     @classmethod
-    def from_document(cls, *, payee_id, amount, due_date, document,
-                      presented_digest, existing_hashes=()) -> Invoice: ...       # B-3
-    def can_accept_attempt(self) -> bool: ...                                    # B-1 / B-2
-    def is_duplicate_of(self, other: InvoiceHash) -> bool: ...                   # B-3
-    def mark_settled(self) -> None: ...                                          # B-2
+    def from_document(
+        cls, *, payee_id, amount, due_date, document, presented_digest, existing_hashes=()
+    ) -> Invoice: ...  # B-3
+    def can_accept_attempt(self) -> bool: ...  # B-1 / B-2
+    def is_duplicate_of(self, other: InvoiceHash) -> bool: ...  # B-3
+    def mark_settled(self) -> None: ...  # B-2
 ```
 
 The factory is `from_document`, deliberately **not** `record`: `AggregateRoot.record(self, event)` is the
@@ -97,9 +105,10 @@ There is **no setter** and no `update()`, so `status` can only move through inte
 ### 2.4 `PaymentAttempt` — `domain/payment_attempt.py` (aggregate root)
 
 ```python
-FORBIDDEN_PROPOSAL_KEYS: frozenset[str] = frozenset({...})   # command, command_path, payee_address,
-                                                             # cap, threshold, constitution_version,
-                                                             # requires_owner_signature, is_new_payee
+FORBIDDEN_PROPOSAL_KEYS: frozenset[str] = frozenset({...})  # command, command_path, payee_address,
+# cap, threshold, constitution_version,
+# requires_owner_signature, is_new_payee
+
 
 @dataclass(eq=False)
 class PaymentAttempt(AggregateRoot):
@@ -108,10 +117,12 @@ class PaymentAttempt(AggregateRoot):
     status: AttemptStatus
 
     @classmethod
-    def from_proposal(cls, payload: Mapping[str, object], invoice: Invoice) -> PaymentAttempt: ...
-                                                                                 # B-5, B-1, B-2, B-6
-    def mark_dispatched(self) -> None: ...                                       # B-7
-    def mark_refused(self, reason: str) -> None: ...                             # B-7
+    def from_proposal(cls, payload: Mapping[str, object], invoice: Invoice) -> PaymentAttempt:
+        ...
+        # B-5, B-1, B-2, B-6
+
+    def mark_dispatched(self) -> None: ...  # B-7
+    def mark_refused(self, reason: str) -> None: ...  # B-7
 ```
 
 `from_proposal` is the **only** entry point, and it is the ACL boundary: the payload is a set of
@@ -137,15 +148,18 @@ handling**: a refusal is a documented `409` with a domain code, everywhere in th
 
 ```python
 class InvoiceRepository(Repository[InvoiceId, Invoice], ABC):
-    async def add(self, invoice: Invoice) -> None: ...        # raises DuplicateInvoice (B-3)
+    async def add(self, invoice: Invoice) -> None: ...  # raises DuplicateInvoice (B-3)
     async def find_by_id(self, id_: InvoiceId) -> Invoice | None: ...
-    async def find_by_hash(self, hash_: InvoiceHash) -> Invoice | None: ...   # B-3 lookup
+    async def find_by_hash(self, hash_: InvoiceHash) -> Invoice | None: ...  # B-3 lookup
     async def save(self, invoice: Invoice) -> None: ...
+
 
 class PaymentAttemptRepository(Repository[AttemptId, PaymentAttempt], ABC):
     async def add(self, attempt: PaymentAttempt) -> None: ...  # raises InvoiceNotPayable (B-1)
     async def find_by_id(self, id_: AttemptId) -> PaymentAttempt | None: ...
-    async def find_active_for_invoice(self, invoice_id: InvoiceId) -> PaymentAttempt | None: ...  # B-1
+    async def find_active_for_invoice(
+        self, invoice_id: InvoiceId
+    ) -> PaymentAttempt | None: ...  # B-1
 ```
 
 Ports are **owned by `domain/`** and declare **no transaction control** (`commit`, `flush`, `begin`) —
@@ -157,10 +171,13 @@ predicates.
 
 ```python
 class RecordInvoice(ABC):
-    async def execute(self, command: RecordInvoiceCommand) -> RecordInvoiceResult: ...   # B-3, B-4
+    async def execute(self, command: RecordInvoiceCommand) -> RecordInvoiceResult: ...  # B-3, B-4
+
 
 class ProposePayment(ABC):
-    async def execute(self, command: ProposePaymentCommand) -> ProposePaymentResult: ... # B-5, B-1, B-2, B-6
+    async def execute(
+        self, command: ProposePaymentCommand
+    ) -> ProposePaymentResult: ...  # B-5, B-1, B-2, B-6
 ```
 
 Names are fixed by the exploration use-cases pass (`FR-007`, `FR-009`). One application service = one
