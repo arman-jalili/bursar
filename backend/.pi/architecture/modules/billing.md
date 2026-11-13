@@ -37,7 +37,9 @@ ever reach Authority.
 That file is the authoritative frozen surface for this context: the seven invariant ids (B-1…B-7) with
 the illegal state each prevents, every signature (`Invoice`, `PaymentAttempt`, `InvoiceHash`,
 `BilledAmount`, `InvoiceStatus`, `AttemptStatus`, the two repository ports, `RecordInvoice`,
-`ProposePayment`), the refusal vocabulary, and the ordered list of behaviour Phase B must implement.
+`ProposePayment`), the seven event payload schemas (`src/billing/domain/events.py`), the two domain
+ports (`src/billing/domain/ports.py`), the refusal vocabulary with its HTTP statuses, and the ordered
+list of behaviour Phase B must implement.
 
 Status: frozen for implementation. `src/billing/` contains signatures only — every body raises
 `NotImplementedError("B-n — see module doc")` — and the 10 suites under `tests/unit/billing/` are red
@@ -313,9 +315,11 @@ Below the catalog: `ListInvoices`, `GetAttempt`, `LoadFixtures` (demo seeding).
 | POST | `/v1/attempts` | `interfaces/api.propose` | `{invoice_id}` only | attempt or 422 `PROPOSAL_REJECTED` | `billing:propose` (**agent**) |
 | GET | `/v1/attempts/{id}` | `interfaces/api.get_attempt` | — | attempt + status | `console:read` |
 
-`POST /v1/attempts` accepts **only** `invoice_id`. Every other field in the documented schema
-is rejected with `PROPOSAL_REJECTED` rather than ignored — the difference between "we filter"
-and "we do not accept" is the whole ACL argument.
+`POST /v1/attempts` accepts `invoice_id` and an optional `proposed_amount_micro_usdc` — and nothing
+else. Every other field in the documented schema is rejected with `PROPOSAL_REJECTED` (HTTP 422)
+rather than ignored — the difference between "we filter" and "we do not accept" is the whole ACL
+argument. The amount is optional only so B-6 is reachable over the wire; when present it must equal
+the invoice amount (`AMOUNT_MISMATCH`, HTTP 409).
 
 ## Ubiquitous Language
 
