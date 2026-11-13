@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -47,7 +48,7 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
         yield test_client
 
 
-def _record(client: TestClient, document: dict[str, object] | None = None) -> dict[str, object]:
+def _record(client: TestClient, document: dict[str, object] | None = None) -> dict[str, Any]:
     response = client.post(
         "/v1/invoices",
         headers=AGENT_TOKEN,
