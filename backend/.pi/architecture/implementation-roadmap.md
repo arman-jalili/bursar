@@ -146,12 +146,12 @@ payee whose bank digest changed.
 
 ### Acceptance Criteria
 
-- [ ] Payee invariant tests P-1…P-6 pass, including "mismatch quarantines and leaves the address
+- [x] Payee invariant tests P-1…P-6 pass, including "mismatch quarantines and leaves the address
       byte-identical" (scenario 2, unit level).
-- [ ] Constitution H-4…H-8 pass: exactly one in-force, threshold ≤ cap, immutable versions.
-- [ ] Agent-scoped credentials receive 403 on every mandate write endpoint.
-- [ ] `GET /v1/payees/{id}/eligibility` reflects a freeze between two consecutive calls (no cache).
-- [ ] Every command writes exactly its documented events to `mandate_outbox` in one transaction.
+- [x] Constitution H-4…H-8 pass: exactly one in-force, threshold ≤ cap, immutable versions.
+- [x] Agent-scoped credentials receive 403 on every mandate write endpoint.
+- [x] `GET /v1/payees/{id}/eligibility` reflects a freeze between two consecutive calls (no cache).
+- [x] Every command writes exactly its documented events to `mandate_outbox` in one transaction.
 
 ---
 

@@ -47,3 +47,23 @@ demo: local state loss and chain/network unavailability.
 
 Record what failed, what was restored, and whether any payment is ambiguous. Never resolve an
 ambiguous effect with a guess.
+
+
+## Mandate-specific recovery
+
+Both SQLite files are the whole state; the chain is the other half. A restore is only correct if the
+two agree.
+
+| Scenario | Recovery | Verification |
+|---|---|---|
+| `data/bursar.db` lost | Copy the last backup, then `make db-upgrade DB=console` | `GET /readyz` reports `database: ok` and `Mandate` in `wired_contexts` |
+| Lost *after* a settlement | Restore the backup, then reconcile: compare `mandate_payees`/outbox against `PaymentRouter` receipts by nullifier | Settled invoices must not become payable again — the on-chain nullifier is the authority, not the database |
+| `data/authority.db` lost | Phase 3 context; until then the reservation ledger is unused | — |
+| Partial write suspicion | `PRAGMA integrity_check;` in both files | `ok` |
+
+**Recovery rule:** the database may be stale, the chain may not be replayed. When they disagree, treat
+the chain as truth and the database as a cache of it — that is the whole point of the commit-point
+lock (ADR-007).
+
+**RPO/RTO for the demo:** RPO = time since last `make backup` (manual, before the demo); RTO = restore
+file + restart (< 5 minutes). There is no automatic replication by design: one household, one machine.

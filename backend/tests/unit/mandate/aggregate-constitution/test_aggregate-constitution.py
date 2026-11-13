@@ -55,6 +55,7 @@ class TestConstitutionIsAnAggregateRoot:
             "household_id",
             "cap",
             "threshold",
+            "require_signature_for_new_payee",
         ]
 
 

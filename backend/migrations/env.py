@@ -31,8 +31,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-#: Per-context metadata is registered here as contexts are built. Deliberately empty in Phase 0.
-target_metadata = None
+#: Metadata for every built context, used by `--autogenerate` and by `compare_metadata`.
+from src.mandate.infrastructure.models import Base as MandateBase  # noqa: E402
+
+target_metadata = [MandateBase.metadata]
 
 
 def _selected_database() -> str:
@@ -47,10 +49,19 @@ def _selected_database() -> str:
 def _database_url() -> str:
     """Resolve the URL and make sure a SQLite file's directory exists.
 
-    `build_engine` does this for the running services; alembic connects with its own engine, so it
-    has to do the same or the first migration on a clean checkout fails with a bare
-    "unable to open database file".
+    An injected `database_url` (set by `src/shared/infrastructure/migrations.py` at app boot) wins:
+    the application already resolved the URL, and resolving it twice could target a different file.
     """
+    injected = config.attributes.get("database_url")
+    if injected:
+        path = sqlite_path(str(injected))
+        if path:
+            Path(path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+        return str(injected)
+
+    # `build_engine` does this for the running services; alembic connects with its own engine, so it
+    # has to do the same or the first migration on a clean checkout fails with a bare
+    # "unable to open database file".
     settings = get_settings()
     url = settings.database_url_for(_selected_database())  # type: ignore[arg-type]
     path = sqlite_path(url)

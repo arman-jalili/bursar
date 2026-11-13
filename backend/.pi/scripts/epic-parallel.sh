@@ -13,10 +13,9 @@ set -uo pipefail
 
 MODULE="${1:-}"
 shift || true
-BASE="main"; DIR=""; ASSUME_FROZEN=0
+BASE="main"; DIR=""
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--assume-frozen) ASSUME_FROZEN=1; shift ;;
 		--base) BASE="${2:-main}"; shift 2 ;;
 		--dir) DIR="${2:-}"; shift 2 ;;
 		*) shift ;;
@@ -44,32 +43,26 @@ echo "  branch:   $BRANCH"
 echo "  worktree: $DIR"
 echo ""
 
-# ── Contract-freeze gate ────────────────────────────────────────────────────
-# An epic may only run in parallel once its shared contracts are frozen. The
-# registry is the source of truth (set by the contract-freeze issue / a human).
-REG_FILE="$REG/guardian/epics.json"
-FROZEN="unknown"
-if [ -f "$REG_FILE" ]; then
-	FROZEN=$(python3 - "$REG_FILE" "$MODULE" <<'PY' 2>/dev/null || echo unknown
-import json,sys
-d=json.load(open(sys.argv[1]))
-e=d.get("epics",{}).get(sys.argv[2],{})
-print("true" if e.get("contractFrozen") else ("false" if e else "unknown"))
-PY
-)
-fi
-
-if [ "$FROZEN" != "true" ] && [ "$ASSUME_FROZEN" -eq 0 ]; then
-	# NOTE: block here (before worktree creation) and exit 2 — a non-zero,
-	# distinguishable code so callers/agents cannot mistake it for success.
-	echo "⛔ Blocked: contracts for '$MODULE' are not frozen (registry: $FROZEN)."
-	echo ""
-	echo "   Parallel epics must not redefine shared contracts. Freeze first:"
-	echo "     1. run the epic's Contract Freeze issue and merge it to $BASE"
-	echo "     2. record it:  bash .pi/scripts/epic-registry.sh freeze \"$MODULE\" --frozen"
-	echo ""
-	echo "   (single-epic work does not need this gate)"
-	exit 2
+# The project dir (owner of .pi/) is NOT necessarily the git top level: a
+# monorepo keeps the app in <repo>/backend with .pi/ inside it.
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FREEZE_SH="$PROJECT_DIR/.pi/scripts/freeze.sh"
+if [ -f "$FREEZE_SH" ]; then
+	if ! bash "$FREEZE_SH" verify --module "$MODULE" >/dev/null 2>&1; then
+		echo "⛔ Blocked: '$MODULE' is not frozen (freeze.sh verify failed)."
+		echo ""
+		echo "   Freeze it first:"
+		echo "     /architect --freeze --module \"$MODULE\""
+		echo "   then merge the contract-freeze PR and record it:"
+		echo "     bash .pi/scripts/freeze.sh record --module \"$MODULE\" --commit <sha>"
+		echo ""
+		echo "   Detail:"
+		bash "$FREEZE_SH" verify --module "$MODULE" 2>&1 | sed 's/^/     /'
+		exit 2
+	fi
+else
+	echo "⛔ missing .pi/scripts/freeze.sh — run guardian update" >&2
+	exit 1
 fi
 
 # ── Worktree creation ───────────────────────────────────────────────────────

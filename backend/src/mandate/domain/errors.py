@@ -67,6 +67,20 @@ class MandateError(BursarError):
         )
 
 
+class InvalidValue(MandateError, ValueError):
+    """A value object was handed something it cannot represent (bad address, negative cap, float).
+
+    Raised at construction, so an invalid value object never exists — callers cannot accidentally
+    build one and pass it along. Maps to 422: the request was malformed, not refused by policy.
+
+    Also a `ValueError` on purpose: "invalid value" is what `ValueError` means, so generic callers
+    (and pydantic validators) can catch it without importing the domain hierarchy.
+    """
+
+    default_code = ErrorCode.VALIDATION_FAILED
+    default_status = 422
+
+
 class OwnerActionRequired(MandateError):
     """A non-owner actor (typically the agent) attempted an owner-only operation.
 

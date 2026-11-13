@@ -19,6 +19,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from src.shared.infrastructure.logging import correlation_id_var, get_logger
+from src.shared.infrastructure.metrics import METRICS, Stopwatch
 
 __all__ = ["CORRELATION_HEADER", "CorrelationIdMiddleware"]
 
@@ -44,3 +45,20 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             correlation_id_var.reset(token)
+
+
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Record one observation per request, labelled by *route template* (bounded cardinality)."""
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        with Stopwatch() as measured:
+            response = await call_next(request)
+        route = request.scope.get("route")
+        template = getattr(route, "path", None) or "unmatched"
+        METRICS.observe_request(template, response.status_code, measured.elapsed)
+        if response.status_code == 409:
+            # A refusal is a normal domain outcome; count it so the demo can show refusals > 0.
+            METRICS.observe_refusal("refused")
+        return response

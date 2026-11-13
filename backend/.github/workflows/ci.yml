@@ -74,6 +74,9 @@ jobs:
           bash .pi/scripts/check_model_judgment.sh
           bash .pi/scripts/check_language_consistency.sh
 
+      - name: Contract proofs (mandate)
+        run: bash .pi/scripts/ci/prove_mandate_contracts.sh
+
       - name: Composition root (only enforced once contexts exist)
         run: |
           if [ -d src/mandate ] || [ -d src/authority ]; then

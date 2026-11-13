@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.159",
+  "frameworkVersion": "0.1.160",
   "source": "pi",
   "tools": [
     "pi"
@@ -180,7 +180,7 @@
     },
     ".pi/extensions/architect.ts": {
       "category": "framework",
-      "originalHash": "sha256:e939628ef5e2625bd41ba846423b089c67c561576702aa7800fe2460223ca733",
+      "originalHash": "sha256:4699770bf84f42d3a3bcd30fc6a77b8918fa630139ce43f562a2ec5a9dfad57f",
       "status": "unchanged"
     },
     ".pi/extensions/architect-lib/helpers.ts": {
@@ -405,7 +405,7 @@
     },
     ".pi/scripts/epic-parallel.sh": {
       "category": "framework",
-      "originalHash": "sha256:fdcf26b9593b46a2e559c4aff7181cccfbb0dec1f0f53379183b2c38adca5364",
+      "originalHash": "sha256:487a1abdb7a0fd1785142aa90ef8fb0a8a673e938ae3315adfcc851ce8f3811c",
       "status": "unchanged"
     },
     ".pi/scripts/ci/stage_security.sh": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:808eed54333f29275bccdb1393ad63e3ad6aec49a33053ae292033451287a7fb",
+      "originalHash": "sha256:f6ff77d491c689b65b71180515802e5debe3abd4ac460e09b214a7bd7aab870c",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1435,13 +1435,18 @@
     },
     ".pi/scripts/epic-fanout.sh": {
       "category": "framework",
-      "originalHash": "sha256:76f13a041008e30326dd2a611f3ae2e7b5b254e8abd5ef95030a1eb52dacfacb",
+      "originalHash": "sha256:b938c20f7c2569b150c885063313ab1bfcb71f839541b800a9b2b11b6baf4bea",
       "status": "unchanged"
     },
     ".pi/scripts/epic-runner.mjs": {
       "category": "framework",
       "originalHash": "sha256:8ba13c4d76caa0de533dc43b75fecf8cbf7dc3dd89e09c2d227788bd667f9ba2",
       "status": "unchanged"
+    },
+    ".pi/scripts/freeze.sh": {
+      "category": "framework",
+      "originalHash": "sha256:d367363b6284f7ae3809b0875f4b8df5946cbddfde5fadace3b637bdab31e25e",
+      "status": "configured"
     }
   },
   "exports": {},
@@ -1469,5 +1474,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T19:04:53.694Z"
+  "lastUpdatedAt": "2026-11-13T19:43:05.758Z"
 }

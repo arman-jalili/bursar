@@ -2,7 +2,7 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented (Phase 1 complete)
 **Depends:** *(none — pure upstream)*
 **Used by:** Authority, Billing, Settlement, Console
 **Last reviewed:** 2026-11-13
@@ -728,6 +728,20 @@ Three defects the contract tests and gates caught *before* any implementation de
    the repository port.
 
 (1) and (2) were found by the contract tests; (3) by `mypy`. That is the freeze doing its job.
+
+### Implementation status (2026-11-13)
+
+All six catalog application services, the 7 HTTP endpoints and the persistence adapters are
+implemented; the context is installed in `console-api` (`HOSTED_CONTEXTS` in `apps/console_api/app.py`).
+Verification, all deterministic:
+
+| Gate | Command |
+|---|---|
+| contract proofs (40 checks, fails if an invariant anchor is removed) | `.pi/scripts/ci/prove_mandate_contracts.sh` |
+| behaviour + contract tests | `pytest tests/unit/mandate` |
+| persistence + HTTP integration | `pytest tests/integration/mandate` |
+| layer/model judgment | `.pi/scripts/check_model_judgment.sh` |
+| runtime wiring | `.pi/scripts/check_composition_root.sh` |
 
 ### Test artefacts
 

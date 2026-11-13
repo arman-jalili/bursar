@@ -48,6 +48,62 @@ Each entry follows this structure:
 
 ## Entries
 
+## [2026-11-13] - Mandate: implementation complete (all 13 epic items)
+
+### Changed
+- Module: **mandate** — status Planned → Implemented; the 6 catalog application services, 7 HTTP
+  endpoints and 3 repository adapters are live in `console-api`
+
+### Added
+- Domain behaviour: `BankDigest` (canonical JSON → SHA-256), `Cap`/`Threshold` guards, `Payee`
+  (P-1…P-6), `Constitution` (H-4…H-8), `Household` (H-1…H-3), `PayeeEligibilityResolver`
+- `InvalidValue` (also a `ValueError`), `isa`-style owner guards, `ReasonCode` wiring
+- Persistence: SQLAlchemy models, mappers, adapters implementing the domain ports; optimistic
+  concurrency (`StaleAggregateError`); `001_mandate` migration with the H-4 partial unique index
+- Application: `services_impl.py` (one `session_scope` per use case + outbox append)
+- HTTP: concrete router, scope deps (agent refused on mandate writes), owner-proof layer,
+  7 endpoints, `/metrics`
+- Proofing: `.pi/scripts/ci/prove_mandate_contracts.sh` (40 checks) wired as hardening stage 11 and
+  as a CI job
+- Observability: in-process Prometheus-text metrics with route-template labels, refusal counters,
+  fail-closed trip counter
+- Readiness: runbook gains Mandate procedures (quarantine, freeze, stale aggregate, outbox backlog,
+  schema); DR plan gains restore-vs-chain reconciliation and RPO/RTO
+- Tests: 342 total (+46 behaviour, +11 persistence, +15 HTTP end-to-end, +3 metrics)
+
+### Deviations and corrections made while implementing
+- `Payee.unfreeze` **removed**: the documented state machine has `FROZEN → [*]` only, and a transition
+  with no event type would be a silent authority change. Resuming a payee is a re-registration.
+- `Constitution.version()` → `find_version` (shadowed `AggregateRoot.version`, the concurrency counter).
+- `Constitution.initial` gained `require_signature_for_new_payee`; `Household.change_owner` gained the
+  acting owner — both because the invariant needs the input.
+- Composition root restructured: `shell.build_app` is generic, each deployable's `app.py` declares
+  `HOSTED_CONTEXTS`. `check_composition_root.sh` now passes for all 6 modules (it previously saw a
+  split composition root as unwired).
+- Schema at boot runs real Alembic migrations in a worker thread — a second schema definition
+  (`metadata.create_all`) would drift from the migrations.
+- `ConstitutionCorrupted`/`OwnerActionRequired` etc. build `details` as a mapping: a `**kwargs` tail
+  let a payload rewrite an error's wire code.
+
+### Impact Analysis
+- Files: `src/mandate/**`, `src/apps/**`, `src/shared/**` (metrics, migrations helper, middleware),
+  `migrations/**`, `tests/**`, `docs/{runbook,dr-plan}.md`, `.pi/scripts/ci/**`, `.github/workflows/ci.yml`
+- Validators: ruff + mypy clean; `validate-architecture`, `check_model_judgment`,
+  `check_language_consistency`, `validate-canonical`, `check_composition_root`,
+  `prove_mandate_contracts` all pass; 342 tests pass
+
+### Known environment false positives (unchanged)
+- `check_architecture_conformance.sh`: probes the system `python3` and requires every `.env.example`
+  variable to be exported while also requiring `.env` to differ from `.env.example` — mutually
+  unsatisfiable for a demo config whose values are meant to work as-is.
+
+### Status
+- [x] Architecture doc updated
+- [x] CHANGELOG entry added
+- [x] Implementation updated
+- [x] Canonical refs updated
+- [x] Validators run
+
 ## [2026-11-13] - Mandate: Contract Freeze v1
 
 ### Changed

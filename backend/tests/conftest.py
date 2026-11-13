@@ -47,11 +47,14 @@ def authority_client(tmp_settings: Settings) -> Iterator[TestClient]:
 
 @pytest.fixture
 def console_client(tmp_settings: Settings) -> Iterator[TestClient]:
-    """`console-api` app, isolated."""
-    from src.apps.console_api.app import SERVICE_NAME
-    from src.apps.shell import build_app
+    """`console-api` app **with its contexts installed**, isolated.
 
-    with TestClient(build_app(SERVICE_NAME, settings=tmp_settings)) as client:
+    Uses the deployable's real composition root (`console_api.app.build`) rather than `build_app`:
+    a test that skips the composition root would pass while the runtime had no routers at all.
+    """
+    from src.apps.console_api.app import build
+
+    with TestClient(build(tmp_settings)) as client:
         yield client
 
 

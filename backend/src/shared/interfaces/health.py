@@ -23,13 +23,14 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.shared.infrastructure.config import Settings
 from src.shared.infrastructure.db import ping
+from src.shared.infrastructure.metrics import METRICS
 
-__all__ = ["SERVICE_STARTED_AT", "build_health_router"]
+__all__ = ["SERVICE_STARTED_AT", "build_health_router", "metrics_router"]
 
 SERVICE_STARTED_AT = datetime.now(UTC)
 
@@ -82,3 +83,16 @@ def build_health_router(
         return JSONResponse(status_code=200 if database_ok else 503, content=body)
 
     return router
+
+
+metrics_router = APIRouter(tags=["observability"])
+
+
+@metrics_router.get("/metrics", summary="Prometheus text exposition")
+async def metrics() -> Response:
+    """Counters for requests, refusals and fail-closed trips.
+
+    Plain text, no dependency: the four numbers that explain a stuck demo are cheaper to render here
+    than to pull in a Prometheus client.
+    """
+    return Response(content=METRICS.render(), media_type="text/plain; version=0.0.4")
