@@ -25,7 +25,7 @@ from src.billing.application.dto import (
     RecordInvoiceResult,
 )
 
-__all__ = ["RecordInvoice", "ProposePayment"]
+__all__ = ["ProposePayment", "RecordInvoice"]
 
 
 class RecordInvoice(ABC):

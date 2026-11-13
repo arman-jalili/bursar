@@ -23,12 +23,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from src.shared.domain.repository import Repository
-
 from src.billing.domain.ids import AttemptId, InvoiceId
 from src.billing.domain.invoice import Invoice
 from src.billing.domain.payment_attempt import PaymentAttempt
 from src.billing.domain.values import InvoiceHash
+from src.shared.domain.repository import Repository
 
 __all__ = ["InvoiceRepository", "PaymentAttemptRepository"]
 

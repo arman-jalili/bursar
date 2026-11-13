@@ -19,13 +19,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from src.billing.domain.ids import AttemptId, InvoiceId
+from src.billing.domain.invoice import Invoice
+from src.billing.domain.values import AttemptStatus
 from src.shared.domain.aggregate import AggregateRoot
 
-from src.billing.domain.ids import AttemptId, InvoiceId
-from src.billing.domain.values import AttemptStatus
-from src.billing.domain.invoice import Invoice
-
-__all__ = ["PaymentAttempt", "FORBIDDEN_PROPOSAL_KEYS"]
+__all__ = ["FORBIDDEN_PROPOSAL_KEYS", "PaymentAttempt"]
 
 #: Keys a proposal must never carry. Not "ignored" — a proposal containing any of these is refused
 #: (B-5), because a field the agent may not set is a field the agent should not be able to send.

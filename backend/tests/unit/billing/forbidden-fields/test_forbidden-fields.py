@@ -11,7 +11,6 @@ prompt-injected `payee_address` that reaches `run_command`.
 from __future__ import annotations
 
 import pytest
-
 from src.billing.domain.errors import ProposalRejected
 from src.billing.domain.payment_attempt import FORBIDDEN_PROPOSAL_KEYS, PaymentAttempt
 
@@ -21,18 +20,18 @@ class TestForbiddenFields:
         "field",
         ["command", "command_path", "payee_address", "cap", "threshold", "is_new_payee"],
     )
-    def test_any_forbidden_key_is_refused(self, invoice, field: str) -> None:  # noqa: ANN001
+    def test_any_forbidden_key_is_refused(self, invoice, field: str) -> None:
         """B-5: each forbidden key alone is enough to reject the whole proposal."""
         payload = {"invoice_id": invoice.id, field: "0xattacker"}
 
         with pytest.raises(ProposalRejected):
             PaymentAttempt.from_proposal(payload, invoice)
 
-    def test_a_proposal_without_forbidden_keys_is_accepted(self, invoice) -> None:  # noqa: ANN001
+    def test_a_proposal_without_forbidden_keys_is_accepted(self, invoice) -> None:
         """B-5: the guard must not refuse legitimate proposals — an ids-only payload is the normal case."""
         PaymentAttempt.from_proposal({"invoice_id": invoice.id}, invoice)
 
-    def test_every_declared_forbidden_key_is_actually_rejected(self, invoice) -> None:  # noqa: ANN001
+    def test_every_declared_forbidden_key_is_actually_rejected(self, invoice) -> None:
         """B-5: the constant and the check cannot drift apart.
 
         Iterating the frozen set means a key added to `FORBIDDEN_PROPOSAL_KEYS` without a guard fails

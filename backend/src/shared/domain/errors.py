@@ -17,6 +17,7 @@ Reason codes are a closed set (module doc invariant A-5). Adding one is an archi
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -139,15 +140,23 @@ class RefusalError(BursarError):
         self,
         code: ErrorCode,
         message: str = "",
+        *,
+        details: Mapping[str, str] | None = None,
         retryable: bool = False,
-        **details: str,
     ) -> None:
+        """`details` is an explicit mapping, never a `**kwargs` tail.
+
+        Two reasons, both discovered by mypy during the Authority freeze: a splat can smuggle a key named
+        `retryable` (or `code`) into the constructor and silently rewrite the refusal's semantics, and a
+        context error class that splats its own `**details` cannot be type-checked at all. Passing a
+        mapping makes "the payload is data, not configuration" structural.
+        """
         super().__init__(
             code=code,
             message=message,
             retryable=retryable,
             http_status=409,
-            details=details,
+            details=dict(details or {}),
         )
 
 

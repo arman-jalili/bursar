@@ -21,7 +21,7 @@ from decimal import Decimal
 
 from src.shared.domain.value_object import ValueObject
 
-__all__ = ["InvoiceHash", "BilledAmount", "InvoiceStatus", "AttemptStatus"]
+__all__ = ["AttemptStatus", "BilledAmount", "InvoiceHash", "InvoiceStatus"]
 
 
 @dataclass(frozen=True, slots=True)

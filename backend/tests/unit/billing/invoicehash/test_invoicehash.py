@@ -10,9 +10,7 @@ document must be stable (B-3), and an amount must be exactly representable or re
 from __future__ import annotations
 
 import pytest
-
 from src.billing.domain.values import BilledAmount, InvoiceHash
-
 from tests.unit.billing._fixtures import a_document
 
 

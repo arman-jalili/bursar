@@ -73,6 +73,7 @@ ignore = [
 # (`ConstitutionCorrupted` in AC #8, `OwnerProofInvalid` in AC #4). The `-Error` suffix rule loses to
 # the ubiquitous language: these are behaviours, not generic exceptions.
 "src/mandate/domain/errors.py" = ["N818"]
+"src/billing/domain/errors.py" = ["N818"]
 
 # ── mypy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]

@@ -15,7 +15,6 @@ into a silent no-op (the "no side effect" half of B-7).
 from __future__ import annotations
 
 import pytest
-
 from src.billing.domain.errors import (
     AmountMismatch,
     BillingRefusal,
@@ -40,7 +39,7 @@ class TestRefusalVocabulary:
     )
     def test_every_billing_refusal_is_a_shared_refusal(self, refusal: RefusalError) -> None:
         """B-7: one vocabulary — the envelope handler already knows how to render it."""
-        assert isinstance(refusal, RefusalError) or isinstance(refusal, BillingRefusal)
+        assert isinstance(refusal, (RefusalError, BillingRefusal))
 
     def test_a_settled_invoice_refusal_is_a_kind_of_not_payable(self) -> None:
         """B-7: callers that handle 'not payable' also handle 'already settled' — no gap."""
@@ -50,12 +49,18 @@ class TestRefusalVocabulary:
         """B-7: the reason code is what the console translates and the evidence envelope seals."""
         assert ProposalRejected(("payee_address",)).reason_code
 
-    def test_domain_refusal_is_raised_not_swallowed_at_the_entry_point(self, invoice, settled_invoice) -> None:  # noqa: ANN001
+    def test_domain_refusal_is_raised_not_swallowed_at_the_entry_point(
+        self, invoice, settled_invoice
+    ) -> None:
         """B-7: the attempt factory must *raise*, never return a sentinel that a caller can ignore."""
         from src.billing.domain.payment_attempt import PaymentAttempt
 
         with pytest.raises(RefusalError):
-            PaymentAttempt.from_proposal({"invoice_id": settled_invoice.id, "payee_address": "0x1"}, settled_invoice)
+            PaymentAttempt.from_proposal(
+                {"invoice_id": settled_invoice.id, "payee_address": "0x1"}, settled_invoice
+            )
 
         with pytest.raises(RefusalError):
-            PaymentAttempt.from_proposal({"invoice_id": invoice.id, "command": "payments.dispatch"}, invoice)
+            PaymentAttempt.from_proposal(
+                {"invoice_id": invoice.id, "command": "payments.dispatch"}, invoice
+            )

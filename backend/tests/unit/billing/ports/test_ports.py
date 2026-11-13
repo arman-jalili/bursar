@@ -12,14 +12,13 @@ must keep the hash it was recorded with.
 from __future__ import annotations
 
 import pytest
-
 from src.billing.domain.errors import AmountMismatch
 from src.billing.domain.payment_attempt import PaymentAttempt
 from src.billing.domain.values import AttemptStatus, BilledAmount
 
 
 class TestPorts:
-    def test_an_attempt_cannot_carry_a_different_amount_than_the_invoice(self, invoice) -> None:  # noqa: ANN001
+    def test_an_attempt_cannot_carry_a_different_amount_than_the_invoice(self, invoice) -> None:
         """B-6: a proposal that edits the amount is refused, so no port can persist a mismatch.
 
         This is the split-invoice defence: six 25 USDC attempts against a 150 USDC cap only work if the
@@ -30,19 +29,19 @@ class TestPorts:
                 {"invoice_id": invoice.id, "proposed_amount_micro_usdc": 25_000_000}, invoice
             )
 
-    def test_an_attempt_carrying_the_invoice_amount_is_accepted(self, invoice) -> None:  # noqa: ANN001
+    def test_an_attempt_carrying_the_invoice_amount_is_accepted(self, invoice) -> None:
         """B-6: the guard must accept the honest case, including an omitted amount."""
         attempt = PaymentAttempt.from_proposal({"invoice_id": invoice.id}, invoice)
 
         assert attempt.status is AttemptStatus.PROPOSED
 
-    def test_the_attempt_keeps_the_invoice_identity(self, invoice) -> None:  # noqa: ANN001
+    def test_the_attempt_keeps_the_invoice_identity(self, invoice) -> None:
         """B-3: the port groups attempts by invoice id, so the attempt must carry exactly that id."""
         attempt = PaymentAttempt.from_proposal({"invoice_id": invoice.id}, invoice)
 
         assert attempt.invoice_id == invoice.id
 
-    def test_an_invoice_keeps_its_recorded_hash(self, invoice) -> None:  # noqa: ANN001
+    def test_an_invoice_keeps_its_recorded_hash(self, invoice) -> None:
         """B-3: the hash is the insert key and the nullifier seed — it must survive recording intact."""
         from src.billing.domain.values import InvoiceHash
 
