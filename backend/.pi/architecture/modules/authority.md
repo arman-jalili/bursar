@@ -34,6 +34,22 @@ outside the agent-writable workspace — that separation *is* the security claim
 Two interface scopes matter: `/v1/precondition/check` is the **enforcement entry** called by
 Rigorix at Lock 2; `/v1/...` CRUD is for humans and the console. They must not share a handler.
 
+## Contract Freeze
+
+**Phase A artifact: [`docs/contracts/authority-contract-freeze.md`](../../docs/contracts/authority-contract-freeze.md).**
+
+That file is the authoritative frozen surface for this context: the fifteen invariant ids (A-1…A-15) with the
+illegal state each prevents, every signature (`PaymentIntent`, `Determination`, `CapLedger` + `Reservation`,
+`Approval` + `OwnerSignature`, `Money`, `DeterminationVerdict`, the four repository ports, `MandateView` /
+`AttemptViewPort`, and the five catalog application services), the refusal vocabulary, the ordered Phase-B
+work list, and the explicit out-of-scope table (no infrastructure, no router, no migration, no EIP-712
+signer implementation).
+
+Status: frozen for implementation. `src/authority/` contains signatures only — every body raises
+`NotImplementedError("A-n — see module doc")` — and the 22 suites under `tests/unit/authority/` are red by
+design, each naming the invariant it defends. Verify with
+`bash .pi/scripts/freeze.sh verify --module authority`.
+
 ## Related ADRs
 
 | ADR | Relevance |
