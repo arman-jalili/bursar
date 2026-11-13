@@ -101,14 +101,15 @@ def entry(state, slug):
     e = (state.get("epics") or {}).get(slug)
     return e if isinstance(e, dict) else {}
 
-def set_entry(state, slug, **fields):
-    state.setdefault("epics", {})
-    e = state["epics"].get(slug)
+def set_entry(doc, slug, **fields):
+    """Write one module entry. First arg is the state DOCUMENT, not a field."""
+    doc.setdefault("epics", {})
+    e = doc["epics"].get(slug)
     if not isinstance(e, dict):
         e = {}
     e["module"] = slug
     e.update(fields)
-    state["epics"][slug] = e
+    doc["epics"][slug] = e
     return e
 
 # ── dependency helpers ──────────────────────────────────────────────────────
@@ -159,6 +160,12 @@ def deps_of(slug):
             nm = ln[2:].split("\u2014")[0].strip().strip(chr(96) + "* ")
             if nm and nm.lower() != "none":
                 found.append(slugify(nm))
+        else:
+            # inline list: "**Depends On:** Billing, Authority"
+            for part in re.split(r"[,;]", ln):
+                nm = part.strip().strip(chr(96) + "* ").rstrip(".")
+                if nm and not nm.lower().startswith("none") and len(nm) < 60:
+                    found.append(slugify(nm))
     return found
 
 def state_of(state, slug):
@@ -196,8 +203,10 @@ def classify(code):
 AC_ID = re.compile(r"\b[A-Z]{1,3}-\d{1,3}\b")
 
 def find_tests(slug):
-    hits = []
-    for base_dir in ("tests", "src"): 
+    """Test files for the module. `tests/` wins; `src/` is a fallback only for
+    projects that colocate tests, so source files are never counted as suites."""
+    for base_dir in ("tests", "src"):
+        hits = []
         base_path = os.path.join(root, base_dir)
         if not os.path.isdir(base_path):
             continue
@@ -208,7 +217,9 @@ def find_tests(slug):
                 low = os.path.join(dp, f).lower()
                 if slug in low or slug.replace("-", "") in low.replace("-", ""):
                     hits.append(os.path.join(dp, f))
-    return sorted(set(hits))
+        if hits:
+            return sorted(set(hits))
+    return []
 
 def analyse_tests(slug, tests):
     """Return (total, behaviour, structural_only, ac_named, details)."""

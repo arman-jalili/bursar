@@ -507,7 +507,7 @@ export default function architectExtension(pi: ExtensionAPI) {
 			const tokens = raw ? parseArgs(raw) : [];
 			if (tokens.length === 0) {
 				ctx.ui.notify(
-					"Usage: /architect [--epic Name] [--tracking-issue N] [--tdd] [--pr-per epic|issue] [--parallel|--worktree] | --roadmap | --phase \"Phase 1\" | --phase-status | --phase-done <N> | --phase-module-done <N> \"Module\" | status | next-epic | abort",
+					"Usage: /architect [--epic Name] [--tracking-issue N] [--tdd] [--pr-per epic|issue] [--parallel|--worktree] | --freeze [--module M] [--record --commit SHA] | --roadmap | --phase \"Phase 1\" | --phase-status | --phase-done <N> | --phase-module-done <N> \"Module\" | status | next-epic | abort",
 					"info",
 				);
 				return;
@@ -869,6 +869,75 @@ export default function architectExtension(pi: ExtensionAPI) {
 						);
 					}
 				}
+				return;
+			}
+
+			// ── Freeze phase (spec v1) ────────────────────────────────────
+			// `/architect --freeze [--module M]` works ONLY the contract freeze for
+			// one module, then stops. `/architect --freeze --record` records the
+			// evidence after you merge. Phase B (`--epic --parallel`) runs only
+			// modules that pass `freeze.sh verify`.
+			if (tokens.includes("--freeze")) {
+				const freezeSh = join(ctx.cwd, ".pi", "scripts", "freeze.sh");
+				if (!existsSync(freezeSh)) {
+					ctx.ui.notify("freeze.sh not found — run `guardian update`.", "error");
+					return;
+				}
+				const modFlag = findFlag(tokens, "--module");
+
+				if (tokens.includes("--record")) {
+					if (!modFlag) {
+						ctx.ui.notify("Usage: /architect --freeze --record --module <name> [--commit <sha>]", "error");
+						return;
+					}
+					const shaFlag = findFlag(tokens, "--commit");
+					const cmd = `bash .pi/scripts/freeze.sh record --module "${modFlag}"${shaFlag ? ` --commit ${shaFlag}` : ""}`;
+					const res = runScript(ctx.cwd, cmd);
+					ctx.ui.notify(
+						String(res.stdout ?? "").trim().split("\n").slice(-14).join("\n"),
+						res.exitCode === 0 ? "success" : "error",
+					);
+					return;
+				}
+
+				// Which module? explicit, else the next eligible one in order.
+				let target = modFlag ?? "";
+				if (!target) {
+					const nx = runScript(ctx.cwd, "bash .pi/scripts/freeze.sh next");
+					target = String(nx.stdout ?? "").trim().split("\n").pop() ?? "";
+					if (nx.exitCode !== 0 || !target || target.startsWith("no eligible")) {
+						ctx.ui.notify(
+							String(nx.stdout ?? "").trim() || "No module is eligible to freeze (dependencies unfrozen).",
+							"error",
+						);
+						return;
+					}
+				}
+
+				// Freeze = create the epic + its issue set ONCE, then stop.
+				// (Declared here: the shared consts are defined further down.)
+				const freezeTracking = findFlag(tokens, "--tracking-issue");
+				const freezeTdd = tokens.includes("--tdd");
+				const state = await manager.startEpic(ctx, target, freezeTracking, freezeTdd);
+				if (!state?.slices?.length) {
+					ctx.ui.notify(`Could not start a freeze for "${target}" — check .pi/architecture/modules/.`, "error");
+					return;
+				}
+				ctx.ui.notify(
+					[
+						`FREEZE PHASE — ${target}`,
+						"",
+						"Work ONLY the contract-freeze issue. Do not implement.",
+						"Deliver: contracts (docs/contracts/…), frozen signatures, and behaviour",
+						"tests that FAIL for the right reason (NotImplementedError, not ImportError).",
+						"",
+						"Then, after you merge the contract-freeze PR:",
+						`  /architect --freeze --record --module "${target}" --commit <merge-sha>`,
+						"",
+						"Until it records and verifies, Phase B refuses this module.",
+					].join("\n"),
+					"info",
+				);
 				return;
 			}
 

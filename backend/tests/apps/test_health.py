@@ -35,8 +35,12 @@ def test_readyz_checks_database_and_reports_build_state(
     assert body["status"] == "ready"
     assert body["checks"]["database"] == "ok"
     assert body["build"]["phase"] == 0
-    assert body["build"]["wired_contexts"] == []
-    assert body["build"]["pending_contexts"], "a skeleton must state what is missing"
+    assert body["build"]["pending_contexts"], "the gap between planned and wired must stay visible"
+    # console-api hosts Mandate since Phase 1; authority-service wires its context in Phase 3.
+    if body["service"] == "console-api":
+        assert body["build"]["wired_contexts"] == ["Mandate"]
+    else:
+        assert body["build"]["wired_contexts"] == []
 
 
 def test_readyz_never_leaks_secrets(console_client: TestClient) -> None:

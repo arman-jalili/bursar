@@ -5,20 +5,39 @@ Reference: .pi/architecture/implementation-roadmap.md#phase-6-console-hours-1620
 
 Run with:  make run-console           (or: uvicorn src.apps.console_api.app:app)
 
-Phase 0: boots, answers /healthz and /readyz, serves CORS for the Vite dev origin. Contexts are
-registered here in Phases 1, 2, 4, 5, 6 — see `register_routers` in `src/apps/shell.py`.
+The **composition root** lives in this file: `HOSTED_CONTEXTS` is the list of bounded contexts this
+deployable serves, and it is the only place that knows all of them. A context that is implemented but
+not listed here does not exist at runtime — exactly what `check_composition_root.sh` exists to catch.
 """
 
 from __future__ import annotations
 
 import uvicorn
+from fastapi import FastAPI
 
-from src.apps.shell import ServiceName, build_app
+from src.apps.shell import ServiceName, build_app, install_context
+from src.mandate.interfaces.http import router as mandate
 
 SERVICE_NAME: ServiceName = "console-api"
 DEFAULT_PORT = 8000
 
-app = build_app(SERVICE_NAME)
+#: Bounded contexts hosted by this deployable (ADR-001: one process, one database file).
+#: Each build phase adds its module here and nothing else changes at the edge.
+HOSTED_CONTEXTS = (
+    mandate,  # Mandate (Phase 1) — payees, constitution lineage, eligibility read-through
+    # Billing (Phase 2), Settlement (Phase 4), Evidence (Phase 5), Console (Phase 6) follow.
+)
+
+
+def build(settings: object | None = None) -> FastAPI:
+    """Build the deployable with its contexts installed (tests and the entrypoint share this)."""
+    application = build_app(SERVICE_NAME, settings=settings)  # type: ignore[arg-type]
+    for context in HOSTED_CONTEXTS:
+        install_context(application, context)
+    return application
+
+
+app = build()
 
 
 def main() -> None:
