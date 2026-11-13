@@ -39,7 +39,17 @@ Rules:
 - **Cap reservation is one conditional UPDATE**, not read-then-write:
   `UPDATE authority_cap_ledger SET reserved = reserved + :amt WHERE day = :d AND committed + reserved + :amt <= cap`.
   Zero rows affected means refuse. This is what makes scenario 4 pass under concurrency.
-- Repository implementations live in `infrastructure/`; the **interface is owned by `domain/`**.
+- **Ports live in `domain/`, adapters in `infrastructure/`** — the dependency-inversion arrangement
+  (Evans' repository / Fowler's PoEAA): the domain declares the persistence contract it needs
+  (`find_in_force`, `save`), the adapter fulfils it. The arrow is `infrastructure → domain`, never the
+  reverse, and ADR-008's `interface-ownership` gate fails the build for a `tactical` module whose
+  `infrastructure/` adapter has no `domain/`-owned `Protocol`/`ABC`.
+  Repositories return **aggregates**, never rows, so the ORM stays outside the model.
+  *Considered and rejected:* declaring the ports in `application/` (hexagonal-books' reading, where
+  the use cases own them). It is a defensible pattern, but here the persistence contract is part of
+  the aggregate's published language — `find_in_force` exists because of invariant H-4, not because of
+  a use case — and moving it would put a persistence concern in the layer that should be free of one
+  while gaining nothing the gate can check.
 - Domain objects are never ORM-mapped directly — a mapper in `infrastructure/` translates
   between the domain aggregate and the table row.
 - Events are persisted in an `*_outbox` table in the same transaction that produces them
