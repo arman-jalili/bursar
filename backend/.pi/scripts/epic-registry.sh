@@ -116,6 +116,12 @@ PY
 		write_epic "$MOD" "contractFrozen=$V" "updatedAt=$(now)" >/dev/null
 		echo "$MOD: contractFrozen=$V"
 		;;
+	set)
+		MOD="${1:?usage: set <module> key=value ...}"; shift || true
+		if [ $# -eq 0 ]; then echo "set: need at least one key=value" >&2; exit 1; fi
+		write_epic "$MOD" "$@" >/dev/null
+		echo "$MOD: $*"
+		;;
 	list|get)
 		MOD="${1:-}"
 		ensure
@@ -133,6 +139,6 @@ else:
 PY
 		;;
 	*)
-		echo "usage: epic-registry.sh register|status|freeze|list|get|path ..." >&2
+		echo "usage: epic-registry.sh register|status|freeze|set|list|get|path ..." >&2
 		exit 1 ;;
 esac

@@ -434,7 +434,18 @@ class EpicManager {
 			}
 		}
 
+		// Carry over orchestration decided BEFORE the epic started (--pr-per,
+		// --parallel/--worktree). This literal is written over the file, so
+		// anything not carried here is silently lost — which is exactly what
+		// happened to prStrategy/parallel/worktree before 0.1.150.
+		const priorState = loadEpicState(this.cwd);
+		const carried: Pick<EpicState, "prStrategy" | "parallel" | "worktree"> = {};
+		if (priorState?.prStrategy) carried.prStrategy = priorState.prStrategy;
+		if (priorState?.parallel) carried.parallel = priorState.parallel;
+		if (priorState?.worktree) carried.worktree = priorState.worktree;
+
 		const state: EpicState = {
+			...carried,
 			name,
 			trackingIssueId: effectiveTrackingId,
 			epicId: effectiveEpicId,
@@ -865,6 +876,10 @@ export default function architectExtension(pi: ExtensionAPI) {
 			const epicPrStrategy: "issue" | "epic" = prPerFlag === "issue" ? "issue" : "epic";
 			const useWorktree = tokens.includes("--worktree");
 			const parallelFlag = tokens.includes("--parallel");
+			// --modules a,b,c — which modules to fan out. Optional: without it the
+			// roadmap order is used (implemented modules are skipped).
+			const modulesFlag = findFlag(tokens, "--modules");
+			const parallelMode = parallelFlag || useWorktree;
 			try {
 				const epicStatePath = join(ctx.cwd, ".pi", ".guardian-epic-state.json");
 				const st = existsSync(epicStatePath)
@@ -878,56 +893,78 @@ export default function architectExtension(pi: ExtensionAPI) {
 			}
 			const tddEnabled = tokens.includes("--tdd");
 
-			if (!epicName) {
-				ctx.ui.notify('Usage: /architect --epic "Epic Name" [--tracking-issue N] [--tdd]', "error");
+			// A name is required for a single epic; in parallel mode the module
+			// list may come from --modules or the roadmap instead.
+			if (!epicName && !parallelMode) {
+				ctx.ui.notify(
+					'Usage: /architect --epic "Epic Name" [--tracking-issue N] [--tdd] [--pr-per epic|issue]\n' +
+						"       /architect --epic --parallel [--modules a,b,c] [--tdd] [--max N] [--force-freeze] [--dry-run]",
+					"error",
+				);
 				return;
 			}
 
 			try {
 				if (!epicName || epicName.trim() === "") {
-					ctx.ui.notify('Usage: /architect --epic "Epic Name" [--tracking-issue N] [--tdd]', "error");
+					ctx.ui.notify(
+					'Usage: /architect --epic "Epic Name" [--tracking-issue N] [--tdd] [--pr-per epic|issue] [--parallel|--worktree]',
+					"error",
+				);
 					return;
 				}
 
-				// ── Parallel epics (--parallel / --worktree) ───────────────
-				// One module per worktree keeps parallel epics isolated; the
-				// contract-freeze gate refuses to start before shared contracts
-				// are frozen (epic-parallel.sh exits 2 when blocked).
-				if (parallelFlag || useWorktree) {
-					const reg = join(ctx.cwd, ".pi", "scripts", "epic-registry.sh");
-					if (!existsSync(reg)) {
-						ctx.ui.notify("epic-registry.sh not found — run `guardian update` to install parallel-epic scripts.", "error");
+				// ── Parallel epics: delegate the whole fan-out ───────────────
+				// epic-fanout.sh does everything in one pass: resolve the module
+				// list (explicit or roadmap order), check dependencies, freeze the
+				// contracts, create one worktree+branch per module, and spawn one
+				// headless agent per worktree.
+				//
+				// This also fixes the old behaviour where the worktree was created
+				// but the epic was started in the MAIN checkout (duplicate issues).
+				if (parallelMode) {
+					const fanout = join(ctx.cwd, ".pi", "scripts", "epic-fanout.sh");
+					if (!existsSync(fanout)) {
+						ctx.ui.notify("epic-fanout.sh not found — run `guardian update` to install parallel-epic scripts.", "error");
 						return;
 					}
-					const prep = runScript(ctx.cwd, `bash .pi/scripts/epic-parallel.sh "${epicName.replace(/"/g, '\\"')}"`);
-					if (prep.exitCode === 2) {
+					const list = (modulesFlag ?? epicName ?? "").trim();
+					const args = ["bash .pi/scripts/epic-fanout.sh"];
+					if (list) args.push(`--modules "${list.replace(/"/g, '\\"')}"`);
+					if (tddEnabled) args.push("--tdd");
+					if (tokens.includes("--force-freeze")) args.push("--force-freeze");
+					if (tokens.includes("--dry-run")) args.push("--dry-run");
+					const maxFlag = findFlag(tokens, "--max");
+					if (maxFlag) args.push(`--max ${Number(maxFlag) || 0}`);
+
+					const res = runScript(ctx.cwd, args.join(" "));
+					const out = String(res.stdout ?? "");
+					if (res.exitCode === 2) {
 						ctx.ui.notify(
-							`Parallel epic blocked: contracts for "${epicName}" are not frozen. Merge the Contract Freeze issue, then: bash .pi/scripts/epic-registry.sh freeze "${epicName}" --frozen`,
+							`Parallel epic blocked — dependencies are not satisfied.\n${out.trim().slice(-600)}`,
 							"error",
 						);
 						return;
 					}
-					if (prep.exitCode !== 0) {
-						ctx.ui.notify(`Worktree preparation failed: ${String(prep.stdout).slice(0, 300)}`, "error");
+					if (res.exitCode !== 0) {
+						ctx.ui.notify(`Fan-out failed:\n${out.trim().slice(-600)}`, "error");
 						return;
 					}
-					// Record on the epic state so later steps stay consistent.
+					// Record orchestration on the state so later steps stay consistent.
 					try {
 						const p = join(ctx.cwd, ".pi/.guardian-epic-state.json");
 						const st = existsSync(p) ? (JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>) : {};
+						st.prStrategy = epicPrStrategy;
 						st.parallel = true;
-						st.worktree = String(prep.stdout).match(/worktree:\s*(\S+)/)?.[1] ?? "";
+						st.modules = list || "(roadmap order)";
 						writeFileSync(p, JSON.stringify(st, null, 2), "utf-8");
 					} catch {
 						// ignore
 					}
-					ctx.ui.notify(
-						"Parallel epic prepared — worktree + epic branch created (contracts frozen).",
-						"success",
-					);
+					ctx.ui.notify(out.trim().split("\n").slice(-12).join("\n"), "info");
+					return;
 				}
 
-				const state = await manager.startEpic(ctx, epicName, trackingIssueId, tddEnabled);
+								const state = await manager.startEpic(ctx, epicName, trackingIssueId, tddEnabled);
 
 				if (!state?.slices?.length) {
 					ctx.ui.notify("Failed to discover architecture components. Check .pi/architecture/modules/.", "error");

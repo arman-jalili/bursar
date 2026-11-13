@@ -30,7 +30,7 @@ else
     exit 0
 fi
 
-case "C.UTF-8" in
+case "$LANG" in
     python)
         echo "  Linting: Python"
         if command -v ruff &>/dev/null; then

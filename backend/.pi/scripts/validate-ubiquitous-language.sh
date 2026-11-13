@@ -188,7 +188,7 @@ perl -nle '
     # Match: import { ... as Alias }
     if (/\bimport\s*\{[^}]*\}\s*from/) {
         # Find all "as X" patterns
-        my $rest = /opt/homebrew/bin/guardian-framework;
+        my $rest = $_;
         while ($rest =~ /\bas\s+([A-Za-z_][A-Za-z0-9_]*)/g) {
             print "$file:$line_no:$1";
         }

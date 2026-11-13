@@ -146,14 +146,13 @@ Business Logic → Event Bus → Event Handlers → Side Effects
 
 Implementation files should reference this overview when describing system-level behavior:
 
-```typescript
-/**
- * Canonical Reference: .pi/architecture/diagrams/system-overview.md#[section]
- * Implements: [component at layer X]
- */
+```python
+"""Canonical Reference: .pi/architecture/diagrams/system-overview.md#[section]
+Implements: [component at layer X]
+"""
 ```
 
 ---
 
-*Last updated: [date]*
-*Architecture version: [version]*
+*Last updated: 2026-11-13*
+*Architecture version: 1.0 (superseded by system-context.md + event-flow.md)*

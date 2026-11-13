@@ -157,5 +157,12 @@ export type EpicState = {
 	createdAt: string;
 	tdd: boolean;
 	tddTestFiles: string[];
+	// ── Orchestration (optional: added 0.1.150) ──────────────────────────
+	// These are written by /architect before the epic starts (--pr-per,
+	// --parallel/--worktree) and MUST survive startEpic's state save, which
+	// otherwise builds a fresh literal and drops them.
+	prStrategy?: "epic" | "issue";
+	parallel?: boolean;
+	worktree?: string;
 };
 

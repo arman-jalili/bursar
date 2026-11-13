@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.149",
+  "frameworkVersion": "0.1.153",
   "source": "pi",
   "tools": [
     "pi"
@@ -180,7 +180,7 @@
     },
     ".pi/extensions/architect.ts": {
       "category": "framework",
-      "originalHash": "sha256:f94ad459c1aab2c9d36e6d5e9b04bd07c135df34adea07559be2246b26256c66",
+      "originalHash": "sha256:b737d83b3fe9704ab604fdde9c81c9b3dcc905f2a6a533c284d5a632ecbb40b4",
       "status": "unchanged"
     },
     ".pi/extensions/architect-lib/helpers.ts": {
@@ -200,7 +200,7 @@
     },
     ".pi/extensions/architect-lib/types.ts": {
       "category": "framework",
-      "originalHash": "sha256:94295dfa82f6264bde4b9ea0406538f6d0deeb5a221e011ee1c14ba5523bb29b",
+      "originalHash": "sha256:3cdf9f2166270c47dfc5fa706553092837830a7b86db48cf5aecf3002e5b0485",
       "status": "unchanged"
     },
     ".pi/extensions/architect-lib/tdd-generator.ts": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:77a40fa14351739106f8845c8d6decd447ac7aef492e1337b8acf6dc09d3280c",
+      "originalHash": "sha256:947c4c596758e1414bece6026138a4d2ef5fd683d4139ff6f943b73453f15b18",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1206,232 +1206,232 @@
     ".pi/scripts/languages/go/install_coverage_tools.sh": {
       "category": "framework",
       "originalHash": "sha256:0c88ba130579dfd99d26e8bdcebad2e9ea38a578950f3a7aebcba1f228b0aa7a",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-operations.sh": {
       "category": "framework",
       "originalHash": "sha256:3ba4b6711f8515f37a478f7a06823c4650b61be7da778a095b2f7860442bcfb7",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-architecture.sh": {
       "category": "framework",
       "originalHash": "sha256:20312e4ae7b5b354f49dd31e4e997f16b3ae8ab7818f26704f35dcf118af31e9",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/check_model_judgment.sh": {
       "category": "framework",
       "originalHash": "sha256:ed5afa33cbad5dff61d1bbd82ec8c2c904e3378aa6fd31f0e6ab487cc66296b2",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-security.sh": {
       "category": "framework",
       "originalHash": "sha256:3d66400fc310fb7432ff9434d28bbaf705b4d3ddf10266cf9fa350ad940a8692",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-canonical.sh": {
       "category": "framework",
       "originalHash": "sha256:b819783a2d29184a66b3ac0ae71b6a8f3989c5a798977d1b147c3a60df326457",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/check_runtime_reachability.sh": {
       "category": "framework",
       "originalHash": "sha256:89c1083e049da3da48a8a62937898fc2768f099223bbed776acfb2dde74e4baa",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-ci.sh": {
       "category": "framework",
       "originalHash": "sha256:043448c4de25e226e96709b94c3c1a7670cd0a6f47ab307fa4ed826d07deebc4",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-integration.sh": {
       "category": "framework",
       "originalHash": "sha256:dcbdc609280db0ac5a7f40820d5cc3b951df7f1dcb36aa2ec255741a265e1e7a",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/validate-tests.sh": {
       "category": "framework",
       "originalHash": "sha256:7e3285166dcbbabf89d4ded78ef336767c3dd03befc25dc6f1ca50513edc2451",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/go/coverage.sh": {
       "category": "framework",
       "originalHash": "sha256:1c8341252bfecdd585ac1ca11d49db142990457361534b639bdb98cd478819d8",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/install_coverage_tools.sh": {
       "category": "framework",
       "originalHash": "sha256:b9ba6959650bb64bc0070a1d7a9c929c8c8b9a73df5225f030df94b345338ad5",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-operations.sh": {
       "category": "framework",
       "originalHash": "sha256:a6f54c7526002cb928b2d9b272c26dfc38151a6bcf9b16e88d363eaa9c0cda4f",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-architecture.sh": {
       "category": "framework",
       "originalHash": "sha256:d81953aaad55f085aad5c822106ada41efdb96d98cffe75af9fdf3b5fb645455",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/check_model_judgment.sh": {
       "category": "framework",
       "originalHash": "sha256:9f4a24498643c86d4e3b0d319cb28638052421117b49ed3c4970061679d820f3",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-security.sh": {
       "category": "framework",
       "originalHash": "sha256:6efaacb0d964ac4802af1b6e64febcea5381dd7a0532078473a6db4c4d662506",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-canonical.sh": {
       "category": "framework",
       "originalHash": "sha256:2a9008120879f790d5a003794046ab9640e85fef4addf3f20503fd75dbfa0b06",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/check_runtime_reachability.sh": {
       "category": "framework",
       "originalHash": "sha256:39b21840a9301f9c8501aa1e1a5b7f5c7ee5152ef0310b2c8aa8a4a4c3217bcf",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-ci.sh": {
       "category": "framework",
       "originalHash": "sha256:d1febbefef0a50bd68c06a4a393d2066eef4631532333fd7f1f3d09cf009a0aa",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-integration.sh": {
       "category": "framework",
       "originalHash": "sha256:fff4fa86138b9a665530802f27164289030ff9a310e9b83bcfa0aa6d21fadec6",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/validate-tests.sh": {
       "category": "framework",
       "originalHash": "sha256:0766f2a81e347933eb5165a52f85c6ef187f295a870bb62b14de23d928757a3c",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/typescript/coverage.sh": {
       "category": "framework",
       "originalHash": "sha256:374a56a9082ef78a0a6b4ef195d077caf2815e4ee51e9363a34a7fc54f438e72",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/install_coverage_tools.sh": {
       "category": "framework",
       "originalHash": "sha256:84efa660b4e401c34cf7157c963580cfd46eb0872082bbb769b783fb1eb9ede3",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-operations.sh": {
       "category": "framework",
       "originalHash": "sha256:ab89729ca059bf5c51693c30dc088ea396c9e3cec282926eb20e0927d7c01c42",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-architecture.sh": {
       "category": "framework",
       "originalHash": "sha256:bde99e5c9735c306c6fa9b5286f56ff695f164608e559f08c95578fdc4f630b5",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/check_model_judgment.sh": {
       "category": "framework",
       "originalHash": "sha256:b1e74d8bd078d4ccca25a8ba6f51a286cd47848da268d60bfbc0d66f92f5b9b2",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-security.sh": {
       "category": "framework",
       "originalHash": "sha256:4aae6dc07ce65b800685600603af9e8bb9078fb8c543455b9d2aaefbc984f9e0",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-canonical.sh": {
       "category": "framework",
       "originalHash": "sha256:57aa990956727168405190ae951940081d48241de825acdfe18583a7ca711ffc",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/check_runtime_reachability.sh": {
       "category": "framework",
       "originalHash": "sha256:c2c9edc1415d5d33548b8c2b3322dc4ffde207b3d03bce485e6f9d70cc179724",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-ci.sh": {
       "category": "framework",
       "originalHash": "sha256:190560cc2814c33f598bb2a53a4363789d22ad9ea6001323aa5ce38cc9909690",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-integration.sh": {
       "category": "framework",
       "originalHash": "sha256:1c1fd623c2de1b9e7c5e305ef4a208630bdf2445782c71fc82215c18a7d3f0ee",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/validate-tests.sh": {
       "category": "framework",
       "originalHash": "sha256:03a5f11d5b4025524e4bbe33937e28c8685a70792894babf54f10b1fe48365cd",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/rust/coverage.sh": {
       "category": "framework",
       "originalHash": "sha256:bff9586f63724b4d04cfdb142694f5746efe977cdcd0caf1c42c5ed3e8f7a0f3",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/install_coverage_tools.sh": {
       "category": "framework",
       "originalHash": "sha256:fb37d88ce620c73ac190a32b8cf5dcbc56e2b78d7d9ec4102cc9f5467eddf65d",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-operations.sh": {
       "category": "framework",
       "originalHash": "sha256:d9311bb85d151a87de536d59ca5ecedb64f8e706dc567676f319e29cd219e86e",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-architecture.sh": {
       "category": "framework",
       "originalHash": "sha256:9f169ad020012a6226bcbc726be76f43583051e8244ec7a04e040085577a27e2",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-spring-architecture.sh": {
       "category": "framework",
       "originalHash": "sha256:7cfba1009c4d01389d8483f08e4707f2e04bfd39d92ee88306052c9199cd2bfa",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/check_model_judgment.sh": {
       "category": "framework",
       "originalHash": "sha256:87e4f6ad2dead6bd8fed3cb9f8b935a047f414e2bc85b5786ed6ed611f7a05eb",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-annotations.sh": {
       "category": "framework",
       "originalHash": "sha256:f203261df873cd3fe3802841b17776c0fae1dc99a03aa214dd16cd4bfa4725dc",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-security.sh": {
       "category": "framework",
       "originalHash": "sha256:096d0110bb1e6a41270b6a1b6fbab4754d5545ee399b0c0dc2ceda8e36556883",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-canonical.sh": {
       "category": "framework",
       "originalHash": "sha256:a14ab70ba53946757a9c3692b9e31291d90fb43df6f6130b20b272a5c379c686",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/check_runtime_reachability.sh": {
       "category": "framework",
       "originalHash": "sha256:4e3402dc63cefaa1a97cc803d05ecea06fc61536a4cbe5b6d968dfaf0feedccc",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-ci.sh": {
       "category": "framework",
       "originalHash": "sha256:fae27bc8b709c88e3d64b6367f9e4604334770d59b4b9e741e06608d08891b12",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-integration.sh": {
       "category": "framework",
       "originalHash": "sha256:7d918adf8f28b4f91af68bc0f3da661195d6eb922a452e86852fd39b6821b91b",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/validate-tests.sh": {
       "category": "framework",
       "originalHash": "sha256:e98017ceb722bd3aa6a283000af07d30ed074051e96dbaa76e1081f69274244b",
-      "status": "configured"
+      "status": "unchanged"
     },
     ".pi/scripts/languages/java/coverage.sh": {
       "category": "framework",
       "originalHash": "sha256:f43e804d6c2e5cbc95a011df2b105963ed639c9f9aaf6dfa6445a2539b44451f",
-      "status": "configured"
+      "status": "unchanged"
     }
   },
   "exports": {},
@@ -1459,5 +1459,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T15:06:00.903Z"
+  "lastUpdatedAt": "2026-11-13T16:49:04.283Z"
 }
