@@ -1,9 +1,9 @@
 ---
 guardian_issue:
   id: "ISSUE-CONTRACT-FREEZE"
-  epic: "billing"
+  epic: "authority"
   component: "Contract Freeze"
-  module: "billing"
+  module: "authority"
   status: planned
   priority: critical
   dependencies: []
@@ -29,7 +29,7 @@ guardian_issue:
       - REST/event contracts
 
   canonical_references:
-    - module: ".pi/architecture/modules/billing.md"
+    - module: ".pi/architecture/modules/authority.md"
 
   acceptance_criteria:
     - "All component interfaces defined as stubs (TODO bodies)"
@@ -47,31 +47,43 @@ guardian_issue:
     interfaces, types, DTOs, event schemas, API paths, error formats.
 
   file_changes:
-    - "create: src/billing/domain/"
-    - "create: src/billing/application/"
-    - "create: src/billing/infrastructure/"
-    - "create: src/billing/interfaces/"
+    - "create: src/authority/domain/"
+    - "create: src/authority/application/"
+    - "create: src/authority/infrastructure/"
+    - "create: src/authority/interfaces/"
 ---
 
-# Contract Freeze: billing
+# Contract Freeze: authority
 
 ## Intent
 
-Define and freeze all public interfaces, contracts, and schemas for the billing
+Define and freeze all public interfaces, contracts, and schemas for the authority
 epic before any implementation begins. This prevents architecture drift — implementation
 must satisfy contracts, not the other way around.
 
 ## Included Components
 
-- Persistence contract
-- Ports
-- `InvoiceHash`
-- Duplicate invoice
-- At most one attempt
-- Forbidden fields
-- Settled invoice
-- Digest review
-- Refusal path
+- Aggregate: PaymentIntent
+- Aggregate: Determination
+- Aggregate: CapLedger
+- Entity: Reservation / Entity: Approval
+- Value Objects (entity-vs-VO justification)
+- Repository interfaces (owned by `domain/`)
+- Ports to upstream contexts (ACL)
+- Domain Services
+- `PaymentIntent.issue`
+- `requires_owner_signature`
+- `CapLedger` cap
+- `CapLedger.commit/release`
+- Determination reasons
+- Re-read rule
+- `Approval` binding
+- `Approval` single-use
+- Approvals expire
+- Precondition fail-closed
+- Refusal has no side effect
+- Ledger consistency
+- No LLM
 - Layer purity
 
 ## What Must Be Frozen
@@ -108,24 +120,33 @@ must satisfy contracts, not the other way around.
 
 | # | Component | Criterion | Verify In |
 |---|-----------|-----------|-----------|
-| 1 | `InvoiceHash` | Same document → same hash; one changed character → different hash. | unit |
-| 2 | Duplicate invoice | Recording the same hash twice yields the original invoice + `DuplicateInvoiceDetected`, no second row. | integration |
-| 3 | At most one attempt | Two concurrent proposals for one invoice → exactly one `PaymentAttempt`; second gets `InvoiceNotPayable`. | integration (concurrency) |
-| 4 | Forbidden fields | Proposal with `payee_address`, `command`, `cap` or `threshold` → 422 `PROPOSAL_REJECTED`, zero attempts persisted. | integration |
-| 5 | Settled invoice | Proposal against a settled invoice → refused; no attempt row. (scenario 6, app layer) | integration |
-| 6 | Digest review | An invoice whose presented digest ≠ Mandate's verified digest triggers Mandate quarantine and the attempt is refused downstream. (scenario 2) | integration |
-| 7 | Refusal path | A denied determination sets the attempt `REFUSED` and the invoice back to outstanding, with no reservation committed. | integration |
-| 8 | Layer purity | `src/billing/domain/` imports no FastAPI/SQLAlchemy/httpx. | automated |
+| 1 | `PaymentIntent.issue` | A proposal carrying its own `payee_address` cannot influence the intent: the intent uses Mandate's address and the test asserts inequality. | unit |
+| 2 | `PaymentIntent.issue` | Attempt amount ≠ invoice amount → `AmountMismatch`, no intent persisted. | unit |
+| 3 | `requires_owner_signature` | True for a new payee at 5 USDC and for an eligible payee at 320 USDC with threshold 25; false for eligible at 12 USDC. | unit |
+| 4 | `CapLedger` cap | 6 concurrent 25 USDC attempts against a 150 USDC cap: exactly 6 reserve if headroom allows, else the excess returns `CapacityRefused` and the ledger never exceeds 150. (scenario 4) | integration (concurrency) |
+| 5 | `CapLedger.commit/release` | Committing twice raises; commit then release raises; `committed + reserved` unchanged by a rejected second call. | unit |
+| 6 | Determination reasons | Every `DENY` has ≥1 code from the closed set; a code outside the set fails type check. | unit |
+| 7 | Re-read rule | Freeze the payee between evaluate and precondition check → precondition returns deny/`payee_frozen` and no settlement order exists. (scenario 3) | integration |
+| 8 | `Approval` binding | Signature over intent A replayed for intent B (different amount) → `ApprovalRejected`, no dispatch. (scenario 5 negative) | integration |
+| 9 | `Approval` single-use | Second `consume()` → raises; only one settlement event observed. | unit |
+| 10 | Approvals expire | Past `expires_at` → `ApprovalExpired`, `PaymentRefused(approval_invalid)`. | unit |
+| 11 | Precondition fail-closed | Mandate unreachable → `POST /v1/precondition/check` returns non-200 and Rigorix does not run the command. | integration |
+| 12 | Refusal has no side effect | After any `PaymentRefused`, `reserved` and `committed` for the day are unchanged and no `settlement_orders` row exists. | integration |
+| 13 | Ledger consistency | `committed` equals the sum of on-chain settled amounts for the day after a full scenario run. | integration |
+| 14 | No LLM | `src/authority/` imports no model/LLM client (import-graph test). | automated |
+| 15 | Layer purity | `src/authority/domain/` imports no FastAPI/SQLAlchemy/httpx. | automated |
 
 ## Full Implementation Sequence (for reference)
 
-- 1. `InvoiceHash`, `BilledAmount`, `AttemptStatus` value objects.
-- 2. `Invoice` + `PaymentAttempt` with B-1…B-7; partial unique index migration.
-- 3. Repository interfaces + SQLAlchemy implementations (with `UNIQUE(hash)`).
-- 4. `RecordInvoice` (including duplicate detection + digest review call to Mandate).
-- 5. `ProposePayment` with `ProposalRejected` for forbidden keys.
-- 6. Fixture loader covering all 7 acceptance scenarios.
-- 7. Event subscribers: `SettlementConfirmed` → `InvoiceSettled`; refusal → `AttemptRefused`.
+- 1. Shared kernel: `Money`, `AggregateRoot`, `DomainEvent`, EIP-712 spec file (`shared/eip712.py`).
+- 2. `PaymentIntent` + `Determination` with A-1…A-8 (no I/O; pure tests).
+- 3. `CapLedger` + `Reservation` with A-9…A-12, plus the conditional-UPDATE repository and a
+- 4. `Approval` + `OwnerSignature` verification A-13…A-15, including expiry and single-use.
+- 5. `MandateView` / `AttemptViewPort` adapters (read-through, no cache) + contract tests.
+- 6. `EvaluateAuthority`, `ReserveCapacity` (catalog order), then `EscalateForSignature`,
+- 7. `interfaces/precondition.check` fail-closed behaviour + Rigorix integration test.
+- 8. Wire Settlement outcome events into `ReconcileReservation`.
+- 9. Budget guard (`BUDGET_EXHAUSTED`) per ADR-006.
 
 
 
