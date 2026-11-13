@@ -25,10 +25,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.shared.infrastructure.config import Settings, get_settings
 from src.shared.infrastructure.db import build_engine, build_session_factory
 from src.shared.infrastructure.logging import configure_logging, get_logger
-from src.shared.infrastructure.middleware import CorrelationIdMiddleware
+from src.shared.infrastructure.middleware import CorrelationIdMiddleware, MetricsMiddleware
 from src.shared.infrastructure.migrations import upgrade_to_head_async
 from src.shared.interfaces.errors import install_error_handlers
-from src.shared.interfaces.health import build_health_router
+from src.shared.interfaces.health import build_health_router, metrics_router
 
 __all__ = ["ServiceName", "build_app", "install_context"]
 
@@ -100,6 +100,7 @@ def build_app(service: ServiceName, settings: Settings | None = None) -> FastAPI
 
     # Middleware order: correlation id outermost so every log line inside has an id.
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(MetricsMiddleware)
     if service == "console-api":
         # Only the console is browser-facing (ADR-001). The authority service must not be
         # reachable from a page — it is the enforcement lock, not a UI backend.
@@ -113,6 +114,7 @@ def build_app(service: ServiceName, settings: Settings | None = None) -> FastAPI
         )
 
     install_error_handlers(app)
+    app.include_router(metrics_router)
     #: Filled by `install_context` before the app starts; run once the engine exists.
     app.state.startup_hooks = []
 

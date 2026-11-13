@@ -116,3 +116,30 @@ def test_authority_service_has_no_cors_but_console_does(
         },
     )
     assert preflight.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+class TestMetrics:
+    """Observability: the counters that explain a demo, with bounded cardinality."""
+
+    def test_metrics_endpoint_is_prometheus_text(self, console_client: TestClient) -> None:
+        console_client.get("/healthz")
+        response = console_client.get("/metrics")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/plain")
+        assert "bursar_requests_total" in response.text
+        assert "# TYPE bursar_requests_total counter" in response.text
+
+    def test_route_label_uses_the_template_not_the_id(self, console_client: TestClient) -> None:
+        """A payee id in a label is how a metrics endpoint becomes a memory leak."""
+        console_client.get(
+            "/v1/payees/abc123/eligibility", headers={"Authorization": "Bearer demo-owner-token"}
+        )
+        body = console_client.get("/metrics").text
+        assert "/v1/payees/{payee_id}/eligibility" in body
+        assert "abc123" not in body
+
+    def test_refusals_are_counted(self, console_client: TestClient) -> None:
+        console_client.post(
+            "/v1/payees/does-not-exist/freeze", headers={"Authorization": "Bearer demo-owner-token"}
+        )
+        assert "bursar_refusals_total" in console_client.get("/metrics").text
