@@ -30,7 +30,11 @@ class TestApprovalSingleUse:
         intent = PaymentIntent.issue(an_attempt(), StubMandateView(), an_invoice())
         approval = Approval.request(intent, expires_at=NOW + timedelta(minutes=15))
         approval.verify(
-            OwnerSignature(signature_hex="0xsig", signer=OWNER_ADDRESS),
+            OwnerSignature(
+                signature_hex="0xsig",
+                signer=OWNER_ADDRESS,
+                signed_digest=approval.typed_data_hash,
+            ),
             owner=OWNER_ADDRESS,
             now=NOW,
         )
@@ -44,7 +48,11 @@ class TestApprovalSingleUse:
         intent = PaymentIntent.issue(an_attempt(), StubMandateView(), an_invoice())
         approval = Approval.request(intent, expires_at=NOW + timedelta(minutes=15))
         approval.verify(
-            OwnerSignature(signature_hex="0xsig", signer=OWNER_ADDRESS),
+            OwnerSignature(
+                signature_hex="0xsig",
+                signer=OWNER_ADDRESS,
+                signed_digest=approval.typed_data_hash,
+            ),
             owner=OWNER_ADDRESS,
             now=NOW,
         )

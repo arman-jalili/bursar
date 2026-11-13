@@ -30,6 +30,7 @@ from src.authority.domain.values import DenialReason
 from src.shared.domain.errors import ErrorCode, RefusalError
 
 __all__ = [
+    "AmountMismatch",
     "ApprovalBindingMismatch",
     "ApprovalExpired",
     "ApprovalSingleUse",
@@ -45,6 +46,24 @@ class AuthorityRefusal(RefusalError):
     """Base for every refusal this context raises."""
 
     reason_code: str = "authority_refused"
+
+
+class AmountMismatch(AuthorityRefusal):
+    """An attempt tried to pay a different amount than the invoice records (A-3)."""
+
+    def __init__(
+        self, claimed_micro_usdc: str = "", invoice_micro_usdc: str = "", **extra: str
+    ) -> None:
+        super().__init__(
+            ErrorCode.AMOUNT_MISMATCH,
+            "The attempted amount does not match the invoice; no intent was issued.",
+            details={
+                "claimed_micro_usdc": claimed_micro_usdc,
+                "invoice_micro_usdc": invoice_micro_usdc,
+                **extra,
+            },
+        )
+        self.reason_code = DenialReason.AMOUNT_MISMATCH.value
 
 
 class CapExceeded(AuthorityRefusal):

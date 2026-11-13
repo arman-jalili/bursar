@@ -24,7 +24,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.authority.domain.ids import DeterminationId, IntentId
+from src.authority.domain.errors import DeterminationWithoutReason, DispatchWithoutAuthority
+from src.authority.domain.ids import DeterminationId, IntentId, new_id
 from src.authority.domain.values import DenialReason, DeterminationVerdict, Money
 from src.mandate.domain.values import PayeeStatus
 
@@ -44,6 +45,13 @@ class Determination:
     read_at: datetime
     ledger_snapshot: Money
 
+    def __post_init__(self) -> None:
+        """A-7: no verdict without the version it was judged against."""
+        if not self.constitution_version:
+            raise DeterminationWithoutReason("missing constitution_version")
+        if self.verdict is DeterminationVerdict.DENY and not self.reason_codes:
+            raise DeterminationWithoutReason("a denial must carry at least one code")
+
     @classmethod
     def allow(
         cls,
@@ -55,7 +63,16 @@ class Determination:
         ledger_snapshot: Money,
     ) -> Determination:
         """Permit dispatch. Carries no reason codes — an allowance needs no excuse (A-5)."""
-        raise NotImplementedError("A-7 — see module doc")
+        return cls(
+            id=DeterminationId(new_id()),
+            intent_id=intent_id,
+            verdict=DeterminationVerdict.ALLOW,
+            reason_codes=(),
+            constitution_version=constitution_version,
+            payee_status_read=payee_status_read,
+            read_at=read_at,
+            ledger_snapshot=ledger_snapshot,
+        )
 
     @classmethod
     def deny(
@@ -74,7 +91,26 @@ class Determination:
             DeterminationWithoutReason: `reasons` is empty or holds something outside the closed set
                 (A-7) — a refusal nobody can explain is indistinguishable from a bug.
         """
-        raise NotImplementedError("A-5 — see module doc")
+        if not reasons:
+            raise DeterminationWithoutReason("a denial must carry at least one code")
+        codes: list[DenialReason] = []
+        for reason in reasons:
+            try:
+                codes.append(DenialReason(reason))
+            except ValueError as exc:
+                raise DeterminationWithoutReason(
+                    f"{reason!r} is not a code in the closed DenialReason set"
+                ) from exc
+        return cls(
+            id=DeterminationId(new_id()),
+            intent_id=intent_id,
+            verdict=DeterminationVerdict.DENY,
+            reason_codes=tuple(codes),
+            constitution_version=constitution_version,
+            payee_status_read=payee_status_read,
+            read_at=read_at,
+            ledger_snapshot=ledger_snapshot,
+        )
 
     @classmethod
     def escalate(
@@ -87,12 +123,21 @@ class Determination:
         ledger_snapshot: Money,
     ) -> Determination:
         """Neither refused nor dispatched: the owner must sign this exact intent (A-4, A-13)."""
-        raise NotImplementedError("A-7 — see module doc")
+        return cls(
+            id=DeterminationId(new_id()),
+            intent_id=intent_id,
+            verdict=DeterminationVerdict.ESCALATE,
+            reason_codes=(),
+            constitution_version=constitution_version,
+            payee_status_read=payee_status_read,
+            read_at=read_at,
+            ledger_snapshot=ledger_snapshot,
+        )
 
     @property
     def permits_dispatch(self) -> bool:
         """True only for ALLOW. ESCALATE permits dispatch *after* an approval, never on its own (A-8)."""
-        raise NotImplementedError("A-8 — see module doc")
+        return self.verdict is DeterminationVerdict.ALLOW
 
     def assert_not_a_refusal(self) -> None:
         """Guard used before any side effect, so a DENY can never reserve or dispatch (A-8).
@@ -100,4 +145,5 @@ class Determination:
         Raises:
             DispatchWithoutAuthority: the verdict is DENY.
         """
-        raise NotImplementedError("A-8 — see module doc")
+        if self.verdict is DeterminationVerdict.DENY:
+            raise DispatchWithoutAuthority(self.verdict.value)

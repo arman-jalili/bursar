@@ -81,14 +81,23 @@ class PaymentIntent:
 
     @classmethod
     def issue(
-        cls, attempt: AttemptView, mandate: MandateView, invoice: InvoiceView
-    ) -> PaymentIntent: ...  # A-2
+        cls, attempt: AttemptView, mandate: MandateView, invoice: InvoiceView,
+        *, household_id: str = "",
+    ) -> PaymentIntent: ...  # A-2 … A-4
+    @classmethod
+    def from_reads(cls, *, invoice_id, payee, constitution_version,
+                   require_signature_for_new_payee, threshold, amount) -> PaymentIntent: ...
     def signed_payload(self) -> dict[str, Any]: ...  # A-1/A-13
+    def typed_data_hash(self) -> str: ...             # A-13
 ```
 
 Frozen for two reasons. `slots=True, frozen=True` makes A-1 unrepresentable-if-violated rather than a
 convention. And the parameter list is the ACL: `issue` takes **views**, not a proposal, so a caller cannot
 pass a `payee_address` even if it wants to.
+
+`issue` is the synchronous convenience that re-reads `MandateView` (and fails closed if it cannot); an
+async application service pre-reads the views and uses `from_reads`, so the aggregate never needs an event
+loop. `typed_data_hash` is the single canonical hash of `signed_payload()` that every approval binds to.
 
 ### 2.3 `Determination` — `domain/determination.py`
 
@@ -140,7 +149,8 @@ than a bool so the caller cannot mistake "no exception" for "reserved".
 ```python
 @dataclass(frozen=True, slots=True)
 class OwnerSignature(ValueObject):    # proof artifact: no lifecycle, compares by content
-    signature_hex: str; signer: EvmAddress
+    signature_hex: str; signer: EvmAddress; signed_digest: str = ""
+    def covers(self, typed_data_hash: str, owner: EvmAddress) -> bool               # A-13/A-15
     def matches(self, intent: PaymentIntent, owner: EvmAddress) -> bool            # A-13/A-15
 
 @dataclass(eq=False)
@@ -155,6 +165,11 @@ class Approval:                       # entity: identity, single-use, expiring
 
 The binding is **one digest** (`typed_data_hash`) over the intent's fields, not a field-by-field comparison:
 comparing fields one by one is how a forgotten field becomes a hole (A-13).
+
+`signed_digest` is what makes the binding checkable without crypto in the domain: the binder recovers the
+signature and records the digest it covered, and `covers()` compares that digest to the approval's. An
+empty digest proves nothing about *which* intent was signed, so it is rejected — a proof that does not
+say what it signed is exactly the replay A-13 forbids.
 
 ### 2.6 Ports — `domain/repositories.py`, `domain/ports.py`
 
@@ -305,6 +320,7 @@ single-use rule impossible to test, so the split is part of the contract.
 | Class | Invariant | HTTP |
 |---|---|---|
 | `AuthorityRefusal` (base) | — | 409 |
+| `AmountMismatch` | A-3 | 409 |
 | `CapExceeded` | A-9 | 409 |
 | `ReservationAlreadyResolved` | A-10 | 409 |
 | `DeterminationWithoutReason` | A-5, A-7 | 422 |
