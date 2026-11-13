@@ -3,6 +3,7 @@
 ## Module Status
 
 **Status:** Planned
+**Contract:** Phase A freeze — see [`docs/contracts/settlement-contract-freeze.md`](../../docs/contracts/settlement-contract-freeze.md)
 **Depends:** Authority (allow/approved determination), Mandate (payee address via intent)
 **Used by:** Evidence, Console
 **Last reviewed:** 2026-11-13
@@ -30,6 +31,50 @@ the refusal happens inside the transaction.
 | **Application** | `DispatchPayment`, `SettleOnce`, reconciliation | `src/settlement/application/` |
 | **Infrastructure** | Rigorix `run_command` client, web3/eth-account adapter, contract ABI, receipt poller | `src/settlement/infrastructure/` |
 | **Interfaces** | REST handlers (receipts, dispatch), event subscribers (PaymentAllowed) | `src/settlement/interfaces/` |
+
+## Contract Freeze
+
+The frozen contract for this module lives in
+[`docs/contracts/settlement-contract-freeze.md`](../../docs/contracts/settlement-contract-freeze.md).
+That file is the checkable form of the components and Acceptance Criteria below; implementation PRs
+reference it, and a change to a frozen signature is a contract change (unfreeze → review → re-freeze),
+not a refactor.
+
+Contract ids map one-to-one to the Acceptance Criteria rows:
+
+| Contract id | AC row | Rule |
+|---|---|---|
+| SC-1 | 1 | order only from a determination that permits dispatch |
+| SC-2 | 2 | command path is the `payments.dispatch` module constant |
+| SC-3 | 3 | write-ahead tx hash; one hash per order |
+| SC-4 | 4 | `conclude` exactly once |
+| SC-5 | 5 | nullifier derived locally and refused when spent |
+| SC-6 | 6 | on-chain replay reverts; app records a refusal |
+| SC-7 | 7 | finality from the network's confirmation count |
+| SC-8 | 8 | a revert is terminal, never a retry; one event per order |
+| SC-9 | 9 | submitted amount equals the signed intent amount |
+| SC-10 | 10 | every receipt records gas/fee; cost derives from receipts only |
+| SC-11 | 11 | Anvil and Sepolia never share chain id/router/USDC |
+| SC-12 | 12 | `domain/` imports no web3/httpx/fastapi; refusals are shared `RefusalError`s |
+
+Frozen surface in `src/settlement/`: `domain/` (values, views, errors, `SettlementOrder`,
+`ChainReceipt`, services, repositories, ports, events), `application/` (six service ABCs + DTOs).
+`infrastructure/` and `interfaces/` exist as packages only — adapters and the router are Phase B.
+
+Three decisions in the contract amend or sharpen this document, and the contract file wins if they ever
+disagree:
+
+1. **`SettlementOrder.command_ref` is a `ClassVar`, not a dataclass field.** The stub above shows a field
+   with a default; a field would let a caller pass a command path, which AC-2 says must be impossible
+   (S-5).
+2. **`PayeeAddress` is Mandate's value object**, not a Settlement type. Settlement is conformist to
+   Mandate (context map); a second address type would let one side accept a destination the other
+   rejects.
+3. **`PaymentIntentView` / `DeterminationView` are frozen read models** for the factory signature below.
+   `PaymentIntentView` adds `invoice_hash` (the nullifier seed) and `household_id` (the nullifier scope),
+   which Authority's aggregate does not store; Phase B assembles the view in the application layer.
+
+Entry point for verification: `bash .pi/scripts/freeze.sh verify --module settlement`.
 
 ## Related ADRs
 
