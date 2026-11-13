@@ -64,14 +64,41 @@
       }
     }
   ],
-  "currentItemIndex": 0,
+  "currentItemIndex": 1,
   "currentStepIndex": 0,
   "status": "running",
   "retryCount": 0,
-  "results": [],
+  "results": [
+    {
+      "item": "issue-contract-freeze",
+      "status": "failed",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "failed",
+          "reason": "Contract freeze is a Phase A artifact: `bash .pi/scripts/freeze.sh verify --module billing` PASSES (frozen signatures, contracts unchanged, mypy clean, 10 behaviour suites red for the right reason). The `ci`/`tests` gates fail *by design* because the billing behaviour suites raise NotImplementedError until implementation items 2–11 land; coverage is 0% for the same reason. No implementation may be added under this issue without violating its scope."
+        },
+        {
+          "step": "create-mr",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        },
+        {
+          "step": "merge",
+          "status": "failed",
+          "reason": "skipped due to prior failure"
+        }
+      ]
+    }
+  ],
   "mergeOnValid": true,
   "prStrategy": "epic",
   "epicBranch": "epic/billing",
   "createdAt": "2026-11-13T23:17:41.405Z",
-  "updatedAt": "2026-11-13T23:17:41.405Z"
+  "updatedAt": "2026-11-13T23:20:40.008Z"
 }

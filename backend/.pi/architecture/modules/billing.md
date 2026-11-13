@@ -2,10 +2,10 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented
 **Depends:** Mandate (payee id + verified digest baseline)
 **Used by:** Authority, Evidence, Console
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-14
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
 
 ## Description
@@ -25,10 +25,10 @@ ever reach Authority.
 
 | Layer | Responsibility |
 |-------|--------------|
-| **Domain** | `Invoice`, `PaymentAttempt`, `InvoiceHash`, `BilledAmount`, `AttemptStatus` (as captured), repository interfaces | `src/billing/domain/` |
-| **Application** | `RecordInvoice`, `ProposePayment` | `src/billing/application/` |
-| **Infrastructure** | SQLAlchemy repositories, invoice-hash computation, fixture loader | `src/billing/infrastructure/` |
-| **Interfaces** | REST handlers, Mandate digest-review call, event publishers | `src/billing/interfaces/` |
+| **Domain** | `Invoice`, `PaymentAttempt`, `InvoiceHash`, `BilledAmount`, `AttemptStatus`, repository ports | `src/billing/domain/` |
+| **Application** | `RecordInvoice`, `ProposePayment`, read models | `src/billing/application/` |
+| **Infrastructure** | SQLAlchemy rows/mappers/repositories, outbox writer | `src/billing/infrastructure/` |
+| **Interfaces** | REST router + schemas, Mandate digest-review port adapter point | `src/billing/interfaces/` |
 
 ## Contract Freeze
 
@@ -41,10 +41,11 @@ the illegal state each prevents, every signature (`Invoice`, `PaymentAttempt`, `
 ports (`src/billing/domain/ports.py`), the refusal vocabulary with its HTTP statuses, and the ordered
 list of behaviour Phase B must implement.
 
-Status: frozen for implementation. `src/billing/` contains signatures only — every body raises
-`NotImplementedError("B-n — see module doc")` — and the 10 suites under `tests/unit/billing/` are red
-by design, each naming the invariant it defends. Verify with
-`bash .pi/scripts/freeze.sh verify --module billing`.
+Status: implemented against the frozen surface (Phase B). The signatures, refusal vocabulary, event
+payloads and endpoint shapes are unchanged from the freeze; the bodies now enforce B-1…B-7. The storage
+mirrors (`UNIQUE(invoice_hash)`, the partial unique index on the active attempt) live in
+`migrations/versions/002_billing.py`, and the module is wired into `console-api` via
+`src/billing/interfaces/http/`. Verify with `bash .pi/scripts/freeze.sh verify --module billing`.
 
 ## Related ADRs
 
