@@ -78,6 +78,9 @@ ignore = [
 "tests/unit/**/*services*/__init__.py" = ["N999"]
 "tests/unit/**/repository-interfaces-owned-by-domain/__init__.py" = ["N999"]
 "tests/unit/**/layer-purity/__init__.py" = ["N999"]
+# Console contract-suite directories are named after the invariant they defend (`read-only/`,
+# `refusal-reason/`); the package exists for pytest collection and is never imported by path.
+"tests/unit/console/**/__init__.py" = ["N999"]
 # Domain refusal names are frozen by the architecture docs and quoted by acceptance criteria
 # (`ConstitutionCorrupted` in AC #8, `OwnerProofInvalid` in AC #4). The `-Error` suffix rule loses to
 # the ubiquitous language: these are behaviours, not generic exceptions.
@@ -86,6 +89,7 @@ ignore = [
 "src/authority/domain/errors.py" = ["N818"]
 "src/evidence/domain/errors.py" = ["N818"]
 "src/settlement/domain/errors.py" = ["N818"]
+"src/console/application/errors.py" = ["N818"]
 
 # ── mypy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]
