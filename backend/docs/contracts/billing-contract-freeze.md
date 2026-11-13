@@ -81,14 +81,17 @@ class Invoice(AggregateRoot):
     status: InvoiceStatus
 
     @classmethod
-    def record(cls, *, payee_id, amount, due_date, document,
-               presented_digest, existing_hashes=()) -> Invoice: ...            # B-3
+    def from_document(cls, *, payee_id, amount, due_date, document,
+                      presented_digest, existing_hashes=()) -> Invoice: ...       # B-3
     def can_accept_attempt(self) -> bool: ...                                    # B-1 / B-2
     def is_duplicate_of(self, other: InvoiceHash) -> bool: ...                   # B-3
     def mark_settled(self) -> None: ...                                          # B-2
 ```
 
-`mark_settled` is the only transition that closes the invoice, and it refuses to run twice (`B-2`).
+The factory is `from_document`, deliberately **not** `record`: `AggregateRoot.record(self, event)` is the
+event recorder, and a classmethod of the same name shadowed it — `invoice.record(InvoiceRecorded(...))`
+would have called the factory instead of recording a fact. Found by mypy during the Authority freeze;
+amended under an unfreeze. `mark_settled` is the only transition that closes the invoice, and it refuses to run twice (`B-2`).
 There is **no setter** and no `update()`, so `status` can only move through intention methods.
 
 ### 2.4 `PaymentAttempt` — `domain/payment_attempt.py` (aggregate root)
@@ -171,7 +174,7 @@ transaction = one outbox append; both write `billing_outbox` in the same transac
 1. `InvoiceHash.from_document` — canonical content hash; identical documents equal, one changed
    character different (B-3).
 2. `BilledAmount.from_usdc` — positive, exact 6-decimal parsing, float input refused (B-6).
-3. `Invoice.record` — duplicate hash raises `DuplicateInvoice`; presented digest stored verbatim and
+3. `Invoice.from_document` — duplicate hash raises `DuplicateInvoice`; presented digest stored verbatim and
    never used for routing (B-3, B-4).
 4. `Invoice.can_accept_attempt` / `mark_settled` — one attempt at a time, settled is terminal
    (B-1, B-2).

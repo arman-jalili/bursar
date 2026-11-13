@@ -17,22 +17,20 @@ are asserted here:
 from __future__ import annotations
 
 import pytest
-
 from src.billing.domain.errors import InvoiceNotPayable
 from src.billing.domain.payment_attempt import PaymentAttempt
 from src.billing.domain.values import AttemptStatus, InvoiceHash
-
 from tests.unit.billing._fixtures import a_document
 
 
 class TestPersistenceContract:
-    def test_find_active_for_invoice_is_the_b1_lookup(self, invoice) -> None:  # noqa: ANN001
+    def test_find_active_for_invoice_is_the_b1_lookup(self, invoice) -> None:
         """B-1: the port exposes exactly one 'is there an active attempt?' question."""
         from src.billing.domain.repositories import PaymentAttemptRepository
 
         assert hasattr(PaymentAttemptRepository, "find_active_for_invoice")
 
-    def test_a_second_active_attempt_cannot_be_added(self, invoice) -> None:  # noqa: ANN001
+    def test_a_second_active_attempt_cannot_be_added(self, invoice) -> None:
         """B-1 at the storage boundary: the adapter must refuse, not overwrite.
 
         The partial unique index in the migration is the backstop; the port raises first so the caller
@@ -65,7 +63,9 @@ class TestPersistenceContract:
             names = {n for n in dir(port)}
             assert not (names & forbidden), f"{port.__name__} exposes {names & forbidden}"
 
-    def test_duplicate_hash_is_refused_before_insert(self, payee_id, amount, due_date, presented_digest) -> None:  # noqa: ANN001
+    def test_duplicate_hash_is_refused_before_insert(
+        self, payee_id, amount, due_date, presented_digest
+    ) -> None:
         """B-3: the hash is the insert key, so a replay never reaches the table."""
         from src.billing.domain.errors import DuplicateInvoice
         from src.billing.domain.invoice import Invoice
@@ -73,7 +73,7 @@ class TestPersistenceContract:
         known = InvoiceHash.from_document(a_document())
 
         with pytest.raises(DuplicateInvoice):
-            Invoice.record(
+            Invoice.from_document(
                 payee_id=payee_id,
                 amount=amount,
                 due_date=due_date,

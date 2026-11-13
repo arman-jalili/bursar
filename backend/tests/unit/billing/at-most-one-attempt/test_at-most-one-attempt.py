@@ -11,13 +11,12 @@ attempt, and the attempt factory must refuse to build a second one even if the c
 from __future__ import annotations
 
 import pytest
-
 from src.billing.domain.errors import InvoiceNotPayable
 from src.billing.domain.payment_attempt import PaymentAttempt
 
 
 class TestAtMostOneAttempt:
-    def test_second_attempt_on_an_invoice_with_one_in_flight_is_refused(self, invoice) -> None:  # noqa: ANN001
+    def test_second_attempt_on_an_invoice_with_one_in_flight_is_refused(self, invoice) -> None:
         """B-1: a second proposal for the same invoice must raise InvoiceNotPayable.
 
         Two bills of the same invoice paid twice is the classic timeout double-pay; the guard belongs
@@ -28,13 +27,13 @@ class TestAtMostOneAttempt:
         with pytest.raises(InvoiceNotPayable):
             PaymentAttempt.from_proposal({"invoice_id": invoice.id}, invoice)
 
-    def test_invoice_reports_it_cannot_accept_an_attempt(self, invoice) -> None:  # noqa: ANN001
+    def test_invoice_reports_it_cannot_accept_an_attempt(self, invoice) -> None:
         """B-1: `can_accept_attempt` is the single query the use case asks before proposing."""
         PaymentAttempt.from_proposal({"invoice_id": invoice.id}, invoice)
 
         assert invoice.can_accept_attempt() is False
 
-    def test_refused_attempt_frees_the_invoice_for_a_new_proposal(self, invoice) -> None:  # noqa: ANN001
+    def test_refused_attempt_frees_the_invoice_for_a_new_proposal(self, invoice) -> None:
         """B-1 vs B-7: a *refused* attempt is terminal, so the invoice is outstanding again.
 
         The distinction matters: a refusal must not lock the bill, or a legitimate retry becomes

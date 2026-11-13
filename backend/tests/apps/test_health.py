@@ -82,7 +82,9 @@ def test_refusal_maps_to_409_with_domain_code(console_client: TestClient) -> Non
 
     @app.get("/refuse")
     async def refuse() -> None:
-        raise RefusalError(ErrorCode.PAYEE_FROZEN, "That payee is paused.", payee_id="p1")
+        raise RefusalError(
+            ErrorCode.PAYEE_FROZEN, "That payee is paused.", details={"payee_id": "p1"}
+        )
 
     with TestClient(app) as client:
         response = client.get("/refuse")

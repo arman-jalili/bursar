@@ -98,7 +98,7 @@ classDiagram
         +date due_date
         +BankDigest presented_digest
         +InvoiceStatus status
-        +record(...) Invoice
+        +from_document(...) Invoice
         +is_duplicate_of(other_hash) bool
         +can_accept_attempt() bool
         +mark_settled() void

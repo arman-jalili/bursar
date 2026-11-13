@@ -13,10 +13,10 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-
 from src.billing.domain.ids import PayeeId, new_id
 from src.billing.domain.values import BilledAmount
 from src.mandate.domain.values import BankDigest
+
 from tests.unit.billing._fixtures import a_digest, a_document
 
 
@@ -45,7 +45,7 @@ def invoice(payee_id: PayeeId, amount: BilledAmount, due_date: date, presented_d
     """A recorded invoice — the starting point for every attempt rule (B-1, B-2, B-5, B-6)."""
     from src.billing.domain.invoice import Invoice
 
-    return Invoice.record(
+    return Invoice.from_document(
         payee_id=payee_id,
         amount=amount,
         due_date=due_date,
@@ -55,7 +55,7 @@ def invoice(payee_id: PayeeId, amount: BilledAmount, due_date: date, presented_d
 
 
 @pytest.fixture
-def settled_invoice(invoice):  # noqa: ANN001, ANN201 - aggregate returned by the frozen factory
+def settled_invoice(invoice):
     """An invoice whose settlement is final (B-2)."""
     invoice.mark_settled()
     return invoice

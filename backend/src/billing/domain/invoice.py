@@ -22,11 +22,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from src.shared.domain.aggregate import AggregateRoot
-
 from src.billing.domain.ids import InvoiceId, PayeeId
 from src.billing.domain.values import BilledAmount, InvoiceHash, InvoiceStatus
 from src.mandate.domain.values import BankDigest
+from src.shared.domain.aggregate import AggregateRoot
 
 __all__ = ["Invoice"]
 
@@ -44,7 +43,7 @@ class Invoice(AggregateRoot):
     status: InvoiceStatus
 
     @classmethod
-    def record(
+    def from_document(
         cls,
         *,
         payee_id: PayeeId,
@@ -54,7 +53,12 @@ class Invoice(AggregateRoot):
         presented_digest: BankDigest,
         existing_hashes: Sequence[InvoiceHash] = (),
     ) -> Invoice:
-        """Record a bill, refusing a hash that is already known (B-3).
+        """Build an invoice from a bill document, refusing a known hash (B-3).
+
+        Named `from_document` — **not** `record`. `AggregateRoot.record(self, event)` is the event recorder:
+        a classmethod with the same name shadowed it, so `invoice.record(InvoiceRecorded(...))` would have
+        called the factory instead of recording a fact, and mypy caught the override. Naming the factory
+        after its input also matches `InvoiceHash.from_document`.
 
         `existing_hashes` is passed in rather than looked up: the aggregate must be constructible in a
         unit test without a database, and the *rule* (same hash = same bill) is domain knowledge, not a

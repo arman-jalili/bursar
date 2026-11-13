@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import NewType
 
-__all__ = ["InvoiceId", "AttemptId", "PayeeId", "new_id"]
+__all__ = ["AttemptId", "InvoiceId", "PayeeId", "new_id"]
 
 InvoiceId = NewType("InvoiceId", str)
 AttemptId = NewType("AttemptId", str)
