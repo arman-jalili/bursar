@@ -1,88 +1,104 @@
 {
   "prStrategy": "epic",
-  "name": "mandate",
-  "trackingIssueId": "42",
+  "name": "billing",
+  "trackingIssueId": "58",
   "epicId": null,
   "slices": [
     {
-      "module": "mandate",
+      "module": "billing",
       "components": [
         {
-          "name": "Aggregate: Household",
-          "status": "planned",
-          "description": "The single tenancy root. Guards that exactly one constitution version is in force.",
+          "name": "Invoice",
+          "status": "invoicestatus",
+          "description": "\"\"\"Canonical: .pi/architecture/modules/billing.md#components-invoice\"\"\"",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Aggregate: Constitution",
-          "status": "planned",
-          "description": "Append-only lineage. Publishing supersedes; it never mutates.",
+          "name": "PaymentAttempt",
+          "status": "attemptstatus",
+          "description": "FORBIDDEN_PROPOSAL_KEYS = frozenset(",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Aggregate: Payee",
-          "status": "payeestatus",
-          "description": "The eligibility gate. This aggregate is where the bank-detail-change scam dies.",
+          "name": "Persistence contract",
+          "status": "planned",
+          "description": "Persistence contract component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Value Objects (with entity-vs-VO justification)",
+          "name": "Ports",
           "status": "planned",
-          "description": "Value objects are `frozen=True` dataclasses with validation in `__post_init__` — an invalid",
+          "description": "Ports component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Repository interfaces (owned by `domain/`)",
+          "name": "`InvoiceHash`",
           "status": "planned",
-          "description": "\"\"\"Canonical: .pi/architecture/modules/mandate.md#components",
+          "description": "Same document → same hash; one changed character → different hash.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Domain Services",
+          "name": "Duplicate invoice",
           "status": "planned",
-          "description": "Domain Services component",
+          "description": "Recording the same hash twice yields the original invoice + `DuplicateInvoiceDetected`, no second row.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`BankDigest`",
+          "name": "At most one attempt",
           "status": "planned",
-          "description": "Two digests from identical routing details are equal; a one-character change alters the hash.",
+          "description": "Two concurrent proposals for one invoice → exactly one `PaymentAttempt`; second gets `InvoiceNotPayable`.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`Cap` / `Threshold`",
+          "name": "Forbidden fields",
           "status": "planned",
-          "description": "`Cap(0)` and `Cap(-1)` raise; `Threshold > Cap` raises at constitution append.",
+          "description": "Proposal with `payee_address`, `command`, `cap` or `threshold` → 422 `PROPOSAL_REJECTED`, zero attempts persisted.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`Payee.review_presented_digest`",
+          "name": "Settled invoice",
           "status": "planned",
-          "description": "Mismatch sets `QUARANTINED`, emits `PayeeDigestChanged` + `PayeeQuarantined`, and leaves `address` **byte-identical**. (scenario 2)",
+          "description": "Proposal against a settled invoice → refused; no attempt row. (scenario 6, app layer)",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`Payee.reapprove`",
+          "name": "Digest review",
           "status": "planned",
-          "description": "Without an owner proof → `OwnerProofInvalid`, status unchanged; with proof → `ELIGIBLE` + `PayeeReapproved`.",
+          "description": "An invoice whose presented digest ≠ Mandate's verified digest triggers Mandate quarantine and the attempt is refused downstream. (scenario 2)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Refusal path",
+          "status": "planned",
+          "description": "A denied determination sets the attempt `REFUSED` and the invoice back to outstanding, with no reservation committed.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Layer purity",
+          "status": "planned",
+          "description": "`src/billing/domain/` imports no FastAPI/SQLAlchemy/httpx.",
           "dependencies": [
             "none"
           ]
@@ -90,73 +106,81 @@
       ],
       "nextLogicalSlice": [
         {
-          "name": "Aggregate: Household",
+          "name": "Persistence contract",
           "status": "planned",
-          "description": "The single tenancy root. Guards that exactly one constitution version is in force.",
+          "description": "Persistence contract component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Aggregate: Constitution",
+          "name": "Ports",
           "status": "planned",
-          "description": "Append-only lineage. Publishing supersedes; it never mutates.",
+          "description": "Ports component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Value Objects (with entity-vs-VO justification)",
+          "name": "`InvoiceHash`",
           "status": "planned",
-          "description": "Value objects are `frozen=True` dataclasses with validation in `__post_init__` — an invalid",
+          "description": "Same document → same hash; one changed character → different hash.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Repository interfaces (owned by `domain/`)",
+          "name": "Duplicate invoice",
           "status": "planned",
-          "description": "\"\"\"Canonical: .pi/architecture/modules/mandate.md#components",
+          "description": "Recording the same hash twice yields the original invoice + `DuplicateInvoiceDetected`, no second row.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Domain Services",
+          "name": "At most one attempt",
           "status": "planned",
-          "description": "Domain Services component",
+          "description": "Two concurrent proposals for one invoice → exactly one `PaymentAttempt`; second gets `InvoiceNotPayable`.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`BankDigest`",
+          "name": "Forbidden fields",
           "status": "planned",
-          "description": "Two digests from identical routing details are equal; a one-character change alters the hash.",
+          "description": "Proposal with `payee_address`, `command`, `cap` or `threshold` → 422 `PROPOSAL_REJECTED`, zero attempts persisted.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`Cap` / `Threshold`",
+          "name": "Settled invoice",
           "status": "planned",
-          "description": "`Cap(0)` and `Cap(-1)` raise; `Threshold > Cap` raises at constitution append.",
+          "description": "Proposal against a settled invoice → refused; no attempt row. (scenario 6, app layer)",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`Payee.review_presented_digest`",
+          "name": "Digest review",
           "status": "planned",
-          "description": "Mismatch sets `QUARANTINED`, emits `PayeeDigestChanged` + `PayeeQuarantined`, and leaves `address` **byte-identical**. (scenario 2)",
+          "description": "An invoice whose presented digest ≠ Mandate's verified digest triggers Mandate quarantine and the attempt is refused downstream. (scenario 2)",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`Payee.reapprove`",
+          "name": "Refusal path",
           "status": "planned",
-          "description": "Without an owner proof → `OwnerProofInvalid`, status unchanged; with proof → `ELIGIBLE` + `PayeeReapproved`.",
+          "description": "A denied determination sets the attempt `REFUSED` and the invoice back to outstanding, with no reservation committed.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Layer purity",
+          "status": "planned",
+          "description": "`src/billing/domain/` imports no FastAPI/SQLAlchemy/httpx.",
           "dependencies": [
             "none"
           ]
@@ -169,94 +193,101 @@
       "id": "issue-contract-freeze",
       "title": "Contract Freeze: Define interfaces and contracts",
       "status": "planned",
-      "remoteIssueId": "43"
+      "remoteIssueId": "59"
     },
     {
-      "id": "issue-aggregate-household",
-      "title": "Implement Aggregate: Household — mandate",
+      "id": "issue-persistence-contract",
+      "title": "Implement Persistence contract — billing",
       "status": "planned",
-      "remoteIssueId": "44"
+      "remoteIssueId": "60"
     },
     {
-      "id": "issue-aggregate-constitution",
-      "title": "Implement Aggregate: Constitution — mandate",
+      "id": "issue-ports",
+      "title": "Implement Ports — billing",
       "status": "planned",
-      "remoteIssueId": "45"
+      "remoteIssueId": "61"
     },
     {
-      "id": "issue-value-objects-with-entity-vs-vo-justification-",
-      "title": "Implement Value Objects (with entity-vs-VO justification) — mandate",
+      "id": "issue--invoicehash-",
+      "title": "Implement `InvoiceHash` — billing",
       "status": "planned",
-      "remoteIssueId": "46"
+      "remoteIssueId": "62"
     },
     {
-      "id": "issue-repository-interfaces-owned-by-domain-",
-      "title": "Implement Repository interfaces (owned by `domain/`) — mandate",
+      "id": "issue-duplicate-invoice",
+      "title": "Implement Duplicate invoice — billing",
       "status": "planned",
-      "remoteIssueId": "47"
+      "remoteIssueId": "63"
     },
     {
-      "id": "issue-domain-services",
-      "title": "Implement Domain Services — mandate",
+      "id": "issue-at-most-one-attempt",
+      "title": "Implement At most one attempt — billing",
       "status": "planned",
-      "remoteIssueId": "48"
+      "remoteIssueId": "64"
     },
     {
-      "id": "issue--bankdigest-",
-      "title": "Implement `BankDigest` — mandate",
+      "id": "issue-forbidden-fields",
+      "title": "Implement Forbidden fields — billing",
       "status": "planned",
-      "remoteIssueId": "49"
+      "remoteIssueId": "65"
     },
     {
-      "id": "issue--cap-threshold-",
-      "title": "Implement `Cap` / `Threshold` — mandate",
+      "id": "issue-settled-invoice",
+      "title": "Implement Settled invoice — billing",
       "status": "planned",
-      "remoteIssueId": "50"
+      "remoteIssueId": "66"
     },
     {
-      "id": "issue--payee-review-presented-digest-",
-      "title": "Implement `Payee.review_presented_digest` — mandate",
+      "id": "issue-digest-review",
+      "title": "Implement Digest review — billing",
       "status": "planned",
-      "remoteIssueId": "51"
+      "remoteIssueId": "67"
     },
     {
-      "id": "issue--payee-reapprove-",
-      "title": "Implement `Payee.reapprove` — mandate",
+      "id": "issue-refusal-path",
+      "title": "Implement Refusal path — billing",
       "status": "planned",
-      "remoteIssueId": "52"
+      "remoteIssueId": "68"
+    },
+    {
+      "id": "issue-layer-purity",
+      "title": "Implement Layer purity — billing",
+      "status": "planned",
+      "remoteIssueId": "69"
     },
     {
       "id": "issue-runtime-integration",
       "title": "Runtime Integration & Legacy Migration",
       "status": "planned",
-      "remoteIssueId": "53"
+      "remoteIssueId": "70"
     },
     {
       "id": "issue-proofing",
       "title": "Proofing: Validation scripts + CI integration",
       "status": "planned",
-      "remoteIssueId": "54"
+      "remoteIssueId": "71"
     },
     {
       "id": "issue-architecture-readiness",
       "title": "Architecture Readiness: Runbook, DR, docs, CI enforcement",
       "status": "planned",
-      "remoteIssueId": "55"
+      "remoteIssueId": "72"
     }
   ],
   "status": "planning",
   "currentIssueIndex": 0,
-  "createdAt": "2026-11-13T18:09:51.098Z",
+  "createdAt": "2026-11-13T20:15:32.569Z",
   "tdd": true,
   "tddTestFiles": [
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/aggregate-household/test_aggregate-household.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/aggregate-constitution/test_aggregate-constitution.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/value-objects-with-entity-vs-vo-justification/test_value-objects-with-entity-vs-vo-justification.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/repository-interfaces-owned-by-domain/test_repository-interfaces-owned-by-domain.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/domain-services/test_domain-services.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/bankdigest/test_bankdigest.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/cap-threshold/test_cap-threshold.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/payee-review-presented-digest/test_payee-review-presented-digest.py",
-    "/Users/arman/project/proximata/bursar/backend/tests/unit/mandate/payee-reapprove/test_payee-reapprove.py"
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/persistence-contract/test_persistence-contract.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/ports/test_ports.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/invoicehash/test_invoicehash.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/duplicate-invoice/test_duplicate-invoice.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/at-most-one-attempt/test_at-most-one-attempt.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/forbidden-fields/test_forbidden-fields.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/settled-invoice/test_settled-invoice.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/digest-review/test_digest-review.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/refusal-path/test_refusal-path.py",
+    "/Users/arman/project/proximata/bursar/backend/tests/unit/billing/layer-purity/test_layer-purity.py"
   ]
 }
