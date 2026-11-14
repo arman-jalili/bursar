@@ -22,13 +22,17 @@ class TestFinality:
         """SC-7 / AC-7: a mined transaction at depth 0 can still be reorged — no commit yet."""
         receipt = a_receipt(confirmations=0)
 
-        assert FinalityPolicy().is_final(receipt, an_anvil_network(confirmations_required=1)) is False
+        assert (
+            FinalityPolicy().is_final(receipt, an_anvil_network(confirmations_required=1)) is False
+        )
 
     def test_the_required_confirmation_count_is_final(self) -> None:
         """SC-7 / AC-7: at the threshold the settlement is final and the cap may commit."""
         receipt = a_receipt(confirmations=2)
 
-        assert FinalityPolicy().is_final(receipt, an_anvil_network(confirmations_required=2)) is True
+        assert (
+            FinalityPolicy().is_final(receipt, an_anvil_network(confirmations_required=2)) is True
+        )
 
     def test_below_the_threshold_maps_to_pending(self) -> None:
         """SC-7 / AC-7: `PENDING` is a non-committing state, so a reorg cannot leave a committed cap."""

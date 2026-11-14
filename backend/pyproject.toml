@@ -53,7 +53,12 @@ target-version = "py312"
 src = ["src", "tests"]
 # `.pi/` holds the Guardian harness (vendored scripts and extensions). Formatting it would create
 # noise in every epic diff and rewrite tooling we do not own.
-exclude = [".pi", ".venv", "contracts/lib", "out", "cache", "data"]
+# `.pi/` holds the Guardian harness (vendored scripts and extensions). Formatting it would create
+# noise in every epic diff and rewrite tooling we do not own.
+# `docs/contracts/` holds frozen contract artifacts. They are evidence, not code: a formatter that
+# rewrites them turns a cosmetic pass into a "contracts changed since the freeze" failure. Freezing
+# means byte-stable, so the formatter must not touch them.
+exclude = [".pi", ".venv", "contracts/lib", "out", "cache", "data", "docs/contracts"]
 
 [tool.ruff.lint]
 select = [

@@ -44,7 +44,9 @@ class TestNullifierOnChain:
         """SC-6 / AC-6: a revert concludes the order; no path back to the chain exists."""
         order.mark_submitted("0x" + "aa" * 32, signed_amount)
         order.conclude(
-            a_receipt(order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent")
+            a_receipt(
+                order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent"
+            )
         )
 
         with pytest.raises(IllegalTransition):
@@ -55,7 +57,9 @@ class TestNullifierOnChain:
         order.mark_submitted("0x" + "aa" * 32, signed_amount)
 
         order.conclude(
-            a_receipt(order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent")
+            a_receipt(
+                order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent"
+            )
         )
 
         reverted = [event for event in order.pull_events() if event.name == "SettlementReverted"]

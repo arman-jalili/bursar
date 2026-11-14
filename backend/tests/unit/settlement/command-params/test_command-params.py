@@ -38,7 +38,9 @@ class TestCommandParams:
         assert params["amount_usdc"] == order.amount.micro_usdc
         assert params["payee_address"] == order.payee_address.value
 
-    def test_params_carry_the_intent_digest_not_an_invoice_supplied_one(self, intent, order) -> None:
+    def test_params_carry_the_intent_digest_not_an_invoice_supplied_one(
+        self, intent, order
+    ) -> None:
         """SC-2 / AC-2: the bank digest travels from the intent, so an invoice cannot redirect it."""
         params = order.command_params()
 

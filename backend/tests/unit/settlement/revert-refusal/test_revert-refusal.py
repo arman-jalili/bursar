@@ -24,7 +24,9 @@ class TestRevertIsRefusal:
         """SC-8 / AC-8: there is no legal second submission after a revert (SC-6)."""
         order.mark_submitted("0x" + "aa" * 32, signed_amount)
         order.conclude(
-            a_receipt(order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent")
+            a_receipt(
+                order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent"
+            )
         )
 
         from src.settlement.domain.errors import IllegalTransition
@@ -36,7 +38,9 @@ class TestRevertIsRefusal:
         """SC-8 / AC-8: Authority reconciles on this event; two would double-release a reservation."""
         order.mark_submitted("0x" + "aa" * 32, signed_amount)
         order.conclude(
-            a_receipt(order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent")
+            a_receipt(
+                order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent"
+            )
         )
 
         reverted = [event for event in order.pull_events() if event.name == "SettlementReverted"]
@@ -55,7 +59,9 @@ class TestRevertIsRefusal:
         """SC-8 / AC-8: only `CONFIRMED` commits; a revert releases, so it must not look confirmed."""
         order.mark_submitted("0x" + "aa" * 32, signed_amount)
         order.conclude(
-            a_receipt(order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="BadSignature")
+            a_receipt(
+                order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="BadSignature"
+            )
         )
 
         assert order.status is not SettlementStatus.CONFIRMED

@@ -74,7 +74,9 @@ class TestDomainPurity:
         with pytest.raises(SettlementRefusal):
             SettlementOrder.order(intent, network, denial)
 
-    def test_dispatch_without_authority_is_a_refusal_not_a_value_error(self, intent, network) -> None:
+    def test_dispatch_without_authority_is_a_refusal_not_a_value_error(
+        self, intent, network
+    ) -> None:
         """SC-12 / AC-12: the specific class and the base class agree — one vocabulary, no outliers."""
         denial = a_determination(DeterminationVerdict.DENY, intent_id=intent.intent_id)
 

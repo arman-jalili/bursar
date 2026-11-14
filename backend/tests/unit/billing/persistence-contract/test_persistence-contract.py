@@ -20,6 +20,7 @@ import pytest
 from src.billing.domain.errors import InvoiceNotPayable
 from src.billing.domain.payment_attempt import PaymentAttempt
 from src.billing.domain.values import AttemptStatus, InvoiceHash
+
 from tests.unit.billing._fixtures import a_document
 
 

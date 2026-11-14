@@ -306,6 +306,51 @@ Each entry follows this structure:
 - [x] Canonical refs updated (in doc stubs)
 - [ ] Validators run (require `src/`, which does not exist yet)
 
+## [2026-11-14] - Settlement implementation: domain, persistence, read runtime
+
+### Changed
+- Module: settlement
+  - Domain: `Nullifier.derive` (keccak256 via `eth-hash[pycryptodome]`), `ChainNetwork` (Anvil /
+    Base Sepolia, no default), `SettlementOrder.order` / `command_params` / `mark_submitted` /
+    `conclude`, `ChainReceipt` cost validation + finality, `NullifierPolicy`, `FinalityPolicy`,
+    `DeterminationView.permits_dispatch`. All 80 frozen contract suites green.
+  - Application: `GetReceipt`, `ListOrders`, `CostSummary`, `AnchorHash` (+ `GetOrder`,
+    `ListReceipts`, `NullifierStatus` behind the frozen endpoints). `DispatchPayment`/`SettleOnce`
+    remain deferred (B-1/B-2).
+  - Infrastructure: SQLAlchemy models/mappers/repositories (+ outbox writer), migration
+    `003_settlement` with the storage mirrors of SC-3/SC-5/SC-10.
+  - Interfaces: concrete `/v1/orders*`, `/v1/receipts`, `/v1/nullifiers/{value}` router registered in
+    the console-api composition root; dispatch/anchors return 501 naming the blocker.
+
+### Impact Analysis
+- Files affected:
+  - `src/settlement/**` (domain bodies, application services, infrastructure adapters, HTTP router)
+  - `src/apps/console_api/app.py` (settlement added to `HOSTED_CONTEXTS`)
+  - `migrations/env.py`, `migrations/versions/003_settlement.py`
+  - `pyproject.toml`, `uv.lock` (eth-hash[pycryptodome])
+  - `tests/unit/settlement/_fixtures.py` (adds `is_anchor` to the shared receipt builder — not a frozen test file)
+  - `tests/integration/settlement/**` (new persistence + HTTP E2E tests)
+- Canonical refs to update:
+  - `.pi/architecture/modules/settlement.md` (status → Implemented, implementation status, sequence)
+  - `.pi/architecture/decisions/ADR-009-runtime-wiring-multilang-judgment.md` (new, Accepted)
+  - `docs/runbook-settlement.md`, `docs/dr-plan-settlement.md` (new)
+- Validators required:
+  - architecture, canonical, tests, security, operations, runtime-wiring, composition-root
+  - `check_settlement_contracts.sh` (new hardening stage 2c)
+
+### Migration Steps
+1. `make db-upgrade` — applies `003_settlement` (orders, nullifiers, receipts, outbox).
+2. Rebuild the venv or `uv pip install -e ".[dev]"` — `eth-hash[pycryptodome]` is a new dependency.
+3. Restart `console-api`; settlement routers are registered by the composition root.
+4. To enable the write path, complete the re-freeze in ADR-009 (B-1, B-2) and gaps G-1…G-4.
+
+### Status
+- [x] Architecture doc updated
+- [x] CHANGELOG entry added
+- [x] Implementation updated (domain, persistence, read runtime)
+- [x] Canonical refs updated
+- [x] Validators run
+
 <!-- Add new entries above this line -->
 
 ---
@@ -338,6 +383,7 @@ Track which changes have been synced to implementation:
 | 2026-11-13 | **Phase 0 bootstrap** — kernel, config, logging, DB, envelope, 2 deployables, CI | bootstrap (no context) | complete | architecture/model-judgment/language/canonical: pass |
 | 2026-11-13 | Mandate contract freeze v1 — values, aggregates, ports, DTOs, events, 9 contract tests | mandate | complete (stubs) | all four gates pass; 267 tests |
 | 2026-11-14 | **Billing implementation** — value objects, aggregates (B-1…B-7), repositories, migration `002_billing`, HTTP surface, settlement/refusal handlers, contract proofing stage | billing | complete | ci/tests/security/wiring/guards/drift/shell/claims/floors: pass |
+| 2026-11-14 | **Settlement implementation** — value objects, aggregate + domain services, SQL repositories + migration `003_settlement`, read API wired into console-api, ADR-009, runbook + DR plan, proofing stage 2c | settlement | complete (write path deferred on B-1/B-2) | architecture/canonical/security/operations/runtime-wiring/composition-root: pass; settlement proofing 74/74 |
 
 ---
 
