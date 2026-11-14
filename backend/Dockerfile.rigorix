@@ -1,0 +1,41 @@
+# rigorix-server + the Bursar broadcaster, in one governed execution host.
+#
+# Build context is the parent directory so both repositories are visible:
+#   docker build -f backend/Dockerfile.rigorix -t bursar-rigorix ../..
+#
+# The second stage is the same Python runtime as backend/Dockerfile: Rigorix's run_command step
+# executes `payments.broadcast`, and that executable must exist inside the declared boundary.
+FROM rust:1.96-bookworm AS rigorix-build
+
+WORKDIR /src/rigorix-oss
+COPY rigorix-oss/ ./
+RUN cargo build --release -p rigorix-server
+
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY proximata/bursar/backend/pyproject.toml proximata/bursar/backend/uv.lock proximata/bursar/backend/README.md ./
+COPY proximata/bursar/backend/src ./src
+COPY proximata/bursar/backend/migrations ./migrations
+COPY proximata/bursar/backend/alembic.ini ./
+COPY proximata/bursar/backend/contracts ./contracts
+RUN pip install --no-cache-dir uv && uv pip install --system .
+
+COPY --from=rigorix-build /src/rigorix-oss/target/release/rigorix-server /usr/local/bin/rigorix-server
+COPY proximata/bursar/backend/docker/rigorix/rigorix.toml /workspace/.rigorix/rigorix.toml
+
+WORKDIR /workspace
+ENV RIGORIX_SERVER_BIND=0.0.0.0:3001 \
+    RIGORIX_SANDBOX=container \
+    RIGORIX_REPO_ROOT=/workspace
+
+EXPOSE 3001
+CMD ["rigorix-server"]

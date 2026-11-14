@@ -1,0 +1,11 @@
+# Rigorix host configuration for the Bursar demo.
+# Only the execution boundary and envelope signing matter here; the settlement code
+# supplies the one run_command template per dispatch (SC-2).
+[orchestrator]
+max_parallel_tasks = 4
+max_retries = 1
+default_timeout_secs = 120
+
+[logging]
+level = "info"
+format = "text"
