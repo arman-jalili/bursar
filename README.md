@@ -81,7 +81,8 @@ transaction page. The explorer is read-only and does not change how the gate beh
 - Changed the checks or the gate URL: rerun `setup-preconditions.sh`, then
   `docker compose restart rigorix` (the host reads the file at boot).
 - Full reset (chain redeploys, ledger and trail restart): `docker compose down -v`, then start
-  again. The checks live in `/tmp/bursar-preconditions` and survive.
+  again. The checks live in `/tmp/bursar-preconditions` and survive on purpose — delete that
+  directory and rerun `setup-preconditions.sh` to reseed the payee authority as all-active.
 
 ## The two demos
 
