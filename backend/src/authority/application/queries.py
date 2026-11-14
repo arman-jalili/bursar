@@ -1,0 +1,113 @@
+"""Read models for the Authority GET endpoints.
+
+Canonical: .pi/architecture/modules/authority.md#api-endpoints
+Reference: docs/contracts/authority-contract-freeze.md §2.9
+
+Reads are queries, not use cases: they change nothing, emit nothing, and do not belong in the five
+catalog services. Keeping them here (rather than in the router) preserves the rule that the transport
+never touches a repository — the router still only translates HTTP into a call and a DTO into a body.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from src.authority.application.dto import DeterminationView, IntentView
+from src.authority.application.services_impl import determination_view, intent_view
+from src.authority.domain.ids import IntentId, ReservationId
+from src.authority.domain.values import Money
+from src.authority.infrastructure.repositories import (
+    SqlApprovalRepository,
+    SqlCapLedgerRepository,
+    SqlDeterminationRepository,
+    SqlPaymentIntentRepository,
+)
+from src.shared.application.unit_of_work import session_scope
+from src.shared.domain.errors import NotFoundError
+
+__all__ = ["ApprovalView", "AuthorityQueries", "LedgerView"]
+
+
+@dataclass(frozen=True, slots=True)
+class LedgerView:
+    """One day's cap state, in the units the wire uses (ADR-002: integer micro-USDC)."""
+
+    day: str
+    cap_micro_usdc: int
+    committed_micro_usdc: int
+    reserved_micro_usdc: int
+    headroom_micro_usdc: int
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalView:
+    """The owner's inbox item — enough to sign, and nothing about the account."""
+
+    approval_id: str
+    intent_id: str
+    typed_data_hash: str
+    expires_at: datetime
+    status: str
+
+
+class AuthorityQueries:
+    """The four reads the API exposes (`GET /v1/...`)."""
+
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        self._factory = session_factory
+
+    async def intent(self, intent_id: str) -> IntentView:
+        async with session_scope(self._factory) as session:
+            intent = await SqlPaymentIntentRepository(session).find_by_id(IntentId(intent_id))
+            if intent is None:
+                raise NotFoundError("intent not found", intent_id=intent_id)
+            return intent_view(intent)
+
+    async def determination(self, intent_id: str) -> DeterminationView:
+        async with session_scope(self._factory) as session:
+            determination = await SqlDeterminationRepository(session).find_by_intent(
+                IntentId(intent_id)
+            )
+            if determination is None:
+                raise NotFoundError("determination not found", intent_id=intent_id)
+            return determination_view(determination)
+
+    async def ledger(self, day: str) -> LedgerView:
+        async with session_scope(self._factory) as session:
+            ledger = await SqlCapLedgerRepository(session).ledger_for(day)
+            return LedgerView(
+                day=ledger.day,
+                cap_micro_usdc=ledger.cap.micro_usdc,
+                committed_micro_usdc=ledger.committed.micro_usdc,
+                reserved_micro_usdc=ledger.reserved.micro_usdc,
+                headroom_micro_usdc=ledger.headroom.micro_usdc,
+            )
+
+    async def approvals(self, status: str = "pending") -> list[ApprovalView]:
+        """`status=pending` is the only supported filter; the router rejects anything else (422)."""
+        now = datetime.now(UTC)
+        async with session_scope(self._factory) as session:
+            approvals = await SqlApprovalRepository(session, now).find_pending()
+            return [
+                ApprovalView(
+                    approval_id=approval.id,
+                    intent_id=approval.intent_id,
+                    typed_data_hash=approval.typed_data_hash,
+                    expires_at=approval.expires_at,
+                    status="pending",
+                )
+                for approval in approvals
+            ]
+
+    async def reservation_of(self, reservation_id: str) -> tuple[str, Money]:
+        """Expose the hold's day and amount for the settlement-outcome response (404 when unknown)."""
+        async with session_scope(self._factory) as session:
+            reservation = await SqlCapLedgerRepository(session).find_reservation(
+                ReservationId(reservation_id)
+            )
+            if reservation is None:
+                raise NotFoundError("reservation not found", reservation_id=reservation_id)
+            return reservation.day, reservation.amount

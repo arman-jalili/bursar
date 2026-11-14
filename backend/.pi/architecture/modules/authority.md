@@ -2,7 +2,7 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented (A-1 … A-15; HTTP contract §API Endpoints)
 **Depends:** Mandate (constitution in force, payee eligibility), Billing (attempts)
 **Used by:** Settlement, Evidence, Console
 **Last reviewed:** 2026-11-13
@@ -47,11 +47,23 @@ schemas (`src/authority/domain/events.py`), the HTTP contract and error envelope
 vocabulary, the ordered Phase-B work list, and the explicit out-of-scope table (no adapter or router
 bodies, no migration, no EIP-712 signer implementation).
 
-Status: frozen for implementation. `src/authority/` contains signatures only — every body raises
-`NotImplementedError("A-n — see module doc")` — and the suites under `tests/unit/authority/` are red by
-design, each naming the invariant it defends. `infrastructure/` and `interfaces/` are empty packages for
-now; their bodies and the router arrive in Phase B. Verify with
-`bash .pi/scripts/freeze.sh verify --module authority`.
+Status: implemented. `domain/` carries the invariants (A-1 … A-15), `application/` the five catalog
+services plus the `PreconditionCheck` façade, `infrastructure/` the SQLAlchemy models, repositories
+(including the one-statement cap hold) and the EIP-712 binder, and `interfaces/http/` the eight frozen
+endpoints. `authority-service` installs the context (`HOSTED_CONTEXTS` in
+`src/apps/authority_service/app.py`) and `CONTEXT_PLAN` reports it as wired.
+
+Two Phase-B pieces are deliberately still open, and both fail closed rather than guessing:
+
+* **Billing read-through.** `AttemptViewPort` is implemented by an adapter that refuses with
+  `503 retryable` until Authority's cross-process read of the console deployable's `/v1/attempts/{id}`
+  is wired. Reading another deployable's database locally would 404 real attempts — worse than a
+  documented retry.
+* **EIP-712 struct encoding.** The binder recovers the signer with secp256k1 over `PaymentIntent`'s
+  frozen canonical digest. The domain separator / type-hash document that the Solidity `PaymentRouter`
+  also derives is the codegen step, not a change to the binding guarantee (A-13).
+
+Verify with `bash .pi/scripts/freeze.sh verify --module authority`.
 
 ## Related ADRs
 

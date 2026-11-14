@@ -39,7 +39,8 @@ def test_readyz_checks_database_and_reports_build_state(
     # context says so with an empty list, not by omitting the key.
     assert "pending_contexts" in body["build"]
     # console-api is the edge deployable: it hosts every read model the console renders
-    # (Mandate, Billing, Settlement, Evidence, Console). authority-service wires its context later.
+    # (Mandate, Billing, Settlement, Evidence, Console). authority-service hosts Authority — the
+    # enforcement lock is its own process — so both deployables now plan nothing unwired.
     if body["service"] == "console-api":
         assert body["build"]["wired_contexts"] == [
             "Mandate",
@@ -48,10 +49,9 @@ def test_readyz_checks_database_and_reports_build_state(
             "Evidence",
             "Console",
         ]
-        assert body["build"]["pending_contexts"] == []
     else:
-        assert body["build"]["wired_contexts"] == []
-        assert body["build"]["pending_contexts"] == ["Authority"]
+        assert body["build"]["wired_contexts"] == ["Authority"]
+    assert body["build"]["pending_contexts"] == []
 
 
 def test_readyz_never_leaks_secrets(console_client: TestClient) -> None:
