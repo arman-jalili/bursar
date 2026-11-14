@@ -15,6 +15,14 @@ This repository is **not a click-through mock**: the approval card signs a real 
 digest, Authority verifies it and reserves capacity, Settlement signs a real transaction,
 Rigorix's governed `run_command` broadcasts it, and `PaymentRouter.sol` moves USDC exactly once.
 
+The page is about the gate, in two capabilities:
+
+- **Capacity** — ask the agent to pay. With a €30 cap, €20 runs through and the next €11 is refused
+  before anything is signed.
+- **Precondition** — an approval is a request, not a durable grant. The owner signs a €20 payment on
+  a €30 cap with a €15 approval line; the operator then freezes that payee; the release is refused at
+  **dispatch time** by Rigorix's own precondition, with a signed finding and no transaction.
+
 ---
 
 ## What runs
@@ -27,30 +35,47 @@ Rigorix's governed `run_command` broadcasts it, and `PaymentRouter.sol` moves US
 | Settlement | `console-api` `:8000` (Settlement context) | Reads the verdict live, signs locally, persists the hash **before** broadcast, asks Rigorix to send it. |
 | Lock 3 | `PaymentRouter.sol` | Nullifier once-only, EIP-712 owner signature, amount/address frozen on the signed intent, `Anchored` event. |
 | Owner surface | `console-api` `:8000` `/v1/console/*` | Live approvals, bills, constitution, payees, evidence verdicts; one write — the signature passthrough. |
-| UI | `frontend` `:5173` | The owner's console: approval card, story, Control Room, live feed, rules, receipts. |
+| Agent + gate | `console-api` `:8000` `/v1/agent/*` | Natural-language payment proposals (LLM), the capacity gate, the dispatch-precondition switch, and the signed-envelope trail. |
+| UI | `frontend` `:5173` | Two capabilities: **capacity** (`/#capacity`) and **precondition** (`/#precondition`), with browser HMAC verification and a chained trail. |
 
 ## Quick start (this machine)
 
 ```bash
+# 0. The agent's parser key (gitignored .env). OpenRouter is the default provider.
+#    BURSAR_LLM_API_KEY / LLM_BASE_URL / LLM_MODEL / LLM_FALLBACK_MODEL
+
 # 1. Core services (anvil, contract deployment, migrations, authority, console, UI)
 docker compose up -d --build anvil contracts migrate authority console frontend
 
 # 2. Rigorix (OSS host). It runs beside the repo and needs the backend venv on its PATH.
 ./scripts/run-rigorix.sh
 
-# 3. Seed the real demo world through the public APIs
-docker compose run --rm \
-  -e SEED_CONSOLE_URL=http://console:8000 \
-  -e SEED_AUTHORITY_URL=http://authority:8001 \
-  -e SEED_DISPATCH=1 \
-  contracts python scripts/seed_demo.py
+# 3. Arm the dispatch-time precondition (check + operator authority live outside the repo)
+./scripts/setup-preconditions.sh
+# then restart the Rigorix host so it reads .rigorix-runtime/.rigorix/preconditions.toml
 
-# 4. Open the console
-open http://localhost:5173
+# 4. Open the gate
+open http://localhost:5173/#capacity
 ```
 
-The seed creates one household with a €500 daily cap and a €100 signature line, and produces real
-determinations:
+The pages set their own world on load: capacity = €30 with every payment inside the cap allowed;
+precondition = €30 cap and a €15 approval line. A page refresh starts a fresh evidence chain.
+
+The optional seed (`docker compose run --rm … python scripts/seed_demo.py`) still populates the
+classic €500-cap world through the public APIs for the frozen console read models.
+
+### Dispatch-time precondition
+
+`scripts/setup-preconditions.sh` installs an operator-owned check in `/tmp/bursar-preconditions/`
+and an `authority.json` keyed by payee address (`active` / `frozen`). Rigorix runs that check after
+any approval and immediately before `payments.broadcast`; a non-zero exit refuses the step. The
+refusal still produces a signed audit envelope with `precondition_findings[]` (`outcome`, `exit_code`,
+`check_digest`, `authority_digest`, `check_writable`). The console only reads and writes that status
+file as the operator's switch (`GET/POST /v1/agent/authority`); the check and the authority live
+outside this repository, which is the point.
+
+The optional seed creates one household with a €500 daily cap and a €100 signature line, and produces
+real determinations:
 
 - **Wien Energie €84.20** — eligible, inside the cap → *allowed*, dispatched through Rigorix.
 - **Apotheke €48.50** — presented bank digest does not match → *quarantined*, refused.
@@ -104,9 +129,10 @@ production keeps the per-deployable split.
 ## Repository layout
 
 ```
-frontend/                 React + Vite console (scenario-first UI, live console client)
+frontend/                 React + Vite pages: capacity (Gate.tsx) and precondition (Precondition.tsx)
 backend/
   src/apps/               console-api and authority-service composition roots
+  src/apps/console_api/agent.py   chat agent, capacity gate, authority switch, release, trail
   src/shared/             config, SQLite/WAL, error envelope, health
   src/mandate/            household, constitution, payees, eligibility
   src/billing/            invoices, attempts, duplicate and one-active guards
@@ -117,8 +143,10 @@ backend/
   contracts/src/          PaymentRouter.sol and TestUsdc.sol
   scripts/                deploy_contracts.py, seed_demo.py
 scripts/run-rigorix.sh    starts the unmodified OSS rigorix-server on the host
+scripts/setup-preconditions.sh  installs the operator check + authority outside the repo
 docker-compose.yml        anvil, contracts, migrate, authority, console, frontend
 .env.demo                 public Anvil/test values only
+.env.example              the optional LLM key variables (copy to a gitignored .env)
 ```
 
 ## Demo keys
@@ -135,8 +163,9 @@ All keys in `.env.demo` are public Anvil test keys and are unsafe on any real ne
 - Evidence envelopes are not relayed from the outboxes into the Evidence projection yet.
 - The containerised Rigorix image (compose profile `container-rigorix`) is experimental; the host
   `scripts/run-rigorix.sh` is the supported demo path because the OSS workspace rebuild is large.
-- The Control Room and the five-step story are local sandboxes layered on today's live state; they
-  never reset the backend.
+- The LLM parser is convenience only: the amount always comes from the sentence, and a local regex
+  parser takes over when the provider is unavailable. Free OpenRouter models can be rate-limited
+  upstream; `LLM_FALLBACK_MODEL` keeps the demo answering.
 
 ## License
 

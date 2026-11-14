@@ -221,6 +221,8 @@ class DispatchPaymentService(DispatchPayment):
             status=order.status.value,
             nullifier=order.nullifier.value,
             events=("SettlementOrdered", "SettlementSubmitted"),
+            execution_id=ack.execution_id,
+            audit_uri=ack.audit_uri,
         )
 
     async def _observe_receipt(self, order: SettlementOrder) -> None:

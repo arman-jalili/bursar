@@ -81,11 +81,24 @@ services:
       - -c
       - "set -a; . /shared/chain.env 2>/dev/null || true; set +a; exec uvicorn src.apps.console_api.app:app --host 0.0.0.0 --port 8000"
     env_file: .env.demo
+    environment:
+      # The chat agent's parser (OpenRouter by default). The key comes from the gitignored `.env`
+      # as BURSAR_LLM_API_KEY so a stale LLM_API_KEY elsewhere in the shell cannot shadow it;
+      # plain LLM_API_KEY is the fallback. It is never in .env.demo.
+      LLM_API_KEY: ${BURSAR_LLM_API_KEY:-${LLM_API_KEY:-}}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      LLM_MODEL: ${LLM_MODEL:-google/gemma-4-26b-a4b-it:free}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-inclusionai/ling-3.2-flash:free}
+      RIGORIX_AUDIT_DIR: /rigorix-audit
     ports:
       - "8000:8000"
     volumes:
       - data:/app/data
       - shared:/shared:ro
+      - ./.rigorix-runtime/.rigorix/audit:/rigorix-audit
+      # The operator-owned dispatch authority, shared with the host so the check Rigorix runs and
+      # the switch this console flips are the same file.
+      - /tmp/bursar-preconditions:/tmp/bursar-preconditions
     depends_on:
       authority:
         condition: service_healthy
@@ -128,6 +141,7 @@ services:
       args:
         VITE_CONSOLE_API_URL: http://localhost:8000
         VITE_OWNER_TOKEN: demo-owner-token
+        VITE_RIGORIX_HMAC_KEY: bursar-demo-operator-held-evidence-key-4c1f9a
     image: bursar-frontend:dev
     ports:
       - "5173:80"

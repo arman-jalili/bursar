@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from src.shared.infrastructure.logging import get_logger
 
@@ -90,7 +91,10 @@ def build_engine(
         pool_pre_ping=not is_sqlite,
         # A single writer keeps the ledger serialized (ADR-002). SQLite ignores these for
         # aiosqlite's default pool, but they make the intent explicit for a Postgres move.
-        **({"pool_size": 5, "max_overflow": 5} if not is_sqlite else {}),
+        # SQLite uses a fresh connection per checkout (NullPool): the demo runs Authority and the
+        # console as two containers over one file, and a pooled connection can hold a WAL snapshot
+        # from before the other process's write — the console resets the day, Authority must see it.
+        **({"pool_size": 5, "max_overflow": 5} if not is_sqlite else {"poolclass": NullPool}),
     )
     if is_sqlite:
         _install_pragmas(engine, busy_timeout_ms)

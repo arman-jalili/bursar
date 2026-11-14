@@ -91,6 +91,8 @@ class DispatchResponse(BaseModel):
     nullifier: str = ""
     tx_hash: str | None = None
     events: tuple[str, ...] = Field(default_factory=tuple)
+    execution_id: str = ""
+    audit_uri: str = ""
 
 
 def _services(request: Request) -> dict[str, object]:
@@ -229,6 +231,8 @@ def build_router() -> APIRouter:
             nullifier=result.nullifier,
             tx_hash=result.tx_hash,
             events=result.events,
+            execution_id=result.execution_id,
+            audit_uri=result.audit_uri,
         )
 
     @router.post("/v1/anchors", status_code=status.HTTP_501_NOT_IMPLEMENTED)

@@ -184,7 +184,13 @@ class RigorixCommandAdapter:
                 {
                     "name": "broadcast",
                     "tool": "run_command",
-                    "parameters": {"command": command},
+                    # `payee_address` is on the step so a dispatch-time precondition can read it from
+                    # the step's own parameters (never from a request). It is the frozen order's
+                    # address, generated together with the command (SC-2).
+                    "parameters": {
+                        "command": command,
+                        "payee_address": str(params["payee_address"]),
+                    },
                     "requires_approval": False,
                     "description": (
                         f"Broadcast the signed transaction of order {order.id} (SC-2, SC-3)."

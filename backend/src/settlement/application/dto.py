@@ -56,6 +56,9 @@ class DispatchPaymentResult:
     status: str
     nullifier: str = ""
     events: tuple[str, ...] = ()
+    #: The governed step's identity and signed-audit address (Rigorix's answer, never invented).
+    execution_id: str = ""
+    audit_uri: str = ""
 
 
 @dataclass(frozen=True, slots=True)

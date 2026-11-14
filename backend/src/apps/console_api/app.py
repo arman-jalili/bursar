@@ -41,6 +41,10 @@ def build(settings: object | None = None) -> FastAPI:
     application = build_app(SERVICE_NAME, settings=settings)  # type: ignore[arg-type]
     for context in HOSTED_CONTEXTS:
         install_context(application, context)
+    # The browser-facing demo adapter: natural language -> a real proposal -> the gate.
+    from src.apps.console_api.agent import router as agent_router
+
+    application.include_router(agent_router)
     return application
 
 
