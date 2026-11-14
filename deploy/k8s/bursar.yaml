@@ -380,7 +380,7 @@ spec:
               valueFrom:
                 secretKeyRef: { name: bursar-llm, key: BURSAR_LLM_API_KEY }
             - { name: LLM_BASE_URL, value: "https://openrouter.ai/api/v1" }
-            - { name: LLM_MODEL, value: "google/gemma-4-26b-a4b-it:free" }
+            - { name: LLM_MODEL, value: "nvidia/nemotron-3.5-lightning:free" }
             - { name: LLM_FALLBACK_MODEL, value: "inclusionai/ling-3.2-flash:free" }
             # In-cluster service DNS, never host.docker.internal.
             - { name: BURSAR_RIGORIX_BASE_URL, value: "http://rigorix:3001" }
@@ -467,8 +467,13 @@ spec:
   ports:
     - { name: http, port: 80, targetPort: http }
 ---
-# k3s ships Traefik. Two hosts: the page and the API (the build must use the API host as
-# VITE_CONSOLE_API_URL and the page host in BURSAR_CORS_ORIGINS).
+---
+# One host, /api -> console. The deployed variant of the upstream placeholder ingress.
+#
+# A second host (api.bursar.example.com upstream) is not usable as written here: Cloudflare's
+# free Universal SSL covers *.rigorix.eu — one label — so api.bursar.rigorix.eu gets no
+# certificate and the TLS handshake fails at the edge. The prefix is stripped by nginx in the
+# frontend image instead, which also keeps the browser same-origin (no CORS preflight).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -476,8 +481,11 @@ metadata:
   namespace: bursar
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts: [bursar.rigorix.eu]
+      secretName: tls-bursar-rigorix-eu
   rules:
-    - host: bursar.example.com
+    - host: bursar.rigorix.eu
       http:
         paths:
           - path: /
@@ -486,12 +494,3 @@ spec:
               service:
                 name: frontend
                 port: { number: 80 }
-    - host: api.bursar.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: console
-                port: { number: 8000 }

@@ -1,6 +1,19 @@
 # Override for running on the VPS host: the chain lives in k3s, reached through
 # the Anvil NodePort on 127.0.0.1:30545 (never publicly exposed).
 services:
+  frontend:
+    environment:
+      # The page is served on its own origin (explorer.rigorix.eu). Blockscout's frontend
+      # defaults to localhost:4000, which the browser cannot use, so every API call would
+      # fail and the UI would render 500 / "NA" for data it could not fetch.
+      NEXT_PUBLIC_APP_PROTOCOL: https
+      NEXT_PUBLIC_APP_HOST: explorer.rigorix.eu
+      NEXT_PUBLIC_APP_PORT: "443"
+      NEXT_PUBLIC_API_PROTOCOL: https
+      NEXT_PUBLIC_API_HOST: explorer.rigorix.eu
+      NEXT_PUBLIC_API_PORT: "443"
+      # The API is proxied at the origin root by the nginx proxy service, not under a subpath.
+      NEXT_PUBLIC_API_BASE_PATH: /
   backend:
     environment:
       ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:30545/
