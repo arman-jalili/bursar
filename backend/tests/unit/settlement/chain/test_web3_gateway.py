@@ -291,3 +291,63 @@ class TestConfiguration:
             )
 
         assert raised.value.details["setting"] == "BURSAR_SETTLEMENT_PRIVATE_KEY"
+
+
+def test_no_settlement_key_means_no_gateway_and_no_lie() -> None:
+    """A deployment that cannot sign must report the absence, not a gateway that refuses at use."""
+    from src.settlement.interfaces.http.router import _build_chain_gateway
+    from src.shared.infrastructure.config import Settings
+
+    settings = Settings(settlement_private_key="")  # type: ignore[call-arg]
+    assert _build_chain_gateway(settings) is None
+
+
+def test_an_unreachable_node_is_a_named_absence_not_a_boot_failure() -> None:
+    """A configured key plus no node must not crash the app: the gateway needs the connected chain id
+    to refuse signing across a chain boundary (SC-11), so construction is deferred until the node is
+    reachable. The absence is logged and reported, never faked."""
+    from src.settlement.interfaces.http.router import _build_chain_gateway
+    from src.shared.infrastructure.config import Settings
+
+    settings = Settings(  # type: ignore[call-arg]
+        settlement_private_key="0x" + "11" * 32,
+        payment_router_address="0x" + "22" * 20,
+        usdc_address="0x" + "33" * 20,
+        chain_id=31337,
+        rpc_url="http://127.0.0.1:1",  # nothing listens here
+    )
+    assert _build_chain_gateway(settings) is None
+
+
+def test_the_install_hook_injects_the_built_gateway(monkeypatch) -> None:
+    """The deployable's hook is what makes `on-chain nullifier read` real; it must set the state the
+    dispatch service reads, and it must let an injected gateway win (tests and demos inject fakes)."""
+    from src.settlement.interfaces.http import router as http_module
+
+    sentinel = object()
+    monkeypatch.setattr(http_module, "_build_chain_gateway", lambda settings: sentinel)
+    app = _FakeApp(settings=object())
+    app.state.session_factory = object()
+    monkeypatch.setattr(http_module, "build_services", lambda *a, **k: object())
+    http_module.install(app)
+    for hook in app.state.startup_hooks:
+        hook(app)
+    assert app.state.settlement_chain_gateway is sentinel
+
+
+class _FakeApp:
+    """The minimum an install hook touches: a router registry and `state`."""
+
+    class _State:
+        def __init__(self, **kw):
+            self.startup_hooks = []
+            self.settlement_services = None
+            for k, v in kw.items():
+                setattr(self, k, v)
+
+    def __init__(self, **kw):
+        self.state = self._State(**kw)
+        self.routers = []
+
+    def include_router(self, router):
+        self.routers.append(router)

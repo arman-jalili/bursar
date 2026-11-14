@@ -18,6 +18,7 @@ fake chain, would hide the gap the freeze exists to make visible.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
@@ -52,6 +53,8 @@ from src.settlement.interfaces.http.schemas import (
     ReceiptResponse,
 )
 from src.shared.infrastructure.config import Settings
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["DispatchResponse", "build_router", "build_services", "install"]
 
@@ -277,14 +280,40 @@ def build_dispatch_service(
     )
 
 
+
+def _build_chain_gateway(settings: Settings) -> object | None:
+    """Build the real `Web3ChainGateway`, or `None` when this deployment cannot sign (G-1).
+
+    Absence is reported at `/readyz` rather than papered over: the on-chain copy of SC-5 is a second
+    lock, and a second lock that silently is not there is worse than a named gap.
+    """
+    if not settings.settlement_private_key.get_secret_value():
+        return None
+    try:
+        from web3 import Web3
+
+        from src.settlement.domain.values import ChainNetwork
+        from src.settlement.infrastructure.chain.web3_gateway import Web3ChainGateway
+
+        return Web3ChainGateway(Web3(Web3.HTTPProvider(settings.rpc_url)), ChainNetwork.for_chain(settings.chain_id), settings)
+    except Exception:
+        logger.warning("settlement chain gateway not built; on-chain nullifier read is unavailable")
+        return None
+
+
 def install(app: object) -> None:
     """Compose the Settlement context into a FastAPI app (called by the deployable's app.py)."""
     app.include_router(build_router())  # type: ignore[attr-defined]
 
     def _start(application: object) -> None:
         settings = getattr(application.state, "settings", None)  # type: ignore[attr-defined]
-        #: The chain slice installs its gateway under this name once G-1 lands; absent today by design.
+        #: A gateway installed by the deployable wins (tests inject a fake there); otherwise build the
+        #: real one from configuration. The build is skipped — never faked — when no settlement key is
+        #: configured, because a gateway that cannot sign is a gateway that lies about being able to.
         chain_gateway = getattr(application.state, "settlement_chain_gateway", None)  # type: ignore[attr-defined]
+        if chain_gateway is None and settings is not None:
+            chain_gateway = _build_chain_gateway(settings)
+            application.state.settlement_chain_gateway = chain_gateway  # type: ignore[attr-defined]
         application.state.settlement_services = build_services(  # type: ignore[attr-defined]
             application.state.session_factory,  # type: ignore[attr-defined]
             settings=settings,
