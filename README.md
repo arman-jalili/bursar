@@ -37,6 +37,7 @@ The page is about the gate, in two capabilities:
 | Owner surface | `console-api` `:8000` `/v1/console/*` | Live approvals, bills, constitution, payees, evidence verdicts; one write — the signature passthrough. |
 | Agent + gate | `console-api` `:8000` `/v1/agent/*` | Natural-language payment proposals (LLM), the capacity gate, the dispatch-precondition switch, and the signed-envelope trail. |
 | UI | `frontend` `:5173` | Two capabilities: **capacity** (`/#capacity`) and **precondition** (`/#precondition`), with browser HMAC verification and a chained trail. |
+| Explorer | Blockscout `:4000` (independent, own compose file) | Indexes the same Anvil chain: USDC token page with holders (the treasury and each payee), every transaction, the `Anchored` log. |
 
 ## Quick start (this machine)
 
@@ -56,13 +57,41 @@ docker compose up -d --build anvil contracts migrate authority console frontend
 
 # 4. Open the gate
 open http://localhost:5173/#capacity
+
+# 5. Optional but recommended: the independent block explorer, on the same chain
+docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
+open http://localhost:4000
 ```
+
+The app links to it: **USDC wallet ↗** opens the token page (holders = the treasury and the payees),
+**explorer ↗** opens the index, and every transaction hash in a gate card links to its transaction
+page. The explorer is read-only and does not change how the gate behaves; see
+`explorer/blockscout/README.md` for the VPS host/port and reset notes.
 
 The pages set their own world on load: capacity = €30 with every payment inside the cap allowed;
 precondition = €30 cap and a €15 approval line. A page refresh starts a fresh evidence chain.
 
 The optional seed (`docker compose run --rm … python scripts/seed_demo.py`) still populates the
 classic €500-cap world through the public APIs for the frozen console read models.
+
+### Running on a server
+
+The frontend's API and explorer URLs are baked at build time, so build it for the host the browser
+will use, then start the stack:
+
+```bash
+PUBLIC_CONSOLE_URL=https://demo.example.com:8000 \
+PUBLIC_EXPLORER_URL=https://demo.example.com:4000 \
+  docker compose up -d --build anvil contracts migrate authority console frontend
+
+EXPLORER_HOST=demo.example.com EXPLORER_PORT=4000 \
+  docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
+```
+
+Expose the browser-facing surfaces (`5173`, `8000`, `4000`). Keep Anvil (`8545`), Rigorix (`3001`)
+and the authority service (`8001`) private — the authority has no CORS on purpose and an open Anvil
+RPC lets anyone send unsigned transactions. Rigorix itself still runs on the host via
+`scripts/run-rigorix.sh` (or the experimental `container-rigorix` profile).
 
 ### Dispatch-time precondition
 
@@ -144,6 +173,7 @@ backend/
   scripts/                deploy_contracts.py, seed_demo.py
 scripts/run-rigorix.sh    starts the unmodified OSS rigorix-server on the host
 scripts/setup-preconditions.sh  installs the operator check + authority outside the repo
+explorer/blockscout/      the independent Blockscout stack over the same Anvil chain
 docker-compose.yml        anvil, contracts, migrate, authority, console, frontend
 .env.demo                 public Anvil/test values only
 .env.example              the optional LLM key variables (copy to a gitignored .env)

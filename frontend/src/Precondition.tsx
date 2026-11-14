@@ -22,6 +22,7 @@ import {
   type ReleaseResponse,
 } from "./agentApi";
 import { CapacityBar, GateCard, Trail, VerifyPanel, money, short } from "./Gate";
+import { EXPLORER_URL, tokenUrl, txUrl } from "./explorer";
 import { DEMO_OWNER_KEY } from "./api";
 
 type Message =
@@ -105,6 +106,11 @@ function RefusalResult({ result }: { result: ReleaseResponse }) {
           <span className="gate-refusal-hint">
             a transaction was signed, but nothing was broadcast — verify the envelope below
           </span>
+          {gate.tx_hash ? (
+            <span className="gate-refusal-hint">
+              signed hash {short(gate.tx_hash)} · not on chain, so the explorer has no transaction
+            </span>
+          ) : null}
           <VerifyPanel executionId={gate.execution_id} />
         </div>
       ) : null}
@@ -134,7 +140,16 @@ function SuccessResult({ result }: { result: ReleaseResponse }) {
         ))}
       </ol>
       <footer className="gate-card-foot">
-        {result.gate.tx_hash ? <span>tx {short(result.gate.tx_hash)} on chain</span> : null}
+        {result.gate.tx_hash ? (
+          <a
+            className="gate-tx-link"
+            href={txUrl(result.gate.tx_hash) ?? undefined}
+            target="_blank"
+            rel="noreferrer"
+          >
+            tx {short(result.gate.tx_hash)} on chain ↗
+          </a>
+        ) : null}
         <span>execution {short(result.gate.execution_id)}</span>
       </footer>
     </article>
@@ -352,6 +367,20 @@ export function Precondition() {
           </a>
         </nav>
         <div className="gate-meta">
+          {state?.chain.usdc ? (
+            <a
+              className="gate-explorer-link"
+              href={tokenUrl(state.chain.usdc) ?? EXPLORER_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={`USDC token on the explorer · treasury ${state.chain.treasury}`}
+            >
+              USDC wallet ↗
+            </a>
+          ) : null}
+          <a className="gate-explorer-link" href={EXPLORER_URL} target="_blank" rel="noreferrer">
+            explorer ↗
+          </a>
           <span className="gate-live">
             <i className="dot" /> live
           </span>

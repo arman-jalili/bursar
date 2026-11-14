@@ -11,6 +11,7 @@ import {
   type Capacity,
   type TrailItem,
 } from "./agentApi";
+import { EXPLORER_URL, tokenUrl, txUrl } from "./explorer";
 
 type Message =
   | { id: string; role: "user"; text: string }
@@ -236,7 +237,16 @@ export function GateCard({ trace }: { trace: AgentTrace }) {
 
       <footer className="gate-card-foot">
         {gate.determination_id ? <span>determination {short(gate.determination_id)}</span> : null}
-        {gate.tx_hash ? <span>tx {short(gate.tx_hash)} on chain</span> : null}
+        {gate.tx_hash ? (
+          <a
+            className="gate-tx-link"
+            href={txUrl(gate.tx_hash) ?? undefined}
+            target="_blank"
+            rel="noreferrer"
+          >
+            tx {short(gate.tx_hash)} on chain ↗
+          </a>
+        ) : null}
         {!gate.tx_hash && gate.verdict === "deny" ? (
           <span>no transaction exists — nothing was signed</span>
         ) : null}
@@ -535,6 +545,20 @@ export function Gate() {
           </a>
         </nav>
         <div className="gate-meta">
+          {state?.chain.usdc ? (
+            <a
+              className="gate-explorer-link"
+              href={tokenUrl(state.chain.usdc) ?? EXPLORER_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={`USDC token on the explorer · treasury ${state.chain.treasury}`}
+            >
+              USDC wallet ↗
+            </a>
+          ) : null}
+          <a className="gate-explorer-link" href={EXPLORER_URL} target="_blank" rel="noreferrer">
+            explorer ↗
+          </a>
           <span className="gate-live">
             <i className="dot" /> live
           </span>

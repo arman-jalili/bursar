@@ -54,6 +54,17 @@
   text-transform: uppercase;
 }
 .gate-meta { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.gate-explorer-link {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--forest-deep);
+  border-bottom: 1px dashed var(--forest);
+  padding-bottom: 1px;
+}
+.gate-explorer-link:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.gate-tx-link { color: inherit; border-bottom: 1px dashed var(--line-strong); }
+.gate-tx-link:hover { color: var(--forest-deep); border-bottom-color: var(--forest); }
 .gate-live {
   display: inline-flex;
   align-items: center;

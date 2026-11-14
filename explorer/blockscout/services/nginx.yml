@@ -1,0 +1,14 @@
+version: '3.9'
+
+services:
+  proxy:
+    image: nginx
+    restart: always
+    volumes:
+      - ../proxy/explorer.conf.template:/etc/nginx/templates/explorer.conf.template:ro
+      - ../proxy/empty.conf:/etc/nginx/conf.d/default.conf:ro
+    environment:
+      BACK_PROXY_PASS: ${BACK_PROXY_PASS:-http://backend:4000}
+      FRONT_PROXY_PASS: ${FRONT_PROXY_PASS:-http://frontend:3000}
+    ports:
+      - "${EXPLORER_PORT:-4000}:80"

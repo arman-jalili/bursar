@@ -387,6 +387,16 @@ def _trace(
     }
 
 
+def _treasury_address() -> str:
+    """The address that holds the household's USDC — the settlement operator account."""
+    key = os.environ.get("BURSAR_SETTLEMENT_PRIVATE_KEY", "")
+    if not key:
+        return ""
+    from eth_account import Account
+
+    return str(Account.from_key(key).address)
+
+
 async def _state(request: Request) -> dict[str, Any]:
     household = await _bootstrap(request)
     factory = _session(request)
@@ -406,6 +416,12 @@ async def _state(request: Request) -> dict[str, Any]:
         "payees": [
             {"id": row.id, "name": row.name, "status": row.status} for row in rows.values()
         ],
+        "chain": {
+            "chain_id": int(os.environ.get("BURSAR_CHAIN_ID", "31337")),
+            "usdc": os.environ.get("BURSAR_USDC_ADDRESS", ""),
+            "router": os.environ.get("BURSAR_PAYMENT_ROUTER_ADDRESS", ""),
+            "treasury": _treasury_address(),
+        },
         "llm": {
             "ready": bool(os.environ.get("LLM_API_KEY")),
             "model": os.environ.get("LLM_MODEL", "google/gemma-4-26b-a4b-it:free"),

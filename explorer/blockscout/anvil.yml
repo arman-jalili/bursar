@@ -1,0 +1,99 @@
+# Blockscout for the Bursar demo chain.
+#
+#   docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
+#
+# It joins the running demo's network and indexes the Anvil chain from genesis. Adapted from
+# Blockscout's own docker-compose/anvil.yml: prebuilt images, the variants this demo needs, and
+# named volumes instead of checkouts of the upstream repo.
+name: bursar-explorer
+
+services:
+  redis-db:
+    extends:
+      file: ./services/redis.yml
+      service: redis-db
+    volumes:
+      - explorer-redis:/data
+
+  db-init:
+    extends:
+      file: ./services/db.yml
+      service: db-init
+    volumes:
+      - explorer-db-data:/var/lib/postgresql/data
+
+  db:
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    extends:
+      file: ./services/db.yml
+      service: db
+    volumes:
+      - explorer-db-data:/var/lib/postgresql/data
+
+  backend:
+    depends_on:
+      - db
+      - redis-db
+    extends:
+      file: ./services/backend.yml
+      service: backend
+    extra_hosts: []
+    environment:
+      ETHEREUM_JSONRPC_VARIANT: 'anvil'
+      # Our anvil is a service on the demo's compose network, not on the host.
+      ETHEREUM_JSONRPC_HTTP_URL: http://anvil:8545/
+      ETHEREUM_JSONRPC_TRACE_URL: http://anvil:8545/
+      ETHEREUM_JSONRPC_WS_URL: ws://anvil:8545
+      CHAIN_ID: '31337'
+      API_V2_ENABLED: 'true'
+      INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER: 'true'
+      INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: 'true'
+
+  frontend:
+    depends_on:
+      - backend
+    extends:
+      file: ./services/frontend.yml
+      service: frontend
+    environment:
+      # Through the proxy below; the browser reaches both the UI and /api on EXPLORER_PORT.
+      NEXT_PUBLIC_API_HOST: ${EXPLORER_HOST:-localhost}
+      NEXT_PUBLIC_API_PORT: ${EXPLORER_PORT:-4000}
+      NEXT_PUBLIC_API_PROTOCOL: http
+      NEXT_PUBLIC_API_BASE_PATH: /
+      NEXT_PUBLIC_APP_HOST: ${EXPLORER_HOST:-localhost}
+      NEXT_PUBLIC_APP_PORT: ${EXPLORER_PORT:-4000}
+      NEXT_PUBLIC_APP_PROTOCOL: http
+      NEXT_PUBLIC_NETWORK_ID: '31337'
+      NEXT_PUBLIC_NETWORK_NAME: Bursar demo chain
+      NEXT_PUBLIC_NETWORK_SHORT_NAME: Bursar
+      NEXT_PUBLIC_NETWORK_CURRENCY_NAME: Ether
+      NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL: ETH
+      NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS: '18'
+      NEXT_PUBLIC_IS_TESTNET: 'true'
+      NEXT_PUBLIC_STATS_API_HOST: ''
+      NEXT_PUBLIC_VISUALIZE_API_HOST: ''
+      # No third-party ad placement on the demo explorer.
+      NEXT_PUBLIC_AD_BANNER_PROVIDER: none
+
+  proxy:
+    depends_on:
+      - backend
+      - frontend
+    extends:
+      file: ./services/nginx.yml
+      service: proxy
+    extra_hosts: []
+
+volumes:
+  explorer-db-data:
+  explorer-dets:
+  explorer-logs:
+  explorer-redis:
+
+networks:
+  default:
+    external: true
+    name: ${BURSAR_NETWORK:-bursar_default}

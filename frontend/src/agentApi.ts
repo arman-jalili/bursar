@@ -17,11 +17,19 @@ export interface AgentPayee {
   status: string;
 }
 
+export interface ChainInfo {
+  chain_id: number;
+  usdc: string;
+  router: string;
+  treasury: string;
+}
+
 export interface AgentState {
   household: string;
   capacity: Capacity;
   threshold: string;
   payees: AgentPayee[];
+  chain: ChainInfo;
   llm: { ready: boolean; model: string };
 }
 
