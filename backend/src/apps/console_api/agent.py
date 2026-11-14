@@ -279,11 +279,16 @@ async def _llm_parse(message: str, payees: list[str], key: str) -> dict[str, Any
                             {"role": "user", "content": message},
                         ],
                         "temperature": 0,
-                        # Reasoning models (ling, nemotron, ...) spend tokens on
+                        # Reasoning models (qwen, ling, nemotron, ...) spend tokens on
                         # `reasoning` first. Without a generous cap they finish with
                         # `content: null` and the caller silently falls back to the
                         # local regex parser — which looks like "the LLM does not work".
                         "max_tokens": 800,
+                        # Turning reasoning off is the single biggest latency win: for a
+                        # one-line JSON extraction qwen spent 94 of 99 completion tokens on
+                        # reasoning and took ~4s, against ~0.6s with it disabled. The task
+                        # needs no deliberation, and the schema is enforced by the prompt.
+                        "reasoning": {"enabled": False},
                     },
                 )
                 response.raise_for_status()
