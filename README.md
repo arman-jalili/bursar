@@ -4,7 +4,7 @@
 enforces at the moment of payment.** USDC settles on Anvil; every attempt — allowed or refused —
 leaves a signed envelope the owner can verify in the browser.
 
-> **Watch the 3-minute pitch:** [`docs/bursar-pitch.mp4`](docs/bursar-pitch.mp4) ·
+> **Watch the 3-minute pitch:** [Bursar demo on Loom](https://www.loom.com/share/3e83df3ef2f14d78af4dabf808134a04) ·
 > [shot list and narration](docs/bursar-pitch-script.md).
 
 Proximata Hackathon '26 · track *Bringing Crypto to Everyday Life*.
@@ -248,7 +248,7 @@ backend/
 docs/
   architecture/           ADRs, module contracts, diagrams, roadmap
   contracts/              frozen behavioural contracts (A/S/R/E/SC invariants)
-  bursar-pitch.mp4        the 3-minute demo
+  bursar-pitch-script.md  shot list and narration for the 3-minute demo (video on Loom)
 scripts/                  build-rigorix-image.sh, run-rigorix.sh, setup-preconditions.sh
 explorer/blockscout/      the independent Blockscout stack over the same Anvil chain
 deploy/k8s/               single-node k3s manifests

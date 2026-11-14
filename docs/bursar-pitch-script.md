@@ -1,7 +1,6 @@
 # Bursar — 3-minute pitch video
 
-File: `docs/bursar-pitch.mp4` — 1920×1080, H.264/AAC, 2:49, recorded from the running demo stack
-with a real payment on Anvil. The narration is synthesized; the caption text below is the same script
+Video: <https://www.loom.com/share/3e83df3ef2f14d78af4dabf808134a04> — 2:49, recorded from the running demo stack with a real payment on Anvil. The narration is synthesized; the caption text below is the same script
 if you want to re-voice it.
 
 ## The story in one line
