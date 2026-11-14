@@ -26,6 +26,9 @@ dependencies = [
     # is also the keccak implementation the Phase-B chain adapter will use, so the domain and the
     # adapter agree by construction rather than by coincidence.
     "eth-hash[pycryptodome]>=0.7",
+    # Console upstream adapters: transport, timeout and status handling for the six ports.
+    # The demo/CI composition swaps the transport for recorded fixtures (console/infrastructure).
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]

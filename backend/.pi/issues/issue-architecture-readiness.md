@@ -1,9 +1,9 @@
 ---
 guardian_issue:
   id: "ISSUE-READINESS"
-  epic: "billing"
+  epic: "console"
   component: "Architecture Readiness"
-  module: "billing"
+  module: "console"
   status: planned
   priority: critical
   dependencies: []
@@ -32,7 +32,7 @@ guardian_issue:
       - Verify proofing scripts + validators in CI
 
   canonical_references:
-    - module: ".pi/architecture/modules/billing.md"
+    - module: ".pi/architecture/modules/console.md"
 
   acceptance_criteria:
     - "Runbook created and reviewed"
@@ -58,30 +58,30 @@ guardian_issue:
     and CI will catch regressions (proofing scripts + validators).
 
   file_changes:
-    - "create: docs/runbook-billing.md"
-    - "create: docs/dr-plan-billing.md"
+    - "create: docs/runbook-console.md"
+    - "create: docs/dr-plan-console.md"
     - "modify: .pi/architecture/CHANGELOG.md"
-    - "modify: .pi/architecture/modules/billing.md"
+    - "modify: .pi/architecture/modules/console.md"
 ---
 
-# Architecture Readiness: billing
+# Architecture Readiness: console
 
 ## Intent
 
-Make the billing module production-ready. This is the final issue in every epic
+Make the console module production-ready. This is the final issue in every epic
 — it closes the loop between implementation and operability.
 
 ## Deliverables
 
 ### Runbook
-`docs/runbook-billing.md` covering:
+`docs/runbook-console.md` covering:
 - Startup sequence and dependencies
 - Graceful shutdown procedure
 - Common failure modes and recovery
 - Configuration reference
 
 ### DR Plan
-`docs/dr-plan-billing.md` covering:
+`docs/dr-plan-console.md` covering:
 - Backup strategy and schedule
 - Restore procedure
 - Failover plan

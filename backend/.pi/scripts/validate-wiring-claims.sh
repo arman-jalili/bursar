@@ -36,6 +36,12 @@ resolve_root() {
 	local d
 	d="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 	while [ "$d" != "/" ]; do
+		# The harness may live below the git root (this repo: <root>/backend/.pi), so a
+		# directory that owns `.pi` is the project root even when `.git` sits above it.
+		if [ -d "$d/.pi" ]; then
+			echo "$d"
+			return
+		fi
 		if [ -e "$d/.git" ] || [ -e "$d/package.json" ]; then
 			echo "$d"
 			return

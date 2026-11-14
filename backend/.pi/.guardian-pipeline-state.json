@@ -1,18 +1,20 @@
 {
-  "id": "PL-2742",
-  "name": "billing",
+  "id": "PL-0195",
+  "name": "console",
   "items": [
-    "issue-contract-freeze",
-    "issue-persistence-contract",
-    "issue-ports",
-    "issue--invoicehash-",
-    "issue-duplicate-invoice",
-    "issue-at-most-one-attempt",
-    "issue-forbidden-fields",
-    "issue-settled-invoice",
-    "issue-digest-review",
-    "issue-refusal-path",
-    "issue-layer-purity",
+    "issue-application-services-catalog-",
+    "issue-anti-corruption-layer-field-whitelists",
+    "issue-ports-upstream-clients-",
+    "issue-whitelist",
+    "issue-exact-fields",
+    "issue-passthrough",
+    "issue-read-only",
+    "issue-payer-copy",
+    "issue-simulated-payout",
+    "issue-refusal-reason",
+    "issue-verify-toggle",
+    "issue-no-domain-layer",
+    "issue-mobile",
     "issue-runtime-integration",
     "issue-proofing",
     "issue-architecture-readiness"
@@ -64,39 +66,13 @@
       }
     }
   ],
-  "currentItemIndex": 14,
+  "currentItemIndex": 16,
   "currentStepIndex": 0,
   "status": "done",
   "retryCount": 0,
   "results": [
     {
-      "item": "issue-contract-freeze",
-      "status": "failed",
-      "stepResults": [
-        {
-          "step": "implement",
-          "status": "passed",
-          "reason": ""
-        },
-        {
-          "step": "validate",
-          "status": "failed",
-          "reason": "Contract freeze is a Phase A artifact: `bash .pi/scripts/freeze.sh verify --module billing` PASSES (frozen signatures, contracts unchanged, mypy clean, 10 behaviour suites red for the right reason). The `ci`/`tests` gates fail *by design* because the billing behaviour suites raise NotImplementedError until implementation items 2–11 land; coverage is 0% for the same reason. No implementation may be added under this issue without violating its scope."
-        },
-        {
-          "step": "create-mr",
-          "status": "failed",
-          "reason": "skipped due to prior failure"
-        },
-        {
-          "step": "merge",
-          "status": "failed",
-          "reason": "skipped due to prior failure"
-        }
-      ]
-    },
-    {
-      "item": "issue-persistence-contract",
+      "item": "issue-application-services-catalog-",
       "status": "done",
       "stepResults": [
         {
@@ -125,6 +101,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -132,7 +118,7 @@
       ]
     },
     {
-      "item": "issue-ports",
+      "item": "issue-anti-corruption-layer-field-whitelists",
       "status": "done",
       "stepResults": [
         {
@@ -161,6 +147,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -168,7 +164,7 @@
       ]
     },
     {
-      "item": "issue--invoicehash-",
+      "item": "issue-ports-upstream-clients-",
       "status": "done",
       "stepResults": [
         {
@@ -197,6 +193,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -204,7 +210,7 @@
       ]
     },
     {
-      "item": "issue-duplicate-invoice",
+      "item": "issue-whitelist",
       "status": "done",
       "stepResults": [
         {
@@ -233,6 +239,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -240,7 +256,7 @@
       ]
     },
     {
-      "item": "issue-at-most-one-attempt",
+      "item": "issue-exact-fields",
       "status": "done",
       "stepResults": [
         {
@@ -269,6 +285,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -276,7 +302,7 @@
       ]
     },
     {
-      "item": "issue-forbidden-fields",
+      "item": "issue-passthrough",
       "status": "done",
       "stepResults": [
         {
@@ -305,6 +331,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -312,7 +348,7 @@
       ]
     },
     {
-      "item": "issue-settled-invoice",
+      "item": "issue-read-only",
       "status": "done",
       "stepResults": [
         {
@@ -341,6 +377,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -348,7 +394,7 @@
       ]
     },
     {
-      "item": "issue-digest-review",
+      "item": "issue-payer-copy",
       "status": "done",
       "stepResults": [
         {
@@ -377,6 +423,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -384,7 +440,7 @@
       ]
     },
     {
-      "item": "issue-refusal-path",
+      "item": "issue-simulated-payout",
       "status": "done",
       "stepResults": [
         {
@@ -413,6 +469,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -420,7 +486,7 @@
       ]
     },
     {
-      "item": "issue-layer-purity",
+      "item": "issue-refusal-reason",
       "status": "done",
       "stepResults": [
         {
@@ -445,6 +511,154 @@
         },
         {
           "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "item": "issue-verify-toggle",
+      "status": "done",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "item": "issue-no-domain-layer",
+      "status": "done",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "item": "issue-mobile",
+      "status": "done",
+      "stepResults": [
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "implement",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "validate",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
           "status": "passed",
           "reason": ""
         },
@@ -485,6 +699,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -517,6 +741,16 @@
         },
         {
           "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
           "status": "passed",
           "reason": ""
         },
@@ -557,6 +791,16 @@
           "reason": ""
         },
         {
+          "step": "create-mr",
+          "status": "passed",
+          "reason": ""
+        },
+        {
+          "step": "merge",
+          "status": "passed",
+          "reason": ""
+        },
+        {
           "step": "merge",
           "status": "passed",
           "reason": ""
@@ -566,8 +810,8 @@
   ],
   "mergeOnValid": true,
   "prStrategy": "epic",
-  "epicBranch": "epic/billing",
-  "createdAt": "2026-11-13T23:17:41.405Z",
-  "updatedAt": "2026-11-13T23:42:46.379Z",
+  "epicBranch": "epic/console",
+  "createdAt": "2026-11-14T00:21:41.738Z",
+  "updatedAt": "2026-11-14T01:26:25.125Z",
   "epicReadyForPr": true
 }
