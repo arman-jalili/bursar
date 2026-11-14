@@ -1,11 +1,11 @@
 """Repository — the persistence port, owned by the domain layer.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/authority.md#components
 
 ADR-008 `interface-ownership`: the ABC lives in `domain/`, the SQLAlchemy implementation lives in
-`infrastructure/`. The gate `.pi/scripts/languages/python/check_model_judgment.sh` fails the build
-if an adapter exists without a domain-owned interface.
+`infrastructure/`. The architecture tests fail if an adapter exists without a domain-owned
+interface.
 
 Transaction placement (ADR-002 / txn-placement gate): a repository does **not** commit. Exactly
 one application service owns one unit of work, so an aggregate is loaded and stored inside a

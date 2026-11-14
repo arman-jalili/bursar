@@ -1,7 +1,7 @@
 """SQLAlchemy adapters for the Authority ports.
 
-Canonical: .pi/architecture/modules/authority.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/authority.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Every rule that must survive concurrency is expressed here as **one statement**, not as read-then-write:
 

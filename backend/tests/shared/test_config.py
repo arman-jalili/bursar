@@ -1,7 +1,7 @@
 """Settings — typed config, secret hygiene, and `.env.example` parity.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 The parity test is the acceptance criterion made durable: "`.env.example` documents every variable"
 is only true until someone adds a field, unless something checks it.

@@ -1,7 +1,7 @@
 """Clock — time as an injected dependency.
 
-Canonical: .pi/architecture/modules/authority.md#components
-Reference: .pi/architecture/decisions/ADR-003-cross-context-communication.md
+Canonical: docs/architecture/modules/authority.md#components
+Reference: docs/architecture/decisions/ADR-003-cross-context-communication.md
 
 Time is domain data here, not an implementation detail: an approval expires, a cap is per-day, a
 reservation has a TTL, and evidence records when a determination was read. So `now()` is injected

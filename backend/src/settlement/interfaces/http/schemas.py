@@ -1,7 +1,7 @@
 """Settlement transport schemas — the frozen field names, in one place.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §2.10, §2.11
-Reference: .pi/architecture/modules/settlement.md#api-endpoints
+Reference: docs/architecture/modules/settlement.md#api-endpoints
 
 Amounts are integer micro-USDC and tx hashes/nullifiers are strings, matching the frozen DTOs exactly:
 the console is built against these names, so a rename here is a contract change. There is deliberately

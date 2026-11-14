@@ -1,6 +1,6 @@
 """The seven Settlement domain events — frozen payload schemas (v1).
 
-Canonical: .pi/architecture/modules/settlement.md#domain-events
+Canonical: docs/architecture/modules/settlement.md#domain-events
 Reference: docs/contracts/settlement-contract-freeze.md §2.12
 
 Payloads are part of the frozen contract because they are sealed into evidence envelopes (ADR-007) and

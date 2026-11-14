@@ -1,6 +1,6 @@
 """Publisher-outbox read model for the witness-only check (E-10).
 
-Canonical: .pi/architecture/modules/evidence.md#ports
+Canonical: docs/architecture/modules/evidence.md#ports
 Reference: docs/contracts/evidence-contract-freeze.md §2.6
 
 Evidence is a witness, not a guard: it never makes a publisher wait for a seal. The price of that

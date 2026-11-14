@@ -1,7 +1,7 @@
 """Errors — the shared vocabulary for refusal, in code and on the wire.
 
-Canonical: .pi/architecture/decisions/ADR-004-api-design.md
-Reference: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/modules/authority.md#components
 
 Two things matter here and both are domain decisions, not plumbing:
 
@@ -25,7 +25,7 @@ from enum import StrEnum
 class ErrorCode(StrEnum):
     """Closed set of error codes. Wire-stable: clients and evidence payloads depend on them.
 
-    Canonical: .pi/architecture/modules/authority.md#components
+    Canonical: docs/architecture/modules/authority.md#components
     """
 
     # ── generic transport / validation ──────────────────────────────────────
@@ -129,7 +129,7 @@ class ForbiddenError(BursarError):
 class RefusalError(BursarError):
     """A domain refusal: the request was understood, and the answer is no.
 
-    Canonical: .pi/architecture/modules/authority.md#components
+    Canonical: docs/architecture/modules/authority.md#components
 
     409 rather than 500 on purpose — a refused payment is the product working. The refusal still
     produces evidence (invariant: "a refusal never produces a side effect", but it always

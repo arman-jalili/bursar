@@ -1,6 +1,6 @@
 """Authority domain services — the two rules that cannot live on one aggregate (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#domain-services
+Canonical: docs/architecture/modules/authority.md#domain-services
 Reference: docs/contracts/authority-contract-freeze.md §2.10
 
 `DeterminationPolicy` is a **stateless function-object**, not a god service. It is a domain service

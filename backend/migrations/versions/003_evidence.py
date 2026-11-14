@@ -1,6 +1,6 @@
 """003_evidence — append-only envelopes, anchors and the idempotency ledger.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 Reference: docs/contracts/evidence-contract-freeze.md §2.5
 
 Storage-level guarantees the module doc states as invariants:

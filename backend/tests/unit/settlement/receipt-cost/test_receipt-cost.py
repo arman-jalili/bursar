@@ -1,7 +1,7 @@
 """SC-10 — every receipt records gas, gas price and a fee estimate; cost derives from receipts only.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-10)
-Reference: .pi/architecture/decisions/ADR-006-cost-tracking-usage-metering.md
+Reference: docs/architecture/decisions/ADR-006-cost-tracking-usage-metering.md
 
 Defends module AC #10. Two rules, both refusals rather than conventions:
 

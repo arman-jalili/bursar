@@ -1,6 +1,6 @@
 """Upstream ports — the anti-corruption boundary to Mandate and Billing (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#ports-to-upstream-contexts-acl
+Canonical: docs/architecture/modules/authority.md#ports-to-upstream-contexts-acl
 Reference: docs/contracts/authority-contract-freeze.md (A-2, A-6)
 
 `MandateView` is the **read-through** port and the reason A-6 is enforceable: there is no

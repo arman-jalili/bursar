@@ -1,7 +1,7 @@
 """E-10 — stopping Evidence does not block dispatch; the failure is reported as a gap.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#description
+Reference: docs/architecture/modules/evidence.md#description
 
 Evidence is a witness, not a guard. A signer or anchor outage must not turn a payment into a failure:
 the subscriber returns a result with `sealed=False` and a `witness_gap`, and the publisher carries on.

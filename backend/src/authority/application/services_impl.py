@@ -1,6 +1,6 @@
 """The five catalog application services, implemented (FR-011 … FR-017).
 
-Canonical: .pi/architecture/modules/authority.md#application-services
+Canonical: docs/architecture/modules/authority.md#application-services
 Reference: docs/contracts/authority-contract-freeze.md §2.7
 
 Every `execute` is **one** `session_scope` = one transaction = one outbox append (ADR-003). The rules

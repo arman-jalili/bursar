@@ -1,6 +1,6 @@
 """Authority identifiers — one NewType per aggregate/entity.
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 Reference: docs/contracts/authority-contract-freeze.md
 
 Four id types because four different things are addressed: an intent (the unit of authority), a

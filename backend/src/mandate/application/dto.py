@@ -1,7 +1,7 @@
 """Mandate DTOs — frozen request/result schemas (contract v1, AC #3).
 
-Canonical: .pi/architecture/modules/mandate.md#application-services
-Reference: .pi/architecture/decisions/ADR-004-api-design.md
+Canonical: docs/architecture/modules/mandate.md#application-services
+Reference: docs/architecture/decisions/ADR-004-api-design.md
 
 Decisions encoded here:
 

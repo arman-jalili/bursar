@@ -1,6 +1,6 @@
 """Concrete Settlement read side — the services that can run before the chain adapter exists.
 
-Canonical: .pi/architecture/modules/settlement.md#application-services
+Canonical: docs/architecture/modules/settlement.md#application-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.10
 
 Scope, stated honestly: `GetReceipt`, `ListOrders`, `CostSummary` and `AnchorHash` are implemented here
@@ -19,7 +19,7 @@ a blocker, not an omission:
   at `SUBMITTED`.
 
 B-2 (the missing transitions) is still an amendment to a frozen contract (unfreeze → review → re-freeze),
-so no adapter layer may invent it. See `docs/runbook-settlement.md` (Integration gaps) and ADR-009;
+so no adapter layer may invent it. See ADR-009;
 B-1, the two-phase `ChainGateway` gap, is closed by the amendment recorded in
 `docs/contracts/settlement-contract-freeze.md` §7.
 

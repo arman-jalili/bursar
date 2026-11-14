@@ -1,6 +1,6 @@
 """Settlement application layer — use cases, DTOs, and the unit-of-work boundary (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#application-services
+Canonical: docs/architecture/modules/settlement.md#application-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.9
 
 Phase A: signatures only. The six catalog services are ABCs whose `execute` raises

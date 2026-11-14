@@ -1,6 +1,6 @@
 """The Evidence HTTP router — concrete, registered once in the app shell.
 
-Canonical: .pi/architecture/modules/evidence.md#api-endpoints
+Canonical: docs/architecture/modules/evidence.md#api-endpoints
 Reference: docs/contracts/evidence-contract-freeze.md §2.9
 
 Thin on purpose: translate a query into a read-model call, map the result back. No module rule lives

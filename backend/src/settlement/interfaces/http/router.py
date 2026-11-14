@@ -1,6 +1,6 @@
 """The Settlement HTTP router — concrete, registered once in the app shell.
 
-Canonical: .pi/architecture/modules/settlement.md#api-endpoints
+Canonical: docs/architecture/modules/settlement.md#api-endpoints
 Reference: docs/contracts/settlement-contract-freeze.md §2.11
 
 Thin on purpose: translate HTTP into a service call, map the result back. No module rule lives here.
@@ -67,11 +67,10 @@ _EVIDENCE_OR_SETTLEMENT_READ = require_any_scope({"evidence:read", "settlement:r
 _BLOCKED_DISPATCH = (
     "settlement dispatch is not composed in this process: the DispatchPayment service was not built "
     "at startup (it needs the Authority gate and the Rigorix executor). See ADR-009 and "
-    "docs/runbook-settlement.md."
 )
 _BLOCKED_ANCHOR = (
     "anchoring is not wired: the ChainGateway adapter exists, but no PaymentRouter.sol is deployed on "
-    "the configured chain, so an anchor could only be faked. See ADR-009 and docs/runbook-settlement.md."
+    "the configured chain, so an anchor could only be faked. See ADR-009."
 )
 
 

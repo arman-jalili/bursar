@@ -1,7 +1,7 @@
 """SC-11 — Anvil and Base Sepolia use their own chain id, router and USDC.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-11)
-Reference: .pi/architecture/modules/settlement.md#components-chainnetwork
+Reference: docs/architecture/modules/settlement.md#components-chainnetwork
 
 Defends module AC #11: no hardcoded address leaks between networks. The network configuration is a value
 object with all four fields bound together, and an unknown chain id is refused (`UnknownNetwork`) rather

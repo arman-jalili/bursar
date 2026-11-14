@@ -1,6 +1,6 @@
 """Row ⇄ aggregate translation — the seam that keeps ORM types out of the model.
 
-Canonical: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Canonical: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 Reference: docs/contracts/settlement-contract-freeze.md (SC-3, SC-5, SC-11)
 
 Two rules, the same ones Billing and Mandate use:

@@ -1,6 +1,6 @@
 """Evidence refusal vocabulary (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#components
+Canonical: docs/architecture/modules/evidence.md#components
 Reference: docs/contracts/evidence-contract-freeze.md §3
 
 Every refusal here extends the shared `RefusalError`, so the API layer needs **no Evidence-specific

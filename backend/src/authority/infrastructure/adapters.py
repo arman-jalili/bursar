@@ -1,7 +1,7 @@
 """Adapters for the upstream ports Authority reads (ACL).
 
-Canonical: .pi/architecture/modules/authority.md#ports-to-upstream-contexts-acl
-Reference: .pi/architecture/decisions/ADR-003-cross-context-communication.md
+Canonical: docs/architecture/modules/authority.md#ports-to-upstream-contexts-acl
+Reference: docs/architecture/decisions/ADR-003-cross-context-communication.md
 
 Three adapters, each with one job:
 

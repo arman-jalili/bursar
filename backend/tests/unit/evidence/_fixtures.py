@@ -1,7 +1,7 @@
 """Shared fixtures and test doubles for the Evidence contract suites.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 Only helpers live here — no tests. The doubles implement the frozen ports closely enough that a
 behaviour test can drive `SealEvidence` once Phase B replaces the stub body; today every call into a

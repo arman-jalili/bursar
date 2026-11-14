@@ -1,6 +1,6 @@
 """Settlement identifiers — one NewType each, so an order and its receipt cannot be swapped.
 
-Canonical: .pi/architecture/modules/settlement.md#components
+Canonical: docs/architecture/modules/settlement.md#components
 Reference: docs/contracts/settlement-contract-freeze.md §2
 
 `OrderId`, `ReceiptId` and `AnchorId` are all opaque strings, but the endpoints key on different ones

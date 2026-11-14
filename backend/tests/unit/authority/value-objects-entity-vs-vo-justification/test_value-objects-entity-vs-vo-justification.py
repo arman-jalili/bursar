@@ -1,7 +1,7 @@
 """A-1 / A-13 — the modelling line: what is immutable, what has identity, what is a closed set.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#value-objects-entity-vs-vo-justification
+Reference: docs/architecture/modules/authority.md#value-objects-entity-vs-vo-justification
 
 Asserted as rules rather than type reflection:
 

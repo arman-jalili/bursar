@@ -1,7 +1,7 @@
 """E2E through the public API — the Settlement context is reachable from the runtime entry path.
 
-Canonical: .pi/architecture/decisions/ADR-009-runtime-wiring-multilang-judgment.md
-Reference: .pi/architecture/modules/settlement.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-009-runtime-wiring-multilang-judgment.md
+Reference: docs/architecture/modules/settlement.md#api-endpoints
 
 These tests boot the **real composition root** (`console_api.app.build`) with a temp database, seed a
 settled order through the real repositories, and exercise the frozen endpoints over HTTP. That is the

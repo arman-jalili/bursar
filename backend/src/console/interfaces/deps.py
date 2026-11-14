@@ -1,7 +1,7 @@
 """ADR-005 scope checks for the console transport.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/modules/console.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/modules/console.md#api-endpoints
 
 The console's only write is `POST /v1/console/approvals/{id}/signature`, so its scope map is small:
 an owner token may read the owner surfaces and sign, a payer token may only read bills. The map is

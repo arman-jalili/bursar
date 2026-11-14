@@ -1,7 +1,7 @@
 """E-2 — every delivered event is sealed into exactly one envelope with a valid HMAC.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 ADR-003 delivers events from four publishers, at least once. The signer is the only thing that touches
 the operator-held key, and the resulting HMAC must verify against the envelope's own canonical bytes.

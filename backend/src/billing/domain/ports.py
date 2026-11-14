@@ -1,6 +1,6 @@
 """Billing domain ports — the narrow interfaces the application services depend on (frozen).
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md §2.9
 
 Two ports, and each exists to keep a foreign concern out of the domain:

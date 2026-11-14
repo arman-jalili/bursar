@@ -1,6 +1,6 @@
 """Anchor gateway and policy adapters.
 
-Canonical: .pi/architecture/modules/evidence.md#ports
+Canonical: docs/architecture/modules/evidence.md#ports
 Reference: docs/contracts/evidence-contract-freeze.md §2.6
 
 `SqlAnchorGateway` is the **local/demo** implementation of the partnership port. Settlement owns the

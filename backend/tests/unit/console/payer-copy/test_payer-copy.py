@@ -1,6 +1,6 @@
 """CON-05 — payer-facing copy contains no crypto vocabulary (NFR-017).
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-05), §2.2
 
 A payer does not have a wallet, does not pay gas and does not care what a nullifier is. The check is

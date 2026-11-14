@@ -1,6 +1,6 @@
 """The statutory determination policy — the frozen interface's implementation (A-5 … A-8).
 
-Canonical: .pi/architecture/modules/authority.md#domain-services
+Canonical: docs/architecture/modules/authority.md#domain-services
 Reference: docs/contracts/authority-contract-freeze.md §2.10
 
 Why this is a domain service and not an aggregate method: the verdict composes the constitution's

@@ -1,7 +1,7 @@
 """Canonical-encoding edge cases and the identity factory (E-1, E-5).
 
 Canonical: docs/contracts/evidence-contract-freeze.md §2.2
-Reference: .pi/architecture/modules/evidence.md#components-evidenceenvelope
+Reference: docs/architecture/modules/evidence.md#components-evidenceenvelope
 """
 
 from __future__ import annotations

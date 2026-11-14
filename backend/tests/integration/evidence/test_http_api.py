@@ -1,6 +1,6 @@
 """Evidence end-to-end through the public HTTP API (scenario 7 surface).
 
-Canonical: .pi/architecture/modules/evidence.md#api-endpoints
+Canonical: docs/architecture/modules/evidence.md#api-endpoints
 Reference: docs/contracts/evidence-contract-freeze.md §2.9
 
 These go through the real composition root (middleware, scope checks, shared error envelope, SQLite,

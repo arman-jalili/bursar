@@ -1,7 +1,7 @@
 """A-13 — an approval binds one intent's exact bytes; any mismatch invalidates it (AC 8).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#components
+Reference: docs/architecture/modules/authority.md#components
 
 Scenario 5, negative case: a signature over intent A replayed for intent B. The binding is a single digest
 over the intent's fields, because checking fields one by one is how a forgotten field becomes a hole.

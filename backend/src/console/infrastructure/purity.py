@@ -1,6 +1,6 @@
 """Layer purity seam — the console declares its layers so the gate can check them (CON-09).
 
-Canonical: .pi/architecture/modules/console.md#architecture
+Canonical: docs/architecture/modules/console.md#architecture
 Reference: docs/contracts/console-contract-freeze.md §2.10
 
 `src/console/domain/` does not exist and must not be created (ADR-008). This module is the seam the

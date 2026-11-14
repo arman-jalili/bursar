@@ -1,6 +1,6 @@
 """SQLAlchemy adapters for the frozen Evidence repository ports.
 
-Canonical: .pi/architecture/modules/evidence.md#persistence-contract
+Canonical: docs/architecture/modules/evidence.md#persistence-contract
 Reference: docs/contracts/evidence-contract-freeze.md §2.5
 
 These are the only classes in the module that know a database exists. They never commit: the unit of

@@ -1,7 +1,7 @@
 """002_billing — invoices, attempts and the outbox.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/billing.md#components
 
 Storage-level guarantees the module doc states as invariants:
 

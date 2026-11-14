@@ -1,6 +1,6 @@
 """Read models for the Authority GET endpoints.
 
-Canonical: .pi/architecture/modules/authority.md#api-endpoints
+Canonical: docs/architecture/modules/authority.md#api-endpoints
 Reference: docs/contracts/authority-contract-freeze.md §2.9
 
 Reads are queries, not use cases: they change nothing, emit nothing, and do not belong in the five

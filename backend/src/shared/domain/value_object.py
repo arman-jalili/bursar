@@ -1,7 +1,7 @@
 """ValueObject — immutable, equal by value, validated at construction.
 
-Canonical: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
-Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+Canonical: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 
 The point of the base class is the *validation contract*: an invalid value object must be
 unconstructible, not merely rejected later. `Cap(-5)` must raise, so no downstream check has to

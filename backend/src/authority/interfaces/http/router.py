@@ -1,6 +1,6 @@
 """The Authority HTTP router — concrete, registered once in the app shell.
 
-Canonical: .pi/architecture/modules/authority.md#api-endpoints
+Canonical: docs/architecture/modules/authority.md#api-endpoints
 Reference: docs/contracts/authority-contract-freeze.md §2.9
 
 This file is a translator and nothing else: HTTP → command → one application service → response. No

@@ -1,7 +1,7 @@
 """E-8 — an envelope pointed at a different anchor hash raises `ANCHOR_MISMATCH`.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 The HMAC can be perfectly valid and the envelope still be lying about which on-chain record proves it.
 The anchor comparison is the second, independent check: a locally consistent forgery cannot borrow

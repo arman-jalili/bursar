@@ -1,7 +1,7 @@
 """Row ⇄ aggregate translation — the seam that keeps ORM types out of the model.
 
-Canonical: .pi/architecture/modules/billing.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/billing.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Two rules, the same ones Mandate uses:
 

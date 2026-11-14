@@ -1,7 +1,7 @@
 """Authority tables — SQLAlchemy 2.0 models. Never imported by `domain/`.
 
-Canonical: .pi/architecture/modules/authority.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/authority.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Design notes, each one an invariant made structural:
 

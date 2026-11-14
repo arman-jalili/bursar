@@ -1,6 +1,6 @@
 """Authority commands and results (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#application-services
+Canonical: docs/architecture/modules/authority.md#application-services
 Reference: docs/contracts/authority-contract-freeze.md §2
 
 Decisions encoded in the shapes:

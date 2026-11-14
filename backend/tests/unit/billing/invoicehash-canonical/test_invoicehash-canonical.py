@@ -1,6 +1,6 @@
 """B-3 / AC #1 — the invoice hash is canonical across fields, not just across calls.
 
-Canonical: .pi/architecture/modules/billing.md#acceptance-criteria
+Canonical: docs/architecture/modules/billing.md#acceptance-criteria
 Reference: docs/contracts/billing-contract-freeze.md (B-3)
 
 The freeze suite proves the hash is stable and that an amount change is detected. This suite closes

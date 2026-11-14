@@ -1,6 +1,6 @@
 """`payments.broadcast` — send one already-signed transaction. Nothing else.
 
-Canonical: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+Canonical: `docs/architecture/modules/settlement.md#ports-infrastructure-adapters`
 Reference: `docs/contracts/settlement-contract-freeze.md` §2.8 (amended in §7)
 
 This is the governed step's whole body (SC-2: `DISPATCH_COMMAND` renders

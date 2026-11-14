@@ -1,7 +1,7 @@
 """Alembic environment — two databases, one migration tree.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 There are two SQLite files (authority + console). Rather than two alembic trees, the target is
 selected per run:

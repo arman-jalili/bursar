@@ -1,6 +1,6 @@
 """AC #5 — a settled invoice is closed and accepts no further attempts (scenario 6).
 
-Canonical: .pi/architecture/modules/billing.md#acceptance-criteria
+Canonical: docs/architecture/modules/billing.md#acceptance-criteria
 Reference: docs/contracts/billing-contract-freeze.md (B-2)
 
 Drives the inbound `SettlementConfirmed` path through the application layer, then tries to propose

@@ -1,7 +1,7 @@
 """Database engine factory — SQLite with WAL, sized for one household.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 The pragmas are not boilerplate, they are the storage half of two invariants:
 

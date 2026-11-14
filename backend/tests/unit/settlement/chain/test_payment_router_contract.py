@@ -1,7 +1,7 @@
 """SC-5 / SC-6 / SC-9 — `PaymentRouter.sol` is the commit-point lock, tested against a real EVM.
 
 Canonical: `docs/contracts/settlement-contract-freeze.md` §1 (SC-5, SC-6, SC-9, SC-11)
-Reference: `.pi/architecture/modules/settlement.md#components` (scenario 6, the bypass path)
+Reference: `docs/architecture/modules/settlement.md#components` (scenario 6, the bypass path)
 
 `contracts/test/PaymentRouter.t.sol` would need `forge`, which is not installed here. These tests are
 its replacement with the same meaning: the Solidity is compiled by solc 0.8.24 (`foundry.toml`'s pinned

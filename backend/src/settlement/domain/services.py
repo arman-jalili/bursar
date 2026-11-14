@@ -1,6 +1,6 @@
 """Settlement domain services — rules that belong to neither aggregate (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#domain-services
+Canonical: docs/architecture/modules/settlement.md#domain-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.6
 
     NullifierPolicy  derives keccak(invoice_hash, scope) and refuses a spent marker *before* any chain

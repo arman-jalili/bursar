@@ -1,6 +1,6 @@
 """`RigorixCommandAdapter` — the `PaymentExecutor` port over Rigorix's governed execution (SC-2).
 
-Canonical: .pi/architecture/modules/settlement.md#ports-infrastructure-adapters
+Canonical: docs/architecture/modules/settlement.md#ports-infrastructure-adapters
 Reference: docs/contracts/settlement-contract-freeze.md §2.8 (SC-2)
 
 Why the command text is a module constant
@@ -153,7 +153,7 @@ class RigorixCommandAdapter:
 
     @property
     def template_name(self) -> str:
-        """The one template this adapter creates and runs (operational knob, see the runbook)."""
+        """The one template this adapter creates and runs (operational knob)."""
         return self._settings.rigorix_run_template
 
     @property

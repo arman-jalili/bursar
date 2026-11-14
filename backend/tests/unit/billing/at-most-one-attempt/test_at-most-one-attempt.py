@@ -1,7 +1,7 @@
 """B-1 — an invoice has at most one non-terminal payment attempt at a time.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-paymentattempt
+Reference: docs/architecture/modules/billing.md#components-paymentattempt
 
 Defends the invariant that stops two concurrent proposals from racing one invoice into a double payment.
 The rule is enforced at two points and both are asserted here: the invoice must say it cannot accept an

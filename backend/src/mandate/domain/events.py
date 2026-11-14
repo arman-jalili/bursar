@@ -1,7 +1,7 @@
 """The 12 domain events of the Mandate context — frozen payload schemas (v1).
 
-Canonical: .pi/architecture/modules/mandate.md#domain-events
-Reference: .pi/architecture/decisions/ADR-003-cross-context-communication.md
+Canonical: docs/architecture/modules/mandate.md#domain-events
+Reference: docs/architecture/decisions/ADR-003-cross-context-communication.md
 
 Payloads are part of the frozen contract because they are sealed into evidence envelopes
 (ADR-007) and consumed by Authority at dispatch. Renaming a field changes the sealed bytes of

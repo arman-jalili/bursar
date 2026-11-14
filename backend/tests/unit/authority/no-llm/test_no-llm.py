@@ -1,7 +1,7 @@
 """AC 14 — authorization comes from a Determination, never from a model.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+Reference: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
 
 Principle 7 of the product: *no LLM in the enforcement path*. The rule is asserted positively — the only
 route to dispatch is a verdict from the closed set with a recorded basis — so a "the model said yes" path

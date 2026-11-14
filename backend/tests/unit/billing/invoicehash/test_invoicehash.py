@@ -1,7 +1,7 @@
 """B-3 / B-6 — the invoice hash is deterministic, and the amount is exact.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-invoice
+Reference: docs/architecture/modules/billing.md#components-invoice
 
 Two rules that both exist to stop the invoice identity from being negotiable: the hash of the same
 document must be stable (B-3), and an amount must be exactly representable or refused (B-6).

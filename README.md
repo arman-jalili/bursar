@@ -1,182 +1,125 @@
 # Bursar
 
 **A household account where an automation proposes payments, the owner's rules decide, and Rigorix
-enforces at the moment of payment.** USDC settles on Anvil; every payment leaves a receipt the owner
-can verify in the browser.
+enforces at the moment of payment.** USDC settles on Anvil; every attempt — allowed or refused —
+leaves a signed envelope the owner can verify in the browser.
 
-> **On the word "agent".** This repository has no agent process today: a token exists
-> (`demo-agent-token`) and the seed script acts as the proposer. Either point a real proposer at the
-> API (see `docs/demo-ux.md` §2, option A) or read the copy as "an automation proposes". The demo
-> must not claim a component it does not ship.
+> **Watch the 3-minute pitch:** [`docs/bursar-pitch.mp4`](docs/bursar-pitch.mp4) ·
+> [shot list and narration](docs/bursar-pitch-script.md).
 
 Proximata Hackathon '26 · track *Bringing Crypto to Everyday Life*.
 
-This repository is **not a click-through mock**: the approval card signs a real EIP-712-shaped
-digest, Authority verifies it, Settlement signs a real transaction, Rigorix's governed `run_command`
-broadcasts it, and `PaymentRouter.sol` moves USDC exactly once. Capacity is not claimed by the
-proposal path: the gate's own check claims it inside the governed run, immediately before the send.
+This repository is **not a click-through mock**. The approval card signs a real EIP-712-shaped
+digest, Authority verifies it, Settlement signs a real transaction, Rigorix's governed
+`run_command` broadcasts it, and `PaymentRouter.sol` moves USDC exactly once. Capacity is not
+claimed by the proposal path: the gate's own check claims it inside the governed run, immediately
+before the send.
 
-The page is about the gate, in two capabilities:
+The UI tells the story in two capabilities:
 
-- **Capacity** — ask the agent to pay. With a €30 cap, €20 runs through and the next €11 is refused
-  at the moment of sending: signed, never sent, with the cap finding on the audit envelope.
-- **Precondition** — an approval is a request, not a durable grant. The owner signs a €20 payment on
-  a €30 cap with a €15 approval line; the operator then freezes that payee; the release is refused at
-  **dispatch time** by Rigorix's own precondition, with a signed finding and no transaction. The owner
-  can also decline the request, which is recorded without signing anything.
+- **Capacity** — ask for a €20 bill on a €30 cap. It runs. Ask for €11 with €10 left: Rigorix still
+  runs the governed step, its capacity check refuses at the moment of sending, and the refusal is a
+  signed envelope with the finding. Signed, never sent.
+- **Precondition** — an approval is a request, not a durable grant. Sign a €20 payment above a €15
+  approval line, then freeze that payee as the operator. At the moment of sending Rigorix re-reads
+  the payee authority and refuses. The owner approved; the gate still stops it. The owner can also
+  **reject** the request: the decision is recorded, nothing is signed, nothing is sent.
 
 ---
+
+## Quick start (Docker)
+
+**Prerequisites:** Docker Engine / Docker Desktop with Compose v2, ~8 GB free disk (the governed
+execution image compiles `rigorix-server` once), and internet for the first image build. No
+OpenRouter key is required — without one the console uses a local regex parser.
+
+```bash
+# 1. Configuration. `.env` is gitignored; `.env.demo` already holds the public demo keys.
+cp .env.example .env
+#    Optional: put an OpenRouter key in BURSAR_LLM_API_KEY (https://openrouter.ai/keys).
+
+# 2. Install the operator's dispatch checks OUTSIDE the repo (this is the point).
+#    The containerized Rigorix reaches Authority by service name:
+BURSAR_GATE_URL=http://authority:8001 ./scripts/setup-preconditions.sh
+
+# 3. Build the governed execution host once (rigorix-server + the Bursar broadcaster).
+./scripts/build-rigorix-image.sh
+
+# 4. Start the stack.
+docker compose --profile container-rigorix up -d --build
+
+# 5. Open the gate.
+open http://localhost:5173/#capacity
+open http://localhost:5173/#precondition
+```
+
+Optional, for the on-chain view the video shows:
+
+```bash
+docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
+open http://localhost:4000
+```
+
+The app links to it: **USDC wallet ↗** opens the token page (holders are the treasury and each
+payee), **explorer ↗** opens the index, and every transaction hash in a gate card links to its
+transaction page. The explorer is read-only and does not change how the gate behaves.
+
+### Ports
+
+| URL | What | Exposure |
+|---|---|---|
+| `:5173` | the UI (nginx-served SPA) | browser |
+| `:8000` | console API + chat agent | browser (CORS allow-list) |
+| `:4000` | Blockscout (optional) | browser |
+| `:8001` | authority service | keep private |
+| `:8545` | Anvil JSON-RPC | keep private |
+| `:3001` | Rigorix JSON-RPC | internal (service DNS) |
+
+### After changing configuration
+
+- Changed `.env` values used by the console (LLM, Rigorix URL): `docker compose up -d console`.
+- Changed the checks or the gate URL: rerun `setup-preconditions.sh`, then
+  `docker compose restart rigorix` (the host reads the file at boot).
+- Full reset (chain redeploys, ledger and trail restart): `docker compose down -v`, then start
+  again. The checks live in `/tmp/bursar-preconditions` and survive.
+
+## The two demos
+
+Both pages stage their own world on load and **apply & reset** is the explicit reset. Loading a
+page stages its cap/approval line without deleting an approval or a hold made by the other page; a
+page refresh starts a fresh evidence chain.
+
+**Capacity** (`/#capacity`)
+
+1. "pay the energy bill 20" → **PAID**, free capacity drops to €10, the transaction links to the
+   explorer.
+2. "pay energy 11" → **NOT SENT**. Rigorix's capacity check failed (exit 3), the card shows the
+   finding, and the trail holds the signed envelope.
+3. **Verify in browser** checks the HMAC and the envelope schema in WebCrypto; expand the JSON to
+   see the findings and their digests.
+
+**Precondition** (`/#precondition`)
+
+1. "pay energy 20" on a €30 cap with a €15 approval line → **NEEDS YOUR APPROVAL**.
+2. Freeze **Wien Energie** in *The world* panel (the operator's authority is a file outside the
+   repo).
+3. **Sign & send**: the browser signs the intent digest, Authority grants, and Rigorix refuses the
+   send on the payee check — **STOPPED BY RIGORIX**. Verify the envelope. Nothing was broadcast.
+   Or press **Reject**: the request closes, nothing is signed, and the decision is recorded.
 
 ## What runs
 
 | Layer | Process | What it does |
 |---|---|---|
-| Chain | Anvil `:8545` | `TestUsdc` + `PaymentRouter` deployed by `scripts/deploy_contracts.py`; the operator is funded and approved. |
-| Lock 1 | `rigorix-server` `:3001` (OSS, **unmodified**) | The governed `run_command` step (`payments.broadcast`) and the HMAC-signed audit envelope. |
-| Lock 2 | `authority-service` `:8001` | Re-reads the constitution and payee eligibility, decides allow/deny/escalate, and answers the gate's approval/capacity/audit reads. Capacity is claimed by the gate, not by the proposal. |
+| Chain | Anvil `:8545` | `TestUsdc` + `PaymentRouter` deployed by `backend/scripts/deploy_contracts.py`; the operator is funded and approved. |
+| Execution host | `rigorix-server` `:3001` (OSS, **unmodified**) | The governed `run_command` step (`payments.broadcast`) and the HMAC-signed audit envelope. |
+| Authority | `authority-service` `:8001` | Re-reads the constitution and payee eligibility, decides allow/deny/escalate, and answers the gate's approval/capacity/audit reads. |
 | Settlement | `console-api` `:8000` (Settlement context) | Reads the verdict live, signs locally, persists the hash **before** broadcast, asks Rigorix to send it. |
 | Lock 3 | `PaymentRouter.sol` | Nullifier once-only, EIP-712 owner signature, amount/address frozen on the signed intent, `Anchored` event. |
-| Owner surface | `console-api` `:8000` `/v1/console/*` | Live approvals, bills, constitution, payees, evidence verdicts; one write — the signature passthrough. |
-| Agent + gate | `console-api` `:8000` `/v1/agent/*` | Natural-language payment proposals (LLM), the capacity gate, the dispatch-precondition switch, and the signed-envelope trail. |
-| UI | `frontend` `:5173` | Two capabilities: **capacity** (`/#capacity`) and **precondition** (`/#precondition`), with browser HMAC verification and a chained trail. |
-| Explorer | Blockscout `:4000` (independent, own compose file) | Indexes the same Anvil chain: USDC token page with holders (the treasury and each payee), every transaction, the `Anchored` log. |
-
-## Quick start (this machine)
-
-```bash
-# 0. The agent's parser key (gitignored .env). OpenRouter is the default provider.
-#    BURSAR_LLM_API_KEY / LLM_BASE_URL / LLM_MODEL / LLM_FALLBACK_MODEL
-
-# 1. Core services (anvil, contract deployment, migrations, authority, console, UI)
-docker compose up -d --build anvil contracts migrate authority console frontend
-
-# 2. Rigorix (OSS host). It runs beside the repo and needs the backend venv on its PATH.
-./scripts/run-rigorix.sh
-
-# 3. Arm the dispatch-time precondition (check + operator authority live outside the repo)
-./scripts/setup-preconditions.sh
-# then restart the Rigorix host so it reads .rigorix-runtime/.rigorix/preconditions.toml
-
-# 4. Open the gate
-open http://localhost:5173/#capacity
-
-# 5. Optional but recommended: the independent block explorer, on the same chain
-docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
-open http://localhost:4000
-```
-
-The app links to it: **USDC wallet ↗** opens the token page (holders = the treasury and the payees),
-**explorer ↗** opens the index, and every transaction hash in a gate card links to its transaction
-page. The explorer is read-only and does not change how the gate behaves; see
-`explorer/blockscout/README.md` for the VPS host/port and reset notes.
-
-The pages set their own world on load: capacity = €30 with every payment inside the cap allowed;
-precondition = €30 cap and a €15 approval line. Loading a page stages the cap/approval line without
-deleting an approval or a hold made by the other page; **apply & reset** is the explicit reset. A
-page refresh starts a fresh evidence chain.
-
-The optional seed (`docker compose run --rm … python scripts/seed_demo.py`) still populates the
-classic €500-cap world through the public APIs for the frozen console read models.
-
-### Running on a server
-
-The frontend's API and explorer URLs are baked at build time, so build it for the host the browser
-will use, then start the stack:
-
-```bash
-PUBLIC_CONSOLE_URL=https://demo.example.com:8000 \
-PUBLIC_EXPLORER_URL=https://demo.example.com:4000 \
-  docker compose up -d --build anvil contracts migrate authority console frontend
-
-EXPLORER_HOST=demo.example.com EXPLORER_PORT=4000 \
-  docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
-```
-
-Also set the console's public origin for CORS:
-
-```bash
-BURSAR_CORS_ORIGINS=https://demo.example.com
-```
-
-Expose the browser-facing surfaces (`5173`, `8000`, `4000`). Keep Anvil (`8545`), Rigorix (`3001`)
-and the authority service (`8001`) private — the authority has no CORS on purpose and an open Anvil
-RPC lets anyone send unsigned transactions.
-
-### Rigorix on a VPS
-
-Rigorix is not a host-only dependency: it has its own image (`backend/Dockerfile.rigorix`) that
-contains `rigorix-server` **and** the `payments.broadcast` command the governed step executes. On a
-server, run it as a container rather than a host process:
-
-```bash
-# The Dockerfile installs rigorix-server from crates.io at a pinned version — no source checkout
-# and no giant build context.
-./scripts/build-rigorix-image.sh
-
-# the console reaches Rigorix by service name, not host.docker.internal
-BURSAR_RIGORIX_BASE_URL=http://rigorix:3001 \
-  docker compose --profile container-rigorix up -d anvil contracts migrate authority rigorix console frontend
-
-./scripts/setup-preconditions.sh   # writes .rigorix-runtime/.rigorix/preconditions.toml
-docker compose restart rigorix     # containers 2+ read it at boot
-```
-
-The audit tree and the operator's precondition files are bind-mounted into the Rigorix container
-(the console reads the same host paths), so the trail and the freeze switch keep working.
-
-**k3s** manifests live in `deploy/k8s/` — see `deploy/k8s/README.md`. The differences are the
-things that are always different in a cluster: service DNS instead of `host.docker.internal`,
-PVCs instead of host bind mounts, and the precondition check in a ConfigMap.
-
-### Dispatch-time precondition
-
-`scripts/setup-preconditions.sh` installs three operator-owned checks in
-`/tmp/bursar-preconditions/`, run by Rigorix immediately before `payments.broadcast`:
-
-1. **approval-valid** — above the line, does the intent carry the owner's verified signature?
-2. **payee-authorized** — is the payee still `active` in the operator's `authority.json`?
-3. **capacity-available** — does the amount still fit today's cap, and may it claim the units?
-
-All three fail closed and run in that order, so an approval refusal cannot reserve capacity and a
-payee refusal claims nothing. A non-zero exit refuses the step; the refusal still produces a signed
-audit envelope with `precondition_findings[]` (`outcome`, `exit_code`, `check_digest`,
-`authority_digest`, `check_writable`). The console only reads and writes the payee status file as the
-operator's switch (`GET/POST /v1/agent/authority`); the checks and the authority live outside this
-repository, which is the point. A declined approval is recorded as `ApprovalRejected` in Authority's
-outbox and appears under the trail's approval records — no signature, no envelope, no send.
-
-The optional seed creates one household with a €500 daily cap and a €100 signature line, and produces
-real determinations:
-
-- **Wien Energie €84.20** — eligible, inside the cap → *allowed*, dispatched through Rigorix.
-- **Apotheke €48.50** — presented bank digest does not match → *quarantined*, refused.
-- **Zahnarzt €240** — new payee above the line → *escalated*: the approval waits for you.
-- **Hausmeister €60** — allowed once, then the payee is frozen → the next decision is refused.
-
-Sign the dentist in the console: the browser signs the intent digest with the demo owner key,
-Authority grants and reserves, Settlement signs and persists, Rigorix broadcasts, and the bill turns
-**Paid** with its transaction hash.
-
-### Clean reset
-
-```bash
-docker compose down -v
-docker compose up -d anvil
-docker compose up contracts migrate
-docker compose up -d --no-deps authority console
-# then run the seed again (step 3)
-```
-
-## What is real, what is simulated
-
-| Real | Simulated / labelled |
-|---|---|
-| Owner signature over the exact intent digest, recovered by Authority | The demo owner key is Anvil account 0 (a public test key), signed in the browser. |
-| Authority allow/deny/escalate, capacity ledger, single-use approval | — |
-| Two-phase settlement: sign → persist hash → governed broadcast | Finality polling (`SettleOnce`) is not wired; a broadcast order is shown Paid. The Anvil tx is mined. |
-| Rigorix `run_command` + HMAC audit envelope | Evidence envelopes are not yet relayed into the Evidence projection (the UI drawer shows the console record). |
-| `PaymentRouter` nullifier + on-chain owner signature + `Anchored` event | The last mile to a fiat bank account is simulated and labelled. |
-| USDC on Anvil | Base Sepolia is the live claim; the demo uses Anvil. |
+| Owner surface | `console-api` `:8000` `/v1/console/*` | Approvals, bills, constitution, payees, evidence verdicts; one write — the signature passthrough. |
+| Agent + gate | `console-api` `:8000` `/v1/agent/*` | Natural-language payment proposals (LLM), the capacity gate, the dispatch-precondition switch, and the chained trail. |
+| UI | `frontend` `:5173` | Two capabilities with browser HMAC verification. |
+| Explorer | Blockscout `:4000` (optional) | Indexes the same Anvil chain: USDC token page, every transaction, the `Anchored` log. |
 
 ## Architecture
 
@@ -194,16 +137,104 @@ owner (UI) ──signature──▶ console-api ──authority──▶ authori
 
 Two deployables on purpose (ADR-001): `authority-service` is the enforcement lock and is not
 reachable from a browser (no CORS); `console-api` is the only browser-facing surface. The demo runs
-both against one SQLite file so Authority's read-through sees Mandate/Billing writes immediately;
+both against one SQLite file so Authority's reads see Mandate/Billing writes immediately;
 production keeps the per-deployable split.
+
+Rigorix runs three operator-owned checks **inside** the governed step, in this order, all fail
+closed:
+
+1. **approval-valid** — above the line, does the intent carry the owner's verified signature?
+2. **payee-authorized** — is the payee still `active` in the operator's `authority.json`?
+3. **capacity-available** — does the amount still fit today's cap, and may it claim the units?
+
+A non-zero exit refuses the step and still produces a signed envelope with
+`precondition_findings[]` (`outcome`, `exit_code`, `check_digest`, `authority_digest`,
+`check_writable`). The checks and the authority file live outside the repository, which is the
+point.
+
+More: [`docs/README.md`](docs/README.md) · [`docs/architecture/`](docs/architecture/) (ADRs,
+module contracts, diagrams) · [`docs/contracts/`](docs/contracts/) (frozen behavioural contracts).
+
+## OpenRouter and the parser
+
+The chat box is parsed by an LLM when a key is present. The amount always comes from the sentence,
+and every downstream check is deterministic.
+
+```bash
+# .env
+BURSAR_LLM_API_KEY=sk-or-v1-...
+LLM_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=nvidia/nemotron-3.5-lightning:free
+LLM_FALLBACK_MODEL=inclusionai/ling-3.2-flash:free
+```
+
+- Get a key at <https://openrouter.ai/keys>.
+- Free models are rate-limited upstream; the fallback model covers that. Any OpenAI-compatible
+  provider works by changing `LLM_BASE_URL` and the model names.
+- No key: the local regex parser handles "pay energy 20" and the full gate demo still runs.
+- The key is read by `console-api` only and is never baked into the frontend.
+
+The full variable list, with the server-deployment values (public console/explorer URLs, CORS), is
+in [`.env.example`](.env.example).
+
+## Running on a server
+
+The quick start is already the server shape: Rigorix runs in its own container. For a public host,
+bake the browser-facing URLs and allow the origin:
+
+```bash
+PUBLIC_CONSOLE_URL=https://demo.example.com:8000 \
+PUBLIC_EXPLORER_URL=https://demo.example.com:4000 \
+  docker compose --profile container-rigorix up -d --build
+```
+
+```bash
+# .env
+BURSAR_CORS_ORIGINS=https://demo.example.com
+```
+
+Expose `5173`, `8000` and (optionally) `4000`. Keep Anvil, Authority and Rigorix private: the
+authority has no CORS on purpose, and an open Anvil RPC accepts unsigned transactions.
+
+For k3s, see [`deploy/k8s/README.md`](deploy/k8s/README.md). The manifests target a single node
+(RWO volumes); a multi-node cluster needs a shared filesystem or the per-deployable databases
+ADR-002 describes.
+
+## Development
+
+```bash
+cd backend
+make install          # uv venv + dev dependencies
+make test             # the full suite (912 tests, one geometry skip)
+make lint             # ruff
+make typecheck        # mypy
+```
+
+The backend is Python 3.12 (FastAPI + SQLAlchemy async + SQLite WAL). The frontend is React + Vite:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+For the local demo loop, the containerized Rigorix is the simplest path. The alternative is a
+host-run `rigorix-server`:
+
+```bash
+cd backend && make install
+./scripts/run-rigorix.sh                 # expects a sibling rigorix-oss checkout; sets PATH for the broadcaster
+docker compose up -d anvil contracts migrate authority console frontend
+./scripts/setup-preconditions.sh         # default gate URL http://127.0.0.1:8001
+```
 
 ## Repository layout
 
 ```
-frontend/                 React + Vite pages: capacity (Gate.tsx) and precondition (Precondition.tsx)
+frontend/                 React + Vite: capacity (Gate.tsx) and precondition (Precondition.tsx)
 backend/
   src/apps/               console-api and authority-service composition roots
-  src/apps/console_api/agent.py   chat agent, capacity gate, authority switch, release, trail
+  src/apps/console_api/agent.py   chat agent, gate, authority switch, release/reject, trail
   src/shared/             config, SQLite/WAL, error envelope, health
   src/mandate/            household, constitution, payees, eligibility
   src/billing/            invoices, attempts, duplicate and one-active guards
@@ -213,15 +244,20 @@ backend/
   src/console/            the frozen browser read models + signature passthrough
   contracts/src/          PaymentRouter.sol and TestUsdc.sol
   scripts/                deploy_contracts.py, seed_demo.py
-scripts/run-rigorix.sh    starts the unmodified OSS rigorix-server on the host
-scripts/setup-preconditions.sh  installs the operator check + authority outside the repo
+  tests/                  unit + integration (912 tests)
+docs/
+  architecture/           ADRs, module contracts, diagrams, roadmap
+  contracts/              frozen behavioural contracts (A/S/R/E/SC invariants)
+  bursar-pitch.mp4        the 3-minute demo
+scripts/                  build-rigorix-image.sh, run-rigorix.sh, setup-preconditions.sh
 explorer/blockscout/      the independent Blockscout stack over the same Anvil chain
-docker-compose.yml        anvil, contracts, migrate, authority, console, frontend
+deploy/k8s/               single-node k3s manifests
+docker-compose.yml        anvil, contracts, migrate, authority, console, frontend (+ container-rigorix)
 .env.demo                 public Anvil/test values only
-.env.example              the optional LLM key variables (copy to a gitignored .env)
+.env.example              the optional parser key and deployment variables
 ```
 
-## Demo keys
+## Demo keys (public test values — never mainnet)
 
 All keys in `.env.demo` are public Anvil test keys and are unsafe on any real network:
 
@@ -229,18 +265,24 @@ All keys in `.env.demo` are public Anvil test keys and are unsafe on any real ne
 - settlement operator: Anvil account `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`
 - bearer tokens: `demo-owner-token`, `demo-agent-token`
 
-## Status / known gaps
+## What is real, what is simulated
 
-- The Settlement finality poller (contract item B-2) is not wired; orders stop at `submitted`.
-- Evidence envelopes are not relayed from the outboxes into the Evidence projection yet.
-- The containerised Rigorix image is built by `scripts/build-rigorix-image.sh` (clean build
-  context) and run with `--profile container-rigorix`; the host `scripts/run-rigorix.sh` remains
-  the fastest local loop because the Rust release build is large.
-- The k3s manifests target a single node (RWO volumes); a multi-node cluster needs a shared
-  filesystem or the per-deployable databases ADR-002 describes.
-- The LLM parser is convenience only: the amount always comes from the sentence, and a local regex
-  parser takes over when the provider is unavailable. Free OpenRouter models can be rate-limited
-  upstream; `LLM_FALLBACK_MODEL` keeps the demo answering.
+| Real | Simulated / labelled |
+|---|---|
+| Owner signature over the exact intent digest, recovered by Authority | The demo owner key is Anvil account 0 (a public test key), signed in the browser. |
+| Authority allow/deny/escalate, capacity ledger, single-use approval, rejection | — |
+| Two-phase settlement: sign → persist hash → governed broadcast | Finality polling (`SettleOnce`) is not wired; a broadcast order is shown Paid. The Anvil transaction is mined. |
+| Rigorix `run_command` + HMAC audit envelope, verified in the browser | Authority's outbox events are not replicated into the Evidence projection; the UI verifies the Rigorix envelope directly. |
+| `PaymentRouter` nullifier + on-chain owner signature + `Anchored` event | The last mile to a fiat bank account is simulated and labelled. |
+| USDC on Anvil | Base Sepolia is the production claim; the demo uses Anvil. |
+
+## Known gaps
+
+- The Settlement finality poller is not wired; orders stop at `submitted`.
+- Evidence envelopes are not relayed from the outboxes into the Evidence projection.
+- SQLite means a single node; the k3s manifests assume one node with RWO volumes.
+- Free OpenRouter models can be rate-limited; the fallback model and the local parser keep the demo
+  answering.
 
 ## License
 

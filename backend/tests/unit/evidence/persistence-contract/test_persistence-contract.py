@@ -1,7 +1,7 @@
 """E-4 / E-5 — the persistence contract claims before it appends.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#persistence-contract
+Reference: docs/architecture/modules/evidence.md#persistence-contract
 
 The idempotency key `(event_id, handler)` is stored by `ProcessedEventRepository`, and the envelope is
 only appended when that claim is new. A replay must not create a second row — the table is append-only

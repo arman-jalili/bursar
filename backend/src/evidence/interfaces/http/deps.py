@@ -1,7 +1,7 @@
 """ADR-005 scope checks for the Evidence transport.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/modules/evidence.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/modules/evidence.md#api-endpoints
 
 Evidence is read-mostly: the owner/auditor may read envelopes and anchors (`evidence:read`), while
 the console renders the verified/tampered toggle with `console:read`. The map is local to Evidence so

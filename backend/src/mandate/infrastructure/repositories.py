@@ -1,7 +1,7 @@
 """SQLAlchemy adapters for the ports in `src/mandate/domain/repositories.py`.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 These are the only classes in the module that know a database exists. They **never commit**: the
 unit of work in `src/shared/application/unit_of_work.py` owns the transaction (ADR-002), which is what

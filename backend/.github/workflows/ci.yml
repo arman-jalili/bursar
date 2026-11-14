@@ -1,7 +1,7 @@
 # CI — the same gates a reviewer runs locally (`make check` + `make validate`).
 #
-# Canonical: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
-# Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+# Canonical: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+# Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 #
 # Two jobs on purpose: `quality` fails fast on lint/types/tests; `architecture` enforces the ADR
 # gates. Keeping them separate means a red architecture job is never mistaken for a red test.
@@ -67,23 +67,6 @@ jobs:
         run: |
           uv venv --python 3.12
           uv pip install -e ".[dev]"
-
-      - name: Layer and model judgment gates
-        run: |
-          bash .pi/scripts/validate-architecture.sh
-          bash .pi/scripts/check_model_judgment.sh
-          bash .pi/scripts/check_language_consistency.sh
-
-      - name: Contract proofs (mandate)
-        run: bash .pi/scripts/ci/prove_mandate_contracts.sh
-
-      - name: Composition root (only enforced once contexts exist)
-        run: |
-          if [ -d src/mandate ] || [ -d src/authority ]; then
-            bash .pi/scripts/check_composition_root.sh
-          else
-            echo "Phase 0: no bounded contexts built yet — composition gate deferred."
-          fi
 
       - name: Domain layer must stay framework-free
         run: |

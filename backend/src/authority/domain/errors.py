@@ -1,6 +1,6 @@
 """Authority refusal vocabulary (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 Reference: docs/contracts/authority-contract-freeze.md §3
 
 Every refusal extends the shared `RefusalError`, so a refusal is a documented `409` with a domain code

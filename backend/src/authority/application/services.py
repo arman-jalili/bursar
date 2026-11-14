@@ -1,6 +1,6 @@
 """The five catalog application services (frozen, FR-011 … FR-017).
 
-Canonical: .pi/architecture/modules/authority.md#application-services
+Canonical: docs/architecture/modules/authority.md#application-services
 Reference: docs/contracts/authority-contract-freeze.md §2
 
 Each `execute` is one unit of work. The refusal cases listed in the docstrings are the contract: they are

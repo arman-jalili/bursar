@@ -1,7 +1,7 @@
 """E-9 — the HMAC key never appears in an envelope payload, canonical bytes or sealed HMAC.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/decisions/ADR-005-authentication-authorization.md
 
 The key is operator-held and must not be recoverable from anything Evidence stores, logs or returns.
 The signer owns it; the envelope only receives the resulting HMAC. A test asserts the absence directly

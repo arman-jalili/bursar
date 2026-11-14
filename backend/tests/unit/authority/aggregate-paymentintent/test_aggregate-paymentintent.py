@@ -1,7 +1,7 @@
 """A-1 — an issued intent is immutable: no setter, no merge, no late mutation.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-paymentintent
+Reference: docs/architecture/modules/authority.md#aggregate-paymentintent
 
 The window between authorization and signature is exactly where a substituted destination would pay off,
 so the intent must not be mutable at all. Asserted by attempting the mutation a careless adapter would do

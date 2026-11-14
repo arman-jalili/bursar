@@ -1,7 +1,7 @@
 """SC-11 — the value objects are values: equal by content, validated, immutable.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-11)
-Reference: .pi/architecture/modules/settlement.md#value-objects-entity-vs-vo-justification
+Reference: docs/architecture/modules/settlement.md#value-objects-entity-vs-vo-justification
 
 Defends the entity-vs-VO decision behind module AC #11 and SC-5:
 

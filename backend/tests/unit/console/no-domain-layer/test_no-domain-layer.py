@@ -1,6 +1,6 @@
 """CON-09 — the console has no domain layer, and its appearance must fail, not be reviewed.
 
-Canonical: .pi/architecture/modules/console.md#architecture
+Canonical: docs/architecture/modules/console.md#architecture
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-09), §2.10
 
 ADR-008: a generic subdomain is modelled at adapter depth. The danger is a "small" value object

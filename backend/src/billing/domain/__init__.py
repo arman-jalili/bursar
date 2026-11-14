@@ -1,6 +1,6 @@
 """Billing domain — framework-free, persistence-ignorant.
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md
 
 Service-depth context (ADR-008): the five captured types below are the whole model. There are no domain

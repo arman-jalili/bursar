@@ -1,7 +1,7 @@
 """Wire shapes for the eight console endpoints (OpenAPI is the React team's contract).
 
-Canonical: .pi/architecture/decisions/ADR-004-api-design.md
-Reference: .pi/architecture/modules/console.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/modules/console.md#api-endpoints
 
 The response models are a second whitelist, not a formatting layer: a field that is not declared
 here cannot reach a client even if a projection accidentally gained it (CON-01). Each model is built

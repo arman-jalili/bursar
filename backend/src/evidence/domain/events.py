@@ -1,6 +1,6 @@
 """The three Evidence domain events — frozen payload schemas (v1).
 
-Canonical: .pi/architecture/modules/evidence.md#domain-events
+Canonical: docs/architecture/modules/evidence.md#domain-events
 Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
 Payloads are part of the frozen contract because they are sealed into later envelopes and consumed by

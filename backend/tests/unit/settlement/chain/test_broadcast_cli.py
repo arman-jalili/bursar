@@ -1,6 +1,6 @@
 """SC-2 — `payments.broadcast` sends already-signed bytes and does nothing else.
 
-Canonical: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+Canonical: `docs/architecture/modules/settlement.md#ports-infrastructure-adapters`
 Reference: `docs/contracts/settlement-contract-freeze.md` §2.8 and §7
 
 The governed step runs this command, so what it must *not* be able to do is as important as what it does:

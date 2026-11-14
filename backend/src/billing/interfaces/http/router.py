@@ -1,6 +1,6 @@
 """The Billing HTTP router — concrete, registered once in the app shell.
 
-Canonical: .pi/architecture/modules/billing.md#api-endpoints
+Canonical: docs/architecture/modules/billing.md#api-endpoints
 Reference: docs/contracts/billing-contract-freeze.md §2.10
 
 Thin on purpose: translate HTTP into commands, call one application service, map the result back. No

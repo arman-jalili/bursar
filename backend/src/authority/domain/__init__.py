@@ -1,6 +1,6 @@
 """Authority domain — framework-free and persistence-ignorant.
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 Reference: docs/contracts/authority-contract-freeze.md
 
     values.py          Money (re-exported from the shared kernel) · DeterminationVerdict · DenialReason

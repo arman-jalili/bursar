@@ -1,7 +1,7 @@
 """Behaviour — `Payee`: the scam scenario, the freeze, and the recovery path.
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-payee
-Reference: .pi/architecture/modules/mandate.md#acceptance-criteria (AC #3, AC #4, AC #5, AC #6, AC #9)
+Canonical: docs/architecture/modules/mandate.md#aggregate-payee
+Reference: docs/architecture/modules/mandate.md#acceptance-criteria (AC #3, AC #4, AC #5, AC #6, AC #9)
 
 These are the tests that matter for the pitch: a poisoned invoice must quarantine the payee **without
 moving the destination**, a freeze must survive a subsequent digest review, and clearing quarantine

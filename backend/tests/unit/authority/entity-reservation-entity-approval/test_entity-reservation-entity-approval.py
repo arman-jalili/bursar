@@ -1,7 +1,7 @@
 """A-10 / A-13 — Reservation and Approval are entities with a one-way lifecycle.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#components
+Reference: docs/architecture/modules/authority.md#components
 
 Both have identity and a lifecycle that two contexts refer to by id, which is what makes them entities
 rather than value objects. The rules asserted here are the lifecycle ones: a hold starts HELD, resolves

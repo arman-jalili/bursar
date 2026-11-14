@@ -1,7 +1,7 @@
 """Health endpoints — `/healthz` (liveness) and `/readyz` (readiness).
 
-Canonical: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 The distinction is load-bearing in this domain:
 

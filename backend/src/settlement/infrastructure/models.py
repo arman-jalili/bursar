@@ -1,6 +1,6 @@
 """Settlement tables — SQLAlchemy 2.0 models. Never imported by `domain/` or `application/`.
 
-Canonical: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Canonical: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 Reference: docs/contracts/settlement-contract-freeze.md (SC-3, SC-5, SC-10)
 
 The storage layer keeps the three guarantees the domain states, because a guarantee the database does

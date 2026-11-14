@@ -1,7 +1,7 @@
 """Contract tests — repository ports are owned by `domain/` (mandate v1, ADR-008).
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 This is the file that keeps the dependency arrow pointing the right way. Three rules are asserted:
 

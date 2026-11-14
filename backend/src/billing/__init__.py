@@ -1,6 +1,6 @@
 """Billing — invoices, payment attempts, and the agent's only legal output.
 
-Canonical: .pi/architecture/modules/billing.md
+Canonical: docs/architecture/modules/billing.md
 Reference: docs/contracts/billing-contract-freeze.md
 
 Nothing here decides whether a payment may move — that is Authority's job (see the context map).

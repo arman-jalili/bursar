@@ -1,6 +1,6 @@
 """The seven Billing domain events — frozen payload schemas (v1).
 
-Canonical: .pi/architecture/modules/billing.md#domain-events
+Canonical: docs/architecture/modules/billing.md#domain-events
 Reference: docs/contracts/billing-contract-freeze.md §2.8
 
 Payloads are part of the frozen contract because they are sealed into evidence envelopes (ADR-007)

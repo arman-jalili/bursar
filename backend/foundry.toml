@@ -1,7 +1,7 @@
 # Foundry configuration — PaymentRouter.sol (ADR-007, Lock 3 of the enforcement engine).
 #
-# Canonical: .pi/architecture/modules/settlement.md#components
-# Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+# Canonical: docs/architecture/modules/settlement.md#components
+# Reference: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
 #
 # Phase 0: toolchain + empty scaffold only. The contract (nullifier map, EIP-712 verification,
 # anchor event) is written in Phase 4 — see settlement.md invariant S-1..S-6.

@@ -1,6 +1,6 @@
 """Evidence domain — framework-free, persistence-ignorant (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#components
+Canonical: docs/architecture/modules/evidence.md#components
 Reference: docs/contracts/evidence-contract-freeze.md §2
 
 Service-depth context (ADR-008): the four captured types are the whole model — `EvidenceEnvelope`,

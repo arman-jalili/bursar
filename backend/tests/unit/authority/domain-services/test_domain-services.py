@@ -1,7 +1,7 @@
 """A-3 / A-5 — the policy composes the rules, and the verdict carries which ones fired.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#components
+Reference: docs/architecture/modules/authority.md#components
 
 `DeterminationPolicy` exists because the verdict spans three aggregates and two contexts: payee eligibility
 (Mandate), the threshold and flags (constitution), and ledger headroom (CapLedger). The rule asserted here is

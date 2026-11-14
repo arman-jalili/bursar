@@ -1,6 +1,6 @@
 """003_settlement — orders, spent nullifiers, receipts and the outbox.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 Reference: docs/contracts/settlement-contract-freeze.md (SC-3, SC-5, SC-10)
 
 Storage-level guarantees the settlement contract states as invariants:

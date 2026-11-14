@@ -1,7 +1,7 @@
 """A-2 / A-3 — the intent takes routing from Mandate and the amount from the invoice (AC 1, AC 2).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-paymentintent
+Reference: docs/architecture/modules/authority.md#aggregate-paymentintent
 
 The anti-injection rule and the anti-split rule, in one place. Both are asserted by *outcome*: what the
 intent ends up carrying, not which fields the caller sent.

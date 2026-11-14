@@ -1,7 +1,7 @@
 """Structured JSON logging + secret redaction + correlation id propagation.
 
-Canonical: .pi/architecture/decisions/ADR-004-api-design.md
-Reference: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Canonical: docs/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/decisions/ADR-005-authentication-authorization.md
 
 Why hand-rolled instead of a logging library: the only non-obvious requirement is *redaction*
 (ADR-005 forbids secrets in logs) and that requirement is easier to see and test in ~40 lines than

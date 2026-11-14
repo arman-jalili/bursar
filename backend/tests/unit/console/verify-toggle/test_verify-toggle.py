@@ -1,6 +1,6 @@
 """CON-08 — the evidence view proxies Evidence's verdict: verified, then tampered after one byte.
 
-Canonical: .pi/architecture/modules/console.md#key-use-case-sequence--owner-approves-on-a-phone
+Canonical: docs/architecture/modules/console.md#key-use-case-sequence--owner-approves-on-a-phone
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-08), §2.5, §2.9
 
 Scenario 7 flips a byte in a sealed envelope. The console must show Evidence's `tampered`, not its

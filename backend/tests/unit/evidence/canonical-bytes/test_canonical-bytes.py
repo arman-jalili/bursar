@@ -1,7 +1,7 @@
 """E-1 — the same envelope content produces byte-identical canonical bytes.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 Verification is only meaningful if the bytes can be reproduced. A canonical encoder that respected
 dict insertion order would make a re-serialised payload look like tampering, and a replayed event

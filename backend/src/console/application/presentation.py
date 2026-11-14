@@ -1,6 +1,6 @@
 """Presentation contract — the copy tables and the mobile budget, frozen as data.
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §2.2
 
 Status → copy is a **lookup table, not a Strategy** (module doc §Patterns): six strings do not

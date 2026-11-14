@@ -1,7 +1,7 @@
 """SC-3 / SC-6 / SC-7 / SC-10 — `Web3ChainGateway` against a real EVM, in two phases.
 
 Canonical: `docs/contracts/settlement-contract-freeze.md` §1 and §7 (the two-phase port)
-Reference: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+Reference: `docs/architecture/modules/settlement.md#ports-infrastructure-adapters`
 
 The suite drives the adapter end to end: `prepare` signs a `PaymentRouter.pay` locally and moves nothing,
 `broadcast` sends those exact bytes, the transaction mines, `receipt` reads it back with gas and

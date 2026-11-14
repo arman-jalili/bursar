@@ -1,6 +1,6 @@
 """Evidence value objects and closed sets (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#components
+Canonical: docs/architecture/modules/evidence.md#components
 Reference: docs/contracts/evidence-contract-freeze.md (E-1, E-6 … E-8)
 
     EnvelopeHash        hash over canonical bytes + HMAC; the value anchored on-chain (E-1)

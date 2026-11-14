@@ -1,6 +1,6 @@
 """SQLAlchemy adapters for the ports in `src/settlement/domain/repositories.py`.
 
-Canonical: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Canonical: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 Reference: docs/contracts/settlement-contract-freeze.md (SC-3, SC-5, SC-7, SC-10)
 
 These are the only classes in the module that know a database exists. They **never commit**: the unit of

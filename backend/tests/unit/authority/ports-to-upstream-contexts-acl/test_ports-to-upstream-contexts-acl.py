@@ -1,7 +1,7 @@
 """A-2 — the ACL types expose no routing fields, so a proposal cannot smuggle one.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#ports-to-upstream-contexts-acl
+Reference: docs/architecture/modules/authority.md#ports-to-upstream-contexts-acl
 
 The strongest version of A-2 is structural: `AttemptView` has no `payee_address`, no `bank_digest` and no
 `command`, so `PaymentIntent.issue` has nowhere to read them from. This file asserts that absence as a rule,

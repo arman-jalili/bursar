@@ -1,6 +1,6 @@
 """Billing tables — SQLAlchemy 2.0 models. Never imported by `domain/` or `application/`.
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md (Persistence contract)
 
 The two storage mirrors of the domain invariants live here, because a guarantee the database does not

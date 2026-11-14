@@ -1,6 +1,6 @@
 """Evidence infrastructure — the adapters behind the frozen ports.
 
-Canonical: .pi/architecture/modules/evidence.md#architecture
+Canonical: docs/architecture/modules/evidence.md#architecture
 Reference: docs/contracts/evidence-contract-freeze.md §2.5, §2.6
 
     signer.py          HMAC-SHA256; the only holder of the operator key (E-9)

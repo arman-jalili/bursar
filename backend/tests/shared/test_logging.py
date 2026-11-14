@@ -1,6 +1,6 @@
 """Logging — JSON shape, correlation id, and no secrets on the wire.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
 """
 
 from __future__ import annotations

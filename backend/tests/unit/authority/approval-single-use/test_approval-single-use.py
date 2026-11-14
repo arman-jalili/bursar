@@ -1,7 +1,7 @@
 """A-14 — an approval is single-use: one signature cannot dispatch twice (AC 9).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#components
+Reference: docs/architecture/modules/authority.md#components
 
 A reused signature is the cheapest way to double-pay: the owner signed once, the retry loop dispatched
 twice. `consume()` is therefore one-way with no `reset()`.

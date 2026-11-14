@@ -1,7 +1,7 @@
 """Wire schemas for the Mandate endpoints — the DTOs' transport shape.
 
-Canonical: .pi/architecture/modules/mandate.md#api-endpoints
-Reference: .pi/architecture/decisions/ADR-004-api-design.md
+Canonical: docs/architecture/modules/mandate.md#api-endpoints
+Reference: docs/architecture/decisions/ADR-004-api-design.md
 
 Amounts are integer micro-USDC and digests are hex, matching the DTOs (ADR-002). Routing details are
 accepted on the two endpoints that hash them and never returned by any endpoint.

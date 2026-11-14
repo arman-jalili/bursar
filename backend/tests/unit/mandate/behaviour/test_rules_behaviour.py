@@ -1,7 +1,7 @@
 """Behaviour — `Constitution`, `Household` and the eligibility resolver (AC #2, #7, #8, #9, #11).
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-constitution
-Reference: .pi/architecture/modules/mandate.md#aggregate-household
+Canonical: docs/architecture/modules/mandate.md#aggregate-constitution
+Reference: docs/architecture/modules/mandate.md#aggregate-household
 
 The two aggregates here are the *rules* half of the domain: what the constitution says, who may change
 it, and which party is even allowed to try. The tests read as the invariants they protect.

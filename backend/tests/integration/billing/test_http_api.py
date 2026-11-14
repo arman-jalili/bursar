@@ -1,6 +1,6 @@
 """Billing end-to-end through the public HTTP API.
 
-Canonical: .pi/architecture/modules/billing.md#api-endpoints
+Canonical: docs/architecture/modules/billing.md#api-endpoints
 Reference: docs/contracts/billing-contract-freeze.md §2.10
 
 These go through the real app (middleware, scope checks, the shared error envelope, SQLite):

@@ -1,7 +1,7 @@
 """The engine-status surface: quotable data, no cache, and an honest "unreachable".
 
-Canonical: .pi/architecture/modules/console.md#api-endpoints
-Reference: docs/runbook-settlement.md (the Rigorix operating procedure)
+Canonical: docs/architecture/modules/console.md#api-endpoints
+Reference: docs/architecture/modules/settlement.md (Rigorix execution host)
 
 Why these assertions and not others
 -----------------------------------

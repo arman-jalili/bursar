@@ -1,7 +1,7 @@
 """Shared kernel: the only code every bounded context may import.
 
-Canonical: .pi/architecture/decisions/ADR-001-architecture-pattern.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-001-architecture-pattern.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 Rules (ADR-001):
     * `shared/domain/` is pure Python — no FastAPI, no SQLAlchemy, no HTTP.

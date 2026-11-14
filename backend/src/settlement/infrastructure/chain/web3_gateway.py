@@ -1,6 +1,6 @@
 """`Web3ChainGateway` — the `ChainGateway` port against a real EVM.
 
-Canonical: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+Canonical: `docs/architecture/modules/settlement.md#ports-infrastructure-adapters`
 Reference: `docs/contracts/settlement-contract-freeze.md` §2.8 (`ChainGateway`), §1 (SC-3, SC-6,
 SC-7, SC-9, SC-10, SC-11)
 

@@ -1,7 +1,7 @@
 """Mandate domain services — the rules that need two aggregates at once.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/modules/mandate.md#frozen-contracts-v1--2026-11-13
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/modules/mandate.md#frozen-contracts-v1--2026-11-13
 
 `EligibilityResolver` is the one rule that genuinely needs both the payee and the constitution: a
 `NEW` payee escalates only when the in-force version requires a signature for new payees. Putting it

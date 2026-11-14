@@ -1,6 +1,6 @@
 """The approval binder — EIP-712 document plus secp256k1 recovery (A-13, A-15).
 
-Canonical: .pi/architecture/modules/authority.md#domain-services
+Canonical: docs/architecture/modules/authority.md#domain-services
 Reference: docs/contracts/authority-contract-freeze.md §2.10
 
 Two halves, on purpose:

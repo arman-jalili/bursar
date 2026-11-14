@@ -1,7 +1,7 @@
 """Contract tests — `Cap` / `Threshold` (mandate v1).
 
-Canonical: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
-Reference: .pi/architecture/modules/mandate.md#acceptance-criteria (AC #2)
+Canonical: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Reference: docs/architecture/modules/mandate.md#acceptance-criteria (AC #2)
 
 Frozen here: the types, their integer micro-unit field, immutability, and the fact that the
 `threshold > cap` rule is *reachable* from `Constitution.append` (it takes both, plus an owner proof).

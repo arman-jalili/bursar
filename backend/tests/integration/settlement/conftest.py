@@ -1,6 +1,6 @@
 """Shared fixtures for Settlement integration tests (real SQLite, real adapters).
 
-Canonical: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Canonical: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 Reference: docs/contracts/settlement-contract-freeze.md (SC-3, SC-5, SC-10)
 
 The schema comes from the models, not from a hand-written `CREATE TABLE`, so a test failure here is a

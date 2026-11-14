@@ -1,6 +1,6 @@
 """CON-01 — a field the whitelist does not name never reaches a console surface.
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-01), §2.8
 
 Authority may add `internal_note` at any time; only an explicit whitelist edit may make it visible.

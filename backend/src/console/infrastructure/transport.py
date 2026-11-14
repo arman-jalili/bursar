@@ -1,6 +1,6 @@
 """The console's upstream transport seam — recorded demo fixtures, real HTTP elsewhere.
 
-Canonical: .pi/architecture/modules/console.md#ports-upstream-clients
+Canonical: docs/architecture/modules/console.md#ports-upstream-clients
 Reference: docs/contracts/console-contract-freeze.md §2.9
 
 The adapters in `http.py` own URL building, headers, status handling and JSON decode; the transport

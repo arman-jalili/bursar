@@ -1,7 +1,7 @@
 """The Evidence event subscriber — the runtime entry path that seals publisher facts.
 
-Canonical: .pi/architecture/decisions/ADR-003-cross-context-communication.md
-Reference: .pi/architecture/modules/evidence.md#components
+Canonical: docs/architecture/decisions/ADR-003-cross-context-communication.md
+Reference: docs/architecture/modules/evidence.md#components
 
 ADR-003 delivers events from Authority, Billing, Settlement and Mandate at least once. The
 subscriber's whole job is to hand one fact to `SealEvidence` and return its result; it never raises

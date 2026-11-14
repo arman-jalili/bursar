@@ -1,6 +1,6 @@
 """`DispatchPayment` — the write path that turns an allowed intent into a governed dispatch.
 
-Canonical: .pi/architecture/modules/settlement.md#application-services
+Canonical: docs/architecture/modules/settlement.md#application-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.10 (SC-1, SC-2, SC-3, SC-5, SC-9)
 
 This is the concrete `DispatchPayment` the frozen catalog names. It lives in the application layer

@@ -1,6 +1,6 @@
 """ChainReceipt — the chain proof for one order, and what it cost (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#components
+Canonical: docs/architecture/modules/settlement.md#components
 Reference: docs/contracts/settlement-contract-freeze.md (SC-6, SC-7, SC-10)
 
     SC-7   finality is a property of the network's required confirmations

@@ -1,7 +1,7 @@
 """Shared test fixtures.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 Fixtures keep every test off the developer's real `data/` directory and off their real `.env`:
 `Settings(_env_file=None, ...)` with a `tmp_path` database. A test that passes only because of local

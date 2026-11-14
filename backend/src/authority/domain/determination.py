@@ -1,6 +1,6 @@
 """Determination — the verdict, with the rules it consulted (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#aggregate-determination
+Canonical: docs/architecture/modules/authority.md#aggregate-determination
 Reference: docs/contracts/authority-contract-freeze.md (A-5 … A-8)
 
     A-5  a DENY carries at least one code from the closed `DenialReason` set

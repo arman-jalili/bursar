@@ -1,7 +1,7 @@
 """SC-3 / SC-5 — the ports own the invariant mirrors, not the callers.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-3, SC-5)
-Reference: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Reference: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 
 Defends module AC #3 and AC #5 at the storage boundary. The ports are where "one hash" and "one spend"
 become durable facts, so the assertions are rules the adapters must preserve:

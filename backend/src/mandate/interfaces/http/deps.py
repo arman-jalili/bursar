@@ -1,7 +1,7 @@
 """ADR-005 scope checks for the Mandate transport.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/modules/mandate.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/modules/mandate.md#api-endpoints
 
 Two layers, and the second one is the point:
 

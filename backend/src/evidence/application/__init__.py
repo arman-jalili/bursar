@@ -1,6 +1,6 @@
 """Evidence application layer — use cases, DTOs and concrete composition wrappers.
 
-Canonical: .pi/architecture/modules/evidence.md#application-services
+Canonical: docs/architecture/modules/evidence.md#application-services
 Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
 `services.py` holds the two catalog use cases (`SealEvidence`, `VerifyEvidence`) plus the

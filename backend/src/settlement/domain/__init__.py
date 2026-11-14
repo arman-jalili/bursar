@@ -1,6 +1,6 @@
 """Settlement domain — framework-free, chain-free, persistence-ignorant.
 
-Canonical: .pi/architecture/modules/settlement.md#components
+Canonical: docs/architecture/modules/settlement.md#components
 Reference: docs/contracts/settlement-contract-freeze.md
 
 AC-12 (SC-12) is enforced here structurally: nothing in this package imports `web3`, `httpx` or

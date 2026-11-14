@@ -1,7 +1,7 @@
 """A-8 — a refusal produces no reservation and no dispatch (AC 12).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-determination
+Reference: docs/architecture/modules/authority.md#aggregate-determination
 
 The half of the refusal contract that is easy to lose: saying "no" is not enough, the ledger must be
 untouched and no settlement order may exist. Asserted by checking the ledger totals across a refused hold.

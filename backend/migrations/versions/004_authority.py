@@ -1,7 +1,7 @@
 """004_authority — intents, determinations, the cap ledger, reservations, approvals, outbox.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/authority.md#components
 
 Storage-level guarantees, each tied to an invariant:
 

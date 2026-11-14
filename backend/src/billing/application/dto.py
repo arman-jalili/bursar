@@ -1,6 +1,6 @@
 """Billing commands and results (frozen) — the shape every caller codes against.
 
-Canonical: .pi/architecture/modules/billing.md#application-services
+Canonical: docs/architecture/modules/billing.md#application-services
 Reference: docs/contracts/billing-contract-freeze.md §2.7
 
 Two decisions encoded here:

@@ -1,7 +1,7 @@
 """Mandate errors — the refusal vocabulary of this context.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-004-api-design.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-004-api-design.md
 
 Frozen contract v1. Each error maps to a shared `ErrorCode` so it reaches the wire through the
 ADR-004 envelope (e.g. `OwnerActionRequired` → 403 `FORBIDDEN`), and each one exists because a

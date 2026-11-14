@@ -1,7 +1,7 @@
 """SC-5 / SC-7 — the two domain services and the rules they own.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-5, SC-7)
-Reference: .pi/architecture/modules/settlement.md#domain-services
+Reference: docs/architecture/modules/settlement.md#domain-services
 
 Defends module AC #5 and AC #7 at the service boundary. Neither rule belongs on an aggregate: the order
 already carries its nullifier, and a receipt must not know a network's confirmation policy. Asserted as

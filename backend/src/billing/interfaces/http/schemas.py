@@ -1,6 +1,6 @@
 """Request/response schemas for the Billing HTTP contract (concrete).
 
-Canonical: .pi/architecture/modules/billing.md#api-endpoints
+Canonical: docs/architecture/modules/billing.md#api-endpoints
 Reference: docs/contracts/billing-contract-freeze.md §2.10
 
 These are Pydantic models, not the application DTOs. Keeping them separate matters for B-5: the wire

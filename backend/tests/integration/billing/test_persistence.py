@@ -1,6 +1,6 @@
 """Billing persistence + application integration (real SQLite, real adapters).
 
-Canonical: .pi/architecture/modules/billing.md#acceptance-criteria
+Canonical: docs/architecture/modules/billing.md#acceptance-criteria
 Reference: docs/contracts/billing-contract-freeze.md (Persistence contract)
 
 Defends the storage mirrors of B-1 and B-3, and the application-service behaviour the module doc's

@@ -1,7 +1,7 @@
 """Row ⇄ aggregate translation — the seam that keeps ORM types out of the model.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Two rules make this file worth having instead of using the ORM models directly as domain objects:
 

@@ -1,7 +1,7 @@
 """B-7 — every Billing refusal is a `RefusalError`, so a refusal can never look like a crash.
 
 Canonical: docs/contracts/billing-contract-freeze.md §2.5
-Reference: .pi/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/decisions/ADR-004-api-design.md
 
 The "layer purity" this defends is the **refusal vocabulary's**: the domain raises the shared
 `RefusalError` family and nothing else, so the API layer needs no Billing-specific exception handling and

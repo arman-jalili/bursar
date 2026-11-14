@@ -1,7 +1,7 @@
 """Household — the tenancy root and the reason there is exactly one constitution in force.
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-household
-Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+Canonical: docs/architecture/modules/mandate.md#aggregate-household
+Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 
 Contract (v1) — aggregate root, one consistency boundary (ADR-002):
 

@@ -1,6 +1,6 @@
 """Invoice — the bill document, and the invoice-level invariants (frozen).
 
-Canonical: .pi/architecture/modules/billing.md#components-invoice
+Canonical: docs/architecture/modules/billing.md#components-invoice
 Reference: docs/contracts/billing-contract-freeze.md (B-1 … B-4)
 
     B-1  at most one non-terminal payment attempt at a time

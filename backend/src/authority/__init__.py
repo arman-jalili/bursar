@@ -1,6 +1,6 @@
 """Authority — the decision engine: intents, determinations, the cap ledger and approvals.
 
-Canonical: .pi/architecture/modules/authority.md
+Canonical: docs/architecture/modules/authority.md
 Reference: docs/contracts/authority-contract-freeze.md
 
 **Phase A: contract freeze.** Signatures and the refusal vocabulary only; every body raises

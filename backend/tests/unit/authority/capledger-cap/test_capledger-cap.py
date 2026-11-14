@@ -1,7 +1,7 @@
 """A-9 — committed + reserved never exceeds the cap; the check and the hold are one step (AC 4).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-cap-ledge
+Reference: docs/architecture/modules/authority.md#aggregate-cap-ledge
 
 Scenario 4: six 25 USDC invoices against a 150 USDC cap. The sixth must be refused, and it must be refused
 *without reserving anything* — a partial reservation is how a split attempt half-succeeds. The

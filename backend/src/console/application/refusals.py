@@ -1,6 +1,6 @@
 """Authority's closed refusal set, translated — the console's only refusal vocabulary (CON-07).
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §2.3
 
 Two rules are expressed by the types rather than by convention:

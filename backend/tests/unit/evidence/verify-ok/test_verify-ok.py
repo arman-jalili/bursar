@@ -1,7 +1,7 @@
 """E-6 — an untouched envelope verifies as `VERIFIED` with its anchor transaction.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 Scenario 7's positive half. The envelope's HMAC still matches and the anchor records exactly the
 envelope's hash, so the verifier returns the chain transaction that fixes the proof in time. Fails

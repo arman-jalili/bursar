@@ -1,6 +1,6 @@
 """The eight console endpoints (frozen surface) — one write, seven reads.
 
-Canonical: .pi/architecture/modules/console.md#api-endpoints
+Canonical: docs/architecture/modules/console.md#api-endpoints
 Reference: docs/contracts/console-contract-freeze.md §2.11-§2.12
 
 `CONSOLE_ROUTES` is frozen data because it is the contract the React team and the auth matrix are

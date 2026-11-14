@@ -1,6 +1,6 @@
 """Evidence interfaces — concrete handlers for the frozen HTTP shape.
 
-Canonical: .pi/architecture/modules/evidence.md#api-endpoints
+Canonical: docs/architecture/modules/evidence.md#api-endpoints
 Reference: docs/contracts/evidence-contract-freeze.md §2.9
 
 Route handlers are **concrete** and have no second interface file. The endpoint shape is frozen:

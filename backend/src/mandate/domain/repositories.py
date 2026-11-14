@@ -1,7 +1,7 @@
 """Repository ports — defined in `domain/`, implemented in `infrastructure/` (ADR-008).
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 The issue boilerplate suggested `infrastructure/repository/`; this project puts the **interfaces**
 in `domain/` because ADR-008's `interface-ownership` gate requires the domain to own the port it

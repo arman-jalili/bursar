@@ -1,7 +1,7 @@
 """B-3 / AC #8 — the Billing domain is framework-free and points inward.
 
-Canonical: .pi/architecture/modules/billing.md#acceptance-criteria
-Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+Canonical: docs/architecture/modules/billing.md#acceptance-criteria
+Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 
 Asserts the dependency rule as a *rule*, not a style preference: no file under `src/billing/domain/`
 may import FastAPI, SQLAlchemy, httpx (or any other web/ORM framework), and it may not import the

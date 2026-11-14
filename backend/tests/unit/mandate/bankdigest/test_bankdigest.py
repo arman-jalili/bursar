@@ -1,7 +1,7 @@
 """Contract tests — `BankDigest` (mandate v1).
 
-Canonical: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
-Reference: .pi/architecture/modules/mandate.md#acceptance-criteria (AC #1)
+Canonical: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Reference: docs/architecture/modules/mandate.md#acceptance-criteria (AC #1)
 
 Scope of this file: the **frozen contract** — shape, immutability, and the fact that the raw routing
 details never travel further than `from_routing_details`. The behavioural half of AC #1 ("two digests

@@ -1,7 +1,7 @@
 """B-2 — an invoice whose attempt settled is closed and cannot spawn further attempts.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-invoice
+Reference: docs/architecture/modules/billing.md#components-invoice
 
 Scenario 6: the bill was paid, a replay arrives later. The invoice must refuse to close twice (that
 would hide a duplicate settlement) and must refuse new attempts forever.

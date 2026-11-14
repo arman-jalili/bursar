@@ -1,7 +1,7 @@
 """B-6 / B-3 — the ports accept and return the domain's own types, and refuse edited amounts.
 
 Canonical: docs/contracts/billing-contract-freeze.md §2.6
-Reference: .pi/architecture/modules/billing.md#components
+Reference: docs/architecture/modules/billing.md#components
 
 A port that took a `dict` or an ORM row would put the amount-equality rule (B-6) and the hash-identity
 rule (B-3) at the mercy of whoever builds that structure. The assertions below are about *rules the port

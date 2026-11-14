@@ -5,9 +5,9 @@ pragma solidity 0.8.24;
 /// @notice Moves USDC from the settlement operator to a payee exactly once per invoice, and refuses
 ///         anything the off-chain layers were not allowed to decide.
 ///
-/// Canonical: `.pi/architecture/modules/settlement.md#components`
+/// Canonical: `docs/architecture/modules/settlement.md#components`
 /// Reference: `docs/contracts/settlement-contract-freeze.md` (SC-5, SC-6, SC-9, SC-11)
-/// Decision: `.pi/architecture/decisions/ADR-007-compliance-engine-architecture.md`
+/// Decision: `docs/architecture/decisions/ADR-007-compliance-engine-architecture.md`
 ///
 /// Three properties, and nothing else, are the contract's reason to exist:
 ///

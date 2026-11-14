@@ -1,6 +1,6 @@
 """Upstream ports (frozen) — raw payloads in, raw payloads out.
 
-Canonical: .pi/architecture/modules/console.md#ports-upstream-clients
+Canonical: docs/architecture/modules/console.md#ports-upstream-clients
 Reference: docs/contracts/console-contract-freeze.md §2.5
 
 Two rules are expressed by the signatures, not by convention:

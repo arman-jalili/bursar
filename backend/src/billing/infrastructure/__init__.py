@@ -1,6 +1,6 @@
 """Billing infrastructure — adapters for the frozen domain ports.
 
-Canonical: .pi/architecture/modules/billing.md#architecture
+Canonical: docs/architecture/modules/billing.md#architecture
 Reference: docs/contracts/billing-contract-freeze.md (Persistence contract)
 
 What lives here, and nothing else:

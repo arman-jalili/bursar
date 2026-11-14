@@ -1,7 +1,7 @@
 """Contract tests — Constitution aggregate root (mandate v1, H-4…H-8).
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-constitution
-Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+Canonical: docs/architecture/modules/mandate.md#aggregate-constitution
+Reference: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
 
 Frozen here: the append-only lineage (`Constitution` + `ConstitutionVersion`), the one-way status
 transition, the historical lookup, and the fact that `in_force` is a *derived* single answer rather

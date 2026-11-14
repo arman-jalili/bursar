@@ -1,6 +1,6 @@
 """Authority value objects and closed sets (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 Reference: docs/contracts/authority-contract-freeze.md (A-5)
 
 `Money` is imported, not redefined: the shared kernel owns one definition (ADR-002), and a second money

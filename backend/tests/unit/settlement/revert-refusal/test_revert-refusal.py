@@ -1,7 +1,7 @@
 """SC-6 / SC-8 — a revert is a refusal: terminal, one event, never a retry.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-6, SC-8)
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Defends module AC #8: a reverted order never retries, and exactly one outbox `SettlementReverted` exists
 per order. This is the timeout double-pay defence: the tempting "it failed, try again" branch is exactly

@@ -1,7 +1,7 @@
 """E-1 — the envelope hash changes when a sealed input changes.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#components
+Reference: docs/architecture/modules/evidence.md#components
 
 The hash is the value anchored on-chain. If one changed byte produced the same hash, the anchor would
 prove the wrong fact; if unrelated calls produced different hashes for the same bytes, verification

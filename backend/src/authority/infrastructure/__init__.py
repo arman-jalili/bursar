@@ -1,6 +1,6 @@
 """Authority infrastructure — adapters for the frozen domain ports (Phase B).
 
-Canonical: .pi/architecture/modules/authority.md#architecture
+Canonical: docs/architecture/modules/authority.md#architecture
 Reference: docs/contracts/authority-contract-freeze.md §5
 
 Empty on purpose in Phase A. A freeze that also writes persistence hides which guarantees are still

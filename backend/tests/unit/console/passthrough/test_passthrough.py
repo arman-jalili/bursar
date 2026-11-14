@@ -1,6 +1,6 @@
 """CON-03 — the signature endpoint forwards the received body unmodified.
 
-Canonical: .pi/architecture/modules/console.md#key-use-case-sequence--owner-approves-on-a-phone
+Canonical: docs/architecture/modules/console.md#key-use-case-sequence--owner-approves-on-a-phone
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-03), §2.5, §2.11
 
 The owner signs EIP-712 typed data. A single re-ordered key, a re-serialised float or an injected

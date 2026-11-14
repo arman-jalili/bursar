@@ -1,7 +1,7 @@
 """A-9 / A-10 — the ports are domain-owned and express the ledger's atomicity.
 
 Canonical: docs/contracts/authority-contract-freeze.md §2
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 `try_reserve_atomic` returning a bool is A-9 written as a signature: one conditional update, and False when
 it matched no row. A port that returned the ledger instead would invite read-then-write, which is the exact

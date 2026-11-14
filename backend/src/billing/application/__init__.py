@@ -1,6 +1,6 @@
 """Billing application layer — use cases, DTOs, and the unit-of-work boundary.
 
-Canonical: .pi/architecture/modules/billing.md#application-services
+Canonical: docs/architecture/modules/billing.md#application-services
 Reference: docs/contracts/billing-contract-freeze.md §2.7
 
 Phase A: signatures only. `RecordInvoice` and `ProposePayment` are ABCs whose `execute` raises

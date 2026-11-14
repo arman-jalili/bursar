@@ -1,7 +1,7 @@
 """Both deployables boot and answer health, with the error envelope intact.
 
-Canonical: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
-Reference: .pi/architecture/decisions/ADR-004-api-design.md
+Canonical: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Reference: docs/architecture/decisions/ADR-004-api-design.md
 
 Phase-0 acceptance: "Both services boot and answer /healthz and /readyz" — plus the two things that
 are easy to get wrong in a skeleton: a 404 must still be the documented envelope (the console parses

@@ -1,6 +1,6 @@
 """Billing repository ports — owned by `domain/` (frozen).
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md §2.6
 
     InvoiceRepository          add (B-3 duplicate guard) · find_by_id · find_by_hash · save

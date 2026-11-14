@@ -1,7 +1,7 @@
 """A-4 — `requires_owner_signature` is derived, never passed in (AC 3).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-paymentintent
+Reference: docs/architecture/modules/authority.md#aggregate-paymentintent
 
 If this were an argument, the caller (the agent) could pass `False` and waive its own escalation. Derived
 from newness and threshold, the escalation is a property of the world rather than a request.

@@ -1,7 +1,7 @@
 """Money — USDC in integer micro-units. No floats, ever.
 
-Canonical: .pi/architecture/modules/authority.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/authority.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Why this exists at all (it is small and load-bearing):
 

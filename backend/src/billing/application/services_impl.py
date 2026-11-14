@@ -1,6 +1,6 @@
 """Concrete Billing application services — one unit of work each (ADR-002).
 
-Canonical: .pi/architecture/modules/billing.md#application-services
+Canonical: docs/architecture/modules/billing.md#application-services
 Reference: docs/contracts/billing-contract-freeze.md §2.7
 
 The shape of every method is the same, deliberately:

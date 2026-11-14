@@ -1,6 +1,6 @@
 """The `PaymentRouter.sol` ABI — the one copy the Python adapter calls through.
 
-Canonical: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+Canonical: `docs/architecture/modules/settlement.md#ports-infrastructure-adapters`
 Reference: `docs/contracts/settlement-contract-freeze.md` §2.8 (`ChainGateway`), SC-11
 
 Why the ABI lives in Python rather than in a build artifact:

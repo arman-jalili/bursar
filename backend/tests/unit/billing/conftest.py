@@ -1,7 +1,7 @@
 """Fixtures shared by the Billing suites.
 
 Canonical: docs/contracts/billing-contract-freeze.md
-Reference: .pi/architecture/modules/billing.md#components
+Reference: docs/architecture/modules/billing.md#components
 
 Everything here is a **factory call into the frozen surface**. In Phase A those calls raise
 `NotImplementedError`, which is why the suites are red: the assertions are rules (B-1…B-7), and the red

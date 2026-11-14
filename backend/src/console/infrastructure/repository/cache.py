@@ -1,6 +1,6 @@
 """Read-model cache port (frozen) — TTL only, no enumeration, no commit (CON-02).
 
-Canonical: .pi/architecture/modules/console.md#architecture
+Canonical: docs/architecture/modules/console.md#architecture
 Reference: docs/contracts/console-contract-freeze.md §2.6
 
 The console owns **no tables**. The cache holds projected views, never raw upstream payloads: a raw

@@ -1,7 +1,7 @@
 """A-5 / A-7 — every denial carries a code from the closed set (AC 6).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-determination
+Reference: docs/architecture/modules/authority.md#aggregate-determination
 
 The set is closed for a reason: the console translates the code, Evidence seals it, and a test asserts it.
 A free-text reason would break all three, so a code outside the set must be rejected rather than stored.

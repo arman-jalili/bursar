@@ -1,7 +1,7 @@
 """The three Evidence events are frozen wire schemas (E-2, E-8).
 
 Canonical: docs/contracts/evidence-contract-freeze.md §2.8
-Reference: .pi/architecture/modules/evidence.md#domain-events
+Reference: docs/architecture/modules/evidence.md#domain-events
 """
 
 from __future__ import annotations

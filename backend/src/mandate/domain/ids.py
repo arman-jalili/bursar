@@ -1,7 +1,7 @@
 """Identifiers — one NewType per aggregate, so ids cannot be mixed up.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 `NewType` rather than plain `str`: passing a `PayeeId` where a `HouseholdId` is expected is a
 realistic bug in a context with three aggregate roots and three parties, and the type checker

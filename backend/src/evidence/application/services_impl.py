@@ -1,6 +1,6 @@
 """Concrete Evidence application services — one unit of work each (ADR-002).
 
-Canonical: .pi/architecture/modules/evidence.md#application-services
+Canonical: docs/architecture/modules/evidence.md#application-services
 Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
 The frozen use cases in `application/services.py` take ports; these classes are the composition

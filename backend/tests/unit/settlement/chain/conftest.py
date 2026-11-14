@@ -1,7 +1,7 @@
 """Fixtures for the chain suite: a compiled contract, a local EVM, and a gateway on top of it.
 
 Canonical: `docs/contracts/settlement-contract-freeze.md` §1 (SC-5, SC-6, SC-7, SC-11)
-Reference: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+Reference: `docs/architecture/modules/settlement.md#ports-infrastructure-adapters`
 
 No anvil, no network: `py-solc-x` compiles `contracts/src` and `eth-tester` runs the bytecode in
 process. The `ChainNetwork` and `Settings` fixtures are built from the *deployed* addresses, so a test

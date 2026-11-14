@@ -1,7 +1,7 @@
 """B-7 — only an allow or escalate determination dispatches; a refusal is terminal and side-effect free.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-paymentattempt
+Reference: docs/architecture/modules/billing.md#components-paymentattempt
 
 The most consequential rule in this context. A refused attempt must (a) never reach `DISPATCHED`, and
 (b) stay terminal, so nothing retries it implicitly. Both halves are asserted, because "refused but

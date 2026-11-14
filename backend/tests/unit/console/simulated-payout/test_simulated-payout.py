@@ -1,6 +1,6 @@
 """CON-06 — every payer bill backed by a settlement carries `payout_simulated: true` and the label.
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-06), §2.2, §2.8
 
 The demo moves test funds. A payer bill that reads "Paid" without saying the transfer is simulated

@@ -1,7 +1,7 @@
 """Entrypoint: `authority-service` (port 8001).
 
-Canonical: .pi/architecture/modules/authority.md#architecture
-Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+Canonical: docs/architecture/modules/authority.md#architecture
+Reference: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
 
 Run with:  make run-authority         (or: uvicorn src.apps.authority_service.app:app)
 

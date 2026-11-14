@@ -1,6 +1,6 @@
 """Evidence commands and results (frozen) — the shape every caller codes against.
 
-Canonical: .pi/architecture/modules/evidence.md#application-services
+Canonical: docs/architecture/modules/evidence.md#application-services
 Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
 * `SealEvidenceCommand` carries a `DomainEvent` and an actor. It has no field for an HMAC key, a

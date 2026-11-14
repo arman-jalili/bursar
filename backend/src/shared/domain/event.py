@@ -1,7 +1,7 @@
 """DomainEvent — an immutable fact, in the past tense, with delivery metadata.
 
-Canonical: .pi/architecture/decisions/ADR-003-cross-context-communication.md
-Reference: .pi/architecture/modules/authority.md#domain-events
+Canonical: docs/architecture/decisions/ADR-003-cross-context-communication.md
+Reference: docs/architecture/modules/authority.md#domain-events
 
 Rules encoded here, not just documented:
 

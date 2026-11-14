@@ -1,6 +1,6 @@
 """CON-01 / CON-02 / CON-04 — upstream clients return raw payloads and expose only reads.
 
-Canonical: .pi/architecture/modules/console.md#ports-upstream-clients
+Canonical: docs/architecture/modules/console.md#ports-upstream-clients
 Reference: docs/contracts/console-contract-freeze.md §1, §2.5, §2.9
 
 A port that returned a typed DTO would move the whitelist into the adapter: a new upstream field

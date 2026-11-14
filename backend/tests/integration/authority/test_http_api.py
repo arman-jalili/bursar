@@ -1,6 +1,6 @@
 """End-to-end through the public Authority HTTP API — the runtime integration test.
 
-Canonical: .pi/architecture/modules/authority.md#api-endpoints
+Canonical: docs/architecture/modules/authority.md#api-endpoints
 Reference: docs/contracts/authority-contract-freeze.md §2.9
 
 These tests go through the real deployable (`authority_service.app.build`): migrations, session factory,

@@ -1,7 +1,7 @@
 """Application shell — the composition root both deployables share.
 
-Canonical: .pi/architecture/decisions/ADR-001-architecture-pattern.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-001-architecture-pattern.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 A composition root is the *only* place allowed to know about every layer: it builds the engine,
 installs middleware and error handlers, and registers routers. Nothing else in the codebase may
@@ -95,7 +95,7 @@ def build_app(service: ServiceName, settings: Settings | None = None) -> FastAPI
         description=(
             "Delegated household bill-paying. The agent proposes; the code disposes.\n\n"
             "Phase 0 skeleton: health and shared kernel only. Contexts arrive per "
-            "`.pi/architecture/implementation-roadmap.md`."
+            "`docs/architecture/implementation-roadmap.md`."
         ),
         lifespan=lifespan,
         openapi_url="/openapi.json",

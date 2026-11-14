@@ -1,6 +1,6 @@
 """SettlementOrder — the immutable executable form of an allowed intent (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Canonical: docs/architecture/modules/settlement.md#aggregate-settlementorder
 Reference: docs/contracts/settlement-contract-freeze.md (SC-1 … SC-4, SC-9)
 
     SC-1  creatable only from a determination whose verdict permits dispatch

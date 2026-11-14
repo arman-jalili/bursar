@@ -1,7 +1,7 @@
 """Shared application layer: the unit-of-work boundary.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/authority.md#components
 
 Why this package exists separately from `infrastructure/`: ADR-002 says *one application service
 owns one transaction*, and ADR-008 enforces it with the `txn-placement` gate — no commit, rollback

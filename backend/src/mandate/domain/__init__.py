@@ -1,7 +1,7 @@
 """Mandate domain layer — aggregates, values, events, ports. Framework-free.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Frozen contract v1 (2026-11-13). Everything public in this package is a promise to the other
 contexts and to the implementation items:
@@ -17,7 +17,7 @@ contexts and to the implementation items:
     repositories.py HouseholdRepository · ConstitutionRepository · PayeeRepository (ABCs)
     ports.py        EligibilityResolver · OwnerSignatureProof
 
-`domain/` imports no FastAPI, SQLAlchemy or httpx. Verified by the `dip-domain` gate
-(`.pi/scripts/languages/python/check_model_judgment.sh`) and by
+`domain/` imports no FastAPI, SQLAlchemy or httpx. Verified by the domain-layer architecture
+tests and by
 `tests/unit/mandate/repository-interfaces-owned-by-domain/`.
 """

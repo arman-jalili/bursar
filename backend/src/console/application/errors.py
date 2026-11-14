@@ -1,6 +1,6 @@
 """The console's refusal vocabulary — presentation refusals, not domain errors.
 
-Canonical: .pi/architecture/modules/console.md#components
+Canonical: docs/architecture/modules/console.md#components
 Reference: docs/contracts/console-contract-freeze.md §2.4
 
 There is no domain layer (CON-09), so these are the errors the console itself raises when an

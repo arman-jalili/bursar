@@ -1,6 +1,6 @@
 """Billing refusal vocabulary (frozen).
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md §2.5
 
 Every refusal here extends the shared `RefusalError`, so:

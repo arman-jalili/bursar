@@ -1,6 +1,6 @@
 """The dispatch endpoint, end to end, with fakes — never the network (SC-1, SC-2, SC-3, SC-5).
 
-Canonical: .pi/architecture/modules/settlement.md#api-endpoints
+Canonical: docs/architecture/modules/settlement.md#api-endpoints
 Reference: docs/contracts/settlement-contract-freeze.md §2.11
 
 This suite boots the real router and the real `DispatchPaymentService` against a temp SQLite file, with

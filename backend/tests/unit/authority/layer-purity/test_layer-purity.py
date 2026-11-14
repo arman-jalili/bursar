@@ -1,7 +1,7 @@
 """AC 15 / A-8 — the domain refuses with domain errors, so no persistence type is needed at the boundary.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 
 Layer purity expressed as a *rule* rather than as an import scan: every refusal Authority can raise is a
 `RefusalError`, so the API layer maps it to a documented 409 with no knowledge of SQLAlchemy. A `ValueError`

@@ -1,6 +1,6 @@
 """Anchor — the on-chain record of one envelope hash (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#components
+Canonical: docs/architecture/modules/evidence.md#components
 Reference: docs/contracts/evidence-contract-freeze.md (E-8)
 
 An anchor is an **entity**, not a value object, because it has identity that persists: one row per

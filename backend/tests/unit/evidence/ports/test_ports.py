@@ -1,7 +1,7 @@
 """E-10 — the ports let Evidence detect a missing witness after the fact.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#ports
+Reference: docs/architecture/modules/evidence.md#ports
 
 Evidence is a witness, not a guard: when it is down the payment still moves, and the gap must be
 findable afterwards by comparing the publisher's expected facts with the processed-event ledger. That

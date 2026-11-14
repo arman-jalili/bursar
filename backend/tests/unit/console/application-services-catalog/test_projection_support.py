@@ -1,6 +1,6 @@
 """Phase-B support surfaces: cache, copy tables, coercion and adapter transport.
 
-Canonical: .pi/architecture/modules/console.md#components
+Canonical: docs/architecture/modules/console.md#components
 Reference: docs/contracts/console-contract-freeze.md §2.2, §2.6, §2.9, §2.10
 
 The invariant suites prove the rules. This file proves the machinery that carries them: the TTL

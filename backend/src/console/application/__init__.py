@@ -1,6 +1,6 @@
 """Console application layer — read models, copy tables, ports and the three projections.
 
-Canonical: .pi/architecture/modules/console.md#architecture
+Canonical: docs/architecture/modules/console.md#architecture
 Reference: docs/contracts/console-contract-freeze.md §2.1-§2.7
 
 The projections compose ports into read models; they decide nothing. There is no `domain/` sibling

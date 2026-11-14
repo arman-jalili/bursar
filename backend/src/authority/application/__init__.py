@@ -1,6 +1,6 @@
 """Authority application layer — the five catalog use cases (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#application-services
+Canonical: docs/architecture/modules/authority.md#application-services
 Reference: docs/contracts/authority-contract-freeze.md §2
 
     EvaluateAuthority      FR-011   build the intent, re-read, decide, reserve

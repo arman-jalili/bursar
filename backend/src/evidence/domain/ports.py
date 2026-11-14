@@ -1,6 +1,6 @@
 """Evidence ports — the narrow interfaces the application layer depends on (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#ports
+Canonical: docs/architecture/modules/evidence.md#ports
 Reference: docs/contracts/evidence-contract-freeze.md §2.6
 
 Four ports, each keeping a foreign concern out of the domain:

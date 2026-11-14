@@ -1,7 +1,7 @@
 """B-4 — the presented digest is stored for comparison only and never used for routing.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-invoice
+Reference: docs/architecture/modules/billing.md#components-invoice
 
 Scenario 2 lives here. The invoice carries a digest of the bank details *as printed on it*; Mandate
 compares that against the payee's verified baseline and quarantines on mismatch. Billing's half of the

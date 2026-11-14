@@ -1,7 +1,7 @@
 """B-5 — a proposal carrying a command path, payee address, cap or threshold is rejected outright.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-paymentattempt
+Reference: docs/architecture/modules/billing.md#components-paymentattempt
 
 Rejection, not sanitization. If the endpoint silently dropped a forbidden field, the caller would learn
 which fields survive the filter and send only the ones nobody checks — and the next attempt is a

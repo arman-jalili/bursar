@@ -1,6 +1,6 @@
 """CON-02 — `payee_address` and `bank_digest` reach the owner byte-identically to Authority's intent.
 
-Canonical: .pi/architecture/modules/console.md#entity-relationship--projections-only-no-aggregates
+Canonical: docs/architecture/modules/console.md#entity-relationship--projections-only-no-aggregates
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-02), §2.1
 
 The signature binds these exact bytes. A formatter that truncates the address, lowercases a checksum

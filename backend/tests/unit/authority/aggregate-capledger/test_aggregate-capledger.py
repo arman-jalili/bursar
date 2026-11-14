@@ -1,7 +1,7 @@
 """A-9 / A-10 — the ledger aggregate owns the hold lifecycle, not the adapter.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-cap-ledge
+Reference: docs/architecture/modules/authority.md#aggregate-cap-ledge
 
 The aggregate is the consistency boundary: `try_reserve` is the only way a hold comes into existence, and the
 ledger — not a caller — decides whether the cap allows it. Asserted through the aggregate API so a future

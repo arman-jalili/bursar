@@ -1,7 +1,7 @@
 """A-6 — Authority re-reads Mandate at the moment of consequence (AC 7).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#ports-to-upstream-contexts-acl
+Reference: docs/architecture/modules/authority.md#ports-to-upstream-contexts-acl
 
 Scenario 3: the payee was eligible when the payment was planned, and frozen before dispatch. The rule only
 holds if the read happens *at dispatch* and the port offers no cached alternative — both asserted here.

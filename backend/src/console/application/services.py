@@ -1,6 +1,6 @@
 """The three catalogued projections (frozen) — read models, never rules.
 
-Canonical: .pi/architecture/modules/console.md#application-services-catalog
+Canonical: docs/architecture/modules/console.md#application-services-catalog
 Reference: docs/contracts/console-contract-freeze.md §2.7
 
     ProjectApprovalInbox   FR-024   pending signature requests + owner display reads

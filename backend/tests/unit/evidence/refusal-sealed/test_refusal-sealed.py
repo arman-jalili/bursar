@@ -1,7 +1,7 @@
 """E-3 — a denied payment is sealed as `PaymentRefused` carrying its reason codes.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 Scenarios 2, 3 and 4 all end in a refusal, and a refusal is the same shape of record as a settlement —
 not a lesser one. If the reason codes were dropped, the console could not explain the refusal and the

@@ -1,7 +1,7 @@
 """ADR-005 scope checks for the Settlement transport.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/modules/settlement.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/modules/settlement.md#api-endpoints
 
 The settlement read surface is internal: `settlement:read`. The nullifier status read is what Evidence
 uses to decide whether an envelope is duplicate, so it also accepts `evidence:read`. As in Billing, the

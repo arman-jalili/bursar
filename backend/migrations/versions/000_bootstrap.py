@@ -1,7 +1,7 @@
 """000_bootstrap — migration tooling only; creates no tables.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 This revision exists so that `alembic upgrade head` / `downgrade base` are exercised on a clean
 database before any context defines schema (Phase-0 acceptance criterion). It intentionally does

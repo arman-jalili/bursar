@@ -1,7 +1,7 @@
 """SC-12 — `src/settlement/domain/` imports no web3, httpx or fastapi, and refuses through the shared vocabulary.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-12)
-Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 
 Defends module AC #12. Two independent claims, both rules:
 

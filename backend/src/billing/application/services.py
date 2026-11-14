@@ -1,6 +1,6 @@
 """Billing application services — the two catalog names, frozen (FR-007, FR-009).
 
-Canonical: .pi/architecture/modules/billing.md#application-services
+Canonical: docs/architecture/modules/billing.md#application-services
 Reference: docs/contracts/billing-contract-freeze.md §2.7
 
     RecordInvoice   FR-007   register a bill; B-3 duplicate guard, B-4 digest kept for comparison only

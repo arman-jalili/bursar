@@ -1,7 +1,7 @@
 """Entrypoint: `console-api` (port 8000).
 
-Canonical: .pi/architecture/modules/console.md#architecture
-Reference: .pi/architecture/implementation-roadmap.md#phase-6-console-hours-1620
+Canonical: docs/architecture/modules/console.md#architecture
+Reference: docs/architecture/implementation-roadmap.md#phase-6-console-hours-1620
 
 Run with:  make run-console           (or: uvicorn src.apps.console_api.app:app)
 

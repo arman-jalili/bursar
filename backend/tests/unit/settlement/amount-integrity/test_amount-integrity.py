@@ -1,7 +1,7 @@
 """SC-9 — the amount submitted equals the amount signed.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-9)
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Defends module AC #9: the submitted amount equals the signed intent amount, and a mismatch is refused by
 `AmountIntegrityViolation` rather than asserted in a comment. The rule has one natural call site:

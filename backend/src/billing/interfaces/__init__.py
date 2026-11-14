@@ -1,6 +1,6 @@
 """Billing interfaces — the driving adapters.
 
-Canonical: .pi/architecture/modules/billing.md#api-endpoints
+Canonical: docs/architecture/modules/billing.md#api-endpoints
 Reference: docs/contracts/billing-contract-freeze.md §2.10
 
 The router is **concrete** (no interface file for controllers): there is exactly one transport for this

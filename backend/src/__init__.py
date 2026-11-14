@@ -1,7 +1,7 @@
 """Bursar — delegated household bill-paying with a machine-enforced constitution.
 
-Canonical: .pi/architecture/decisions/ADR-001-architecture-pattern.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-001-architecture-pattern.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 Package layout (bounded contexts are created in their own build phase, never in Phase 0):
 

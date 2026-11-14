@@ -1,7 +1,7 @@
 """Shared builders for the Billing suites (importable, not fixtures).
 
 Canonical: docs/contracts/billing-contract-freeze.md
-Reference: .pi/architecture/modules/billing.md#components
+Reference: docs/architecture/modules/billing.md#components
 
 Importable rather than pytest-plugin-only because the contract-test directories are named after
 invariants (`at-most-one-attempt/`), and a directory name with a hyphen cannot be an importable package —

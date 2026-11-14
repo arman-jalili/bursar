@@ -1,6 +1,6 @@
 """Settlement refusal vocabulary (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#components
+Canonical: docs/architecture/modules/settlement.md#components
 Reference: docs/contracts/settlement-contract-freeze.md §3
 
 Every refusal extends the shared `RefusalError`, so:

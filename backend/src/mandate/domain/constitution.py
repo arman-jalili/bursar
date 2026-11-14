@@ -1,7 +1,7 @@
 """Constitution — append-only lineage of immutable rule sets.
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-constitution
-Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+Canonical: docs/architecture/modules/mandate.md#aggregate-constitution
+Reference: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
 
 Contract (v1) — aggregate root `Constitution`, entity `ConstitutionVersion`:
 

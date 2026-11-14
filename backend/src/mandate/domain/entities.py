@@ -1,7 +1,7 @@
 """Parties as entities — identity persists, state may change, equality is by identity.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
 
 Why entities and not value objects: an owner is a persisted person with an address that can be
 rotated (H-5), a payer is a persisted beneficiary with contact details, and an agent is a persisted

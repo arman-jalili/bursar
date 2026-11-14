@@ -1,6 +1,6 @@
 """The twelve Authority domain events — frozen payload schemas (v1).
 
-Canonical: .pi/architecture/modules/authority.md#domain-events
+Canonical: docs/architecture/modules/authority.md#domain-events
 Reference: docs/contracts/authority-contract-freeze.md §2.8
 
 Payloads are part of the frozen contract because Evidence seals them (ADR-007) and Settlement and

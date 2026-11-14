@@ -1,7 +1,7 @@
 """SC-7 — finality is a confirmation count, not a flag.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-7)
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Defends module AC #7: zero confirmations means `PENDING` and **no cap commit**; the network's required
 count means `CONFIRMED` and the commit. The threshold is a field of `ChainNetwork` (SC-11), so an Anvil

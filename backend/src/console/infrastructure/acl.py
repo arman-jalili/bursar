@@ -1,6 +1,6 @@
 """Anti-corruption layer — one explicit whitelist per surface (CON-01).
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §2.8
 
 The whitelist is the **only door** from an upstream payload to a screen. There is deliberately no

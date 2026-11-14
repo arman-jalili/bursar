@@ -1,7 +1,7 @@
 """Builders for the Authority suites (importable, not fixtures).
 
 Canonical: docs/contracts/authority-contract-freeze.md
-Reference: .pi/architecture/modules/authority.md#components
+Reference: docs/architecture/modules/authority.md#components
 
 Importable rather than fixture-only because the contract-test directories are named after invariants
 (`capledger-cap/`), and a hyphen cannot be a Python package — so a builder module is the only import path

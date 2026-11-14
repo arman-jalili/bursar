@@ -1,7 +1,7 @@
 """Fixtures shared by the Settlement suites.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Everything here is a factory call into the frozen surface or plain construction of a frozen view. In
 Phase A `SettlementOrder.order` raises `NotImplementedError`, which is why the suites are red: the

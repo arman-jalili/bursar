@@ -1,6 +1,6 @@
 """Row ⇄ domain translation — the seam that keeps ORM types out of the model.
 
-Canonical: .pi/architecture/modules/evidence.md#persistence-contract
+Canonical: docs/architecture/modules/evidence.md#persistence-contract
 Reference: docs/contracts/evidence-contract-freeze.md §2.5
 
 Two rules:

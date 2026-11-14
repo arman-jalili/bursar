@@ -1,6 +1,6 @@
 """SQLAlchemy adapters for the ports in `src/billing/domain/repositories.py`.
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md (Persistence contract)
 
 These are the only classes in the module that know a database exists. They **never commit**: the unit

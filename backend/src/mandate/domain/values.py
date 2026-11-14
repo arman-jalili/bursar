@@ -1,7 +1,7 @@
 """Mandate value objects — immutable, equal by value, frozen contract v1.
 
-Canonical: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Every type here is a value object, and the module doc argues why each one is *not* an entity:
 

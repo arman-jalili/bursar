@@ -1,6 +1,6 @@
 """Evidence repository ports — owned by `domain/` (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#persistence-contract
+Canonical: docs/architecture/modules/evidence.md#persistence-contract
 Reference: docs/contracts/evidence-contract-freeze.md §2.5
 
     EnvelopeRepository        append · find_by_id · list_for_subject      (no update, no delete)

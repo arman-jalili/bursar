@@ -1,6 +1,6 @@
 """In-process TTL cache for projected read models (concrete `ReadModelCache`, CON-01/CON-02).
 
-Canonical: .pi/architecture/modules/console.md#architecture
+Canonical: docs/architecture/modules/console.md#architecture
 Reference: docs/contracts/console-contract-freeze.md §2.6
 
 The cache stores **projected** values only — the caller is expected to hand it the output of a

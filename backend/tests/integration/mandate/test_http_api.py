@@ -1,7 +1,7 @@
 """End-to-end through the public HTTP API — the runtime integration test.
 
-Canonical: .pi/architecture/modules/mandate.md#api-endpoints
-Reference: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Canonical: docs/architecture/modules/mandate.md#api-endpoints
+Reference: docs/architecture/decisions/ADR-005-authentication-authorization.md
 
 These tests go through the real app (middleware, scopes, error envelope, session factory, SQLite) and
 cover the module doc's scenario-facing acceptance criteria:

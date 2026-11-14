@@ -1,7 +1,7 @@
 """Payee — the eligibility gate. This is where the bank-detail-change scam dies.
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-payee
-Reference: .pi/architecture/decisions/ADR-007-compliance-engine-architecture.md
+Canonical: docs/architecture/modules/mandate.md#aggregate-payee
+Reference: docs/architecture/decisions/ADR-007-compliance-engine-architecture.md
 
 Contract (v1) — aggregate root:
 

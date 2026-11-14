@@ -1,7 +1,7 @@
 """A-11 / A-12 — committed never shrinks within a day, and the day key is fixed (AC 13).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-cap-ledge
+Reference: docs/architecture/modules/authority.md#aggregate-cap-ledge
 
 The asymmetry that makes the ledger auditable: `committed` is monotonic per day, only `reserved` moves back
 down. A ledger that could un-commit settled spend would let one cap be spent twice — the same failure the

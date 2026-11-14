@@ -1,7 +1,7 @@
 """SC-1 — an order is creatable only from a determination that permits dispatch.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-1)
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Defends module AC #1: without an allow/approved determination the factory raises
 `DispatchWithoutAuthority` and no order exists — nothing is persisted. The rule lives in

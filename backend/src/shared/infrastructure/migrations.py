@@ -1,7 +1,7 @@
 """Schema bootstrap at startup — Alembic is the only definition of the schema.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 A developer should be able to run `make run-console` from a clean checkout and have the API work. The
 alternative — `Base.metadata.create_all` at boot — would be a *second* definition of the schema that

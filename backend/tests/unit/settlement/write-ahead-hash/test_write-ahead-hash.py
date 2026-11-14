@@ -1,7 +1,7 @@
 """SC-3 — the transaction hash is written before broadcast, and there is only ever one.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-3)
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Defends module AC #3: killing the process after `mark_submitted` and restarting must re-poll the same
 hash. The unit-level half of that claim is here: the order refuses a different hash, keeps the first

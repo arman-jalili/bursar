@@ -1,6 +1,6 @@
 """G-4 — `AuthorityHttpAdapter` reads the determination live and fails closed (SC-1).
 
-Canonical: .pi/architecture/modules/settlement.md#dependencies
+Canonical: docs/architecture/modules/settlement.md#dependencies
 Reference: docs/contracts/settlement-contract-freeze.md §2.8
 
 `httpx.MockTransport` is the seam: the adapter's transport is injectable, so every failure mode below is

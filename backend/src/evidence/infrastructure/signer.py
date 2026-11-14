@@ -1,6 +1,6 @@
 """HMAC signer — the only adapter that touches the operator-held key (E-9).
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
 Reference: docs/contracts/evidence-contract-freeze.md §2.6
 
 The key is read from `BURSAR_HMAC_KEY` at boot and kept inside this object. It is never passed to an

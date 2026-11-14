@@ -1,7 +1,7 @@
 """SC-2 / SC-5 / SC-11 — the ports keep the chain and the framework out of the domain.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-2, SC-5, SC-11)
-Reference: .pi/architecture/modules/settlement.md#ports-infrastructure-adapters
+Reference: docs/architecture/modules/settlement.md#ports-infrastructure-adapters
 
 Defends module AC #2, #5 and #11 at the port boundary. The assertions are rules a port must preserve,
 not method names:

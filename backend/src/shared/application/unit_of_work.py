@@ -1,7 +1,7 @@
 """UnitOfWork — the one sanctioned place a transaction is opened or closed.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/authority.md#use-cases-and-application-services
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/authority.md#use-cases-and-application-services
 
 The cap invariant (`committed + reserved <= cap`, invariant A-9) is only safe because the check and
 the reservation happen inside *one* transaction. That makes transaction placement a domain

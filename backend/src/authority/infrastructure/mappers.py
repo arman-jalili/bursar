@@ -1,7 +1,7 @@
 """Row ⇄ domain translation for Authority.
 
-Canonical: .pi/architecture/modules/authority.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/authority.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Rehydration reconstructs value objects through their validation, so a corrupt row fails loudly at the
 boundary rather than becoming a silent zero. Two details are deliberate:

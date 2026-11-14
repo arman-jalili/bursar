@@ -1,7 +1,7 @@
 """SC-4 — an order concludes exactly once.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-4)
-Reference: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Reference: docs/architecture/modules/settlement.md#aggregate-settlementorder
 
 Defends module AC #4: a second `conclude` raises `OrderAlreadyConcluded`. The rule is not "idempotent
 second write": silently accepting a replay is how a duplicate settlement looks normal in the ledger, so

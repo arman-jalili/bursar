@@ -87,7 +87,7 @@ services:
       # plain LLM_API_KEY is the fallback. It is never in .env.demo.
       LLM_API_KEY: ${BURSAR_LLM_API_KEY:-${LLM_API_KEY:-}}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
-      LLM_MODEL: ${LLM_MODEL:-google/gemma-4-26b-a4b-it:free}
+      LLM_MODEL: ${LLM_MODEL:-nvidia/nemotron-3.5-lightning:free}
       LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-inclusionai/ling-3.2-flash:free}
       RIGORIX_AUDIT_DIR: /rigorix-audit
       # Where Settlement reaches Rigorix. Host-run Rigorix (the local demo path) is on the Docker

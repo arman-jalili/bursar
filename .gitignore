@@ -1,2 +1,8 @@
 .rigorix-runtime/
 .env
+
+# Runtime / local state
+.DS_Store
+.execution-state/
+.rigorix/
+*.log

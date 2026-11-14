@@ -1,7 +1,7 @@
 """A-6 / A-7 — a determination records the rules it actually consulted.
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-determination
+Reference: docs/architecture/modules/authority.md#aggregate-determination
 
 A-6 is the "re-read at the moment of consequence" rule made auditable: the version and the payee status on
 the verdict must come from the same read that produced it, with its timestamp. A-7 forbids an

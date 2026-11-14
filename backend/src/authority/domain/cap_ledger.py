@@ -1,6 +1,6 @@
 """CapLedger — the aggregate that makes split-invoice structuring impossible (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#aggregate-cap-ledge
+Canonical: docs/architecture/modules/authority.md#aggregate-cap-ledge
 Reference: docs/contracts/authority-contract-freeze.md (A-9 … A-12)
 
     A-9   committed + reserved + amount <= cap, checked and applied as ONE conditional update

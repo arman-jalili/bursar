@@ -1,6 +1,6 @@
 """CON-04 — the console cannot create an intent, attempt or settlement order.
 
-Canonical: .pi/architecture/modules/console.md#api-endpoints
+Canonical: docs/architecture/modules/console.md#api-endpoints
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-04), §2.5, §2.12
 
 The owner token is the strongest credential in the demo. If a console route reached a creating path,

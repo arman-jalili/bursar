@@ -1,6 +1,6 @@
 """Evidence application services — the two catalog names, frozen (FR-022, FR-023).
 
-Canonical: .pi/architecture/modules/evidence.md#application-services
+Canonical: docs/architecture/modules/evidence.md#application-services
 Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
     SealEvidence    FR-022   claim the delivery, seal one envelope, anchor its hash (E-2, E-4, E-10)

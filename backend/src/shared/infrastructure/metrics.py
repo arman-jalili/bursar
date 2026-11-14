@@ -1,7 +1,7 @@
 """Minimal in-process metrics — enough to answer "is it working?" during a demo.
 
-Canonical: .pi/architecture/decisions/ADR-004-api-design.md
-Reference: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 Deliberately hand-rolled and tiny: a Prometheus client is a dependency and a config surface we do not
 need for one household and 24 hours. What we *do* need is the four numbers that explain a stuck demo:

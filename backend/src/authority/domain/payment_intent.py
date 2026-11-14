@@ -1,6 +1,6 @@
 """PaymentIntent — the unit of authority, immutable once issued (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#aggregate-paymentintent
+Canonical: docs/architecture/modules/authority.md#aggregate-paymentintent
 Reference: docs/contracts/authority-contract-freeze.md (A-1 … A-4)
 
     A-1  immutable after issue — no setter, no `dict.update` merge

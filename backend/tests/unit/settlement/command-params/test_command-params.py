@@ -1,7 +1,7 @@
 """SC-2 — the dispatch command path is a module constant, not an input.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-2)
-Reference: .pi/architecture/modules/settlement.md#components
+Reference: docs/architecture/modules/settlement.md#components
 
 Defends module AC #2: `command_params()` returns `payments.dispatch`, and a caller supplying a path is
 impossible — `command_ref` is a ClassVar, so there is no constructor argument and no instance field to

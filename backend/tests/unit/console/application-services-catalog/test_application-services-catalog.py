@@ -1,6 +1,6 @@
 """CON-02 / CON-05 / CON-06 / CON-08 — the three catalogued projections compose, never decide.
 
-Canonical: .pi/architecture/modules/console.md#application-services-catalog
+Canonical: docs/architecture/modules/console.md#application-services-catalog
 Reference: docs/contracts/console-contract-freeze.md §1, §2.7
 
 The names are the contract the router, the React app and the tests refer to. Each test drives the

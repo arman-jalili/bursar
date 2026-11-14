@@ -1,6 +1,6 @@
 """Authority repository ports — owned by `domain/` (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 Reference: docs/contracts/authority-contract-freeze.md §2
 
     PaymentIntentRepository   add · find_by_id · save

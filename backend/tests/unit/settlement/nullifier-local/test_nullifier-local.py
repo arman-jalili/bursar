@@ -1,7 +1,7 @@
 """SC-5 — a settled invoice cannot be settled twice, locally.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-5)
-Reference: .pi/architecture/modules/settlement.md#components-nullifier
+Reference: docs/architecture/modules/settlement.md#components-nullifier
 
 Defends module AC #5 (scenario 6, app path): a replay of a settled invoice through the API raises
 `DuplicateSettlementBlocked` and zero transactions follow. Two halves are asserted here — the derivation

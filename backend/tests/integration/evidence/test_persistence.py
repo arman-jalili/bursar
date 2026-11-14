@@ -1,6 +1,6 @@
 """Evidence persistence through the real Alembic schema (E-4/E-5/E-8).
 
-Canonical: .pi/architecture/modules/evidence.md#persistence-contract
+Canonical: docs/architecture/modules/evidence.md#persistence-contract
 Reference: docs/contracts/evidence-contract-freeze.md §2.5
 
 The schema is applied by the real migration, not `metadata.create_all`, so the append-only triggers

@@ -3,8 +3,8 @@
 **Built.** `contracts/src/PaymentRouter.sol` is Lock 3, the commit-point lock, and
 `contracts/src/TestUsdc.sol` is the 6-decimal ERC-20 mock the tests deploy.
 
-Canonical: `.pi/architecture/modules/settlement.md#components`
-Decision: `.pi/architecture/decisions/ADR-007-compliance-engine-architecture.md`
+Canonical: `docs/architecture/modules/settlement.md#components`
+Decision: `docs/architecture/decisions/ADR-007-compliance-engine-architecture.md`
 Contract it satisfies: `docs/contracts/settlement-contract-freeze.md` (SC-5, SC-6, SC-9, SC-11)
 
 ## What the contract enforces
@@ -53,4 +53,4 @@ through `ChainNetwork` — never hardcoded in Python. Anvil and Base Sepolia mus
 router or USDC address (SC-11); `Web3ChainGateway` refuses to build for a chain id the provider is not on.
 
 The contract is deployed but **nothing has been broadcast on Anvil or Base Sepolia yet** — that is the
-remaining operational gap recorded in `../docs/runbook-settlement.md` §6.
+remaining operational gap recorded in the settlement contract.

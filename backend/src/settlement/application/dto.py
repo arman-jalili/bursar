@@ -1,6 +1,6 @@
 """Settlement commands and results (frozen) — the shape every caller codes against.
 
-Canonical: .pi/architecture/modules/settlement.md#application-services
+Canonical: docs/architecture/modules/settlement.md#application-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.9
 
 Two decisions encoded here:

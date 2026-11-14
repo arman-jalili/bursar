@@ -1,7 +1,7 @@
 """Correlation-id middleware — one id per request, threaded through logs and errors.
 
-Canonical: .pi/architecture/decisions/ADR-004-api-design.md
-Reference: .pi/architecture/decisions/ADR-003-cross-context-communication.md
+Canonical: docs/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/decisions/ADR-003-cross-context-communication.md
 
 The id is accepted from `X-Request-Id` when the caller supplies one (so a proposal submitted by the
 agent can be traced through Authority), and generated otherwise. It is echoed on the response and

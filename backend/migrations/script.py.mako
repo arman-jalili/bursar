@@ -1,6 +1,6 @@
 """${message}
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 Revision: ${up_revision}
 Revises: ${down_revision | comma,n}
 Created: ${create_date}

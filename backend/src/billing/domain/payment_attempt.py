@@ -1,6 +1,6 @@
 """PaymentAttempt — the agent's only legal output (frozen).
 
-Canonical: .pi/architecture/modules/billing.md#components-paymentattempt
+Canonical: docs/architecture/modules/billing.md#components-paymentattempt
 Reference: docs/contracts/billing-contract-freeze.md (B-5, B-1, B-2, B-6, B-7)
 
     B-5  a proposal supplying a command path, payee address, cap or threshold is rejected outright

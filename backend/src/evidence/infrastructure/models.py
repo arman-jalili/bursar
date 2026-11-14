@@ -1,6 +1,6 @@
 """Evidence tables — SQLAlchemy 2.0 models. Never imported by `domain/` or `application/`.
 
-Canonical: .pi/architecture/modules/evidence.md#persistence-contract
+Canonical: docs/architecture/modules/evidence.md#persistence-contract
 Reference: docs/contracts/evidence-contract-freeze.md §2.5
 
 The storage mirrors three frozen rules:

@@ -1,7 +1,7 @@
 """Billing identifiers — one NewType each, so invoices and attempts cannot be swapped.
 
-Canonical: .pi/architecture/modules/billing.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/billing.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 `InvoiceId` and `AttemptId` are both opaque strings, but a request that confuses them is a real bug:
 attempt endpoints key on `AttemptId`, invoice endpoints on `InvoiceId`, and the type checker catches the

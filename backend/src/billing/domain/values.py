@@ -1,6 +1,6 @@
 """Billing value objects and closed sets (frozen).
 
-Canonical: .pi/architecture/modules/billing.md#components
+Canonical: docs/architecture/modules/billing.md#components
 Reference: docs/contracts/billing-contract-freeze.md (B-3, B-6)
 
     InvoiceHash    content hash of the invoice: duplicate key off-chain, nullifier seed on-chain (B-3)

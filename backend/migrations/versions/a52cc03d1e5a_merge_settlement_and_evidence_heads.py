@@ -1,6 +1,6 @@
 """merge settlement and evidence heads
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 Revision: a52cc03d1e5a
 Revises: 003_evidence, 003_settlement
 Created: 2026-11-14 01:20:15.059849

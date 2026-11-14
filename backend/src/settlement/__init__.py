@@ -1,6 +1,6 @@
 """Settlement — move USDC and prove it happened exactly once.
 
-Canonical: .pi/architecture/modules/settlement.md
+Canonical: docs/architecture/modules/settlement.md
 Reference: docs/contracts/settlement-contract-freeze.md
 
 **Phase A: contract freeze.** This package contains signatures and the refusal vocabulary only; every

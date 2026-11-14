@@ -1,7 +1,7 @@
 """ADR-005 scope checks for the Billing transport.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/modules/billing.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/modules/billing.md#api-endpoints
 
 The agent key holds `billing:propose` and nothing else (module doc diagram). Owner/fixture seeding a
 bill needs `mandate:write`, which the agent key deliberately lacks. Keeping the map local to Billing

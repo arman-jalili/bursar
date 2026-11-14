@@ -1,7 +1,7 @@
 """Builders shared by the Settlement suites (importable, not fixtures).
 
 Canonical: docs/contracts/settlement-contract-freeze.md
-Reference: .pi/architecture/modules/settlement.md#components
+Reference: docs/architecture/modules/settlement.md#components
 
 Importable rather than fixtures-only because the contract-test directories are named after invariants
 (`amount-integrity/`), and a hyphenated directory cannot be an importable package — `from ..conftest

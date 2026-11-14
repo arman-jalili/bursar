@@ -1,7 +1,7 @@
 """ADR-005 scope checks for the Authority transport.
 
-Canonical: .pi/architecture/decisions/ADR-005-authentication-authorization.md
-Reference: .pi/architecture/modules/authority.md#api-endpoints
+Canonical: docs/architecture/decisions/ADR-005-authentication-authorization.md
+Reference: docs/architecture/modules/authority.md#api-endpoints
 
 The matrix is small and asymmetric on purpose:
 

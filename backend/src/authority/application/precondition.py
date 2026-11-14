@@ -1,6 +1,6 @@
 """`PreconditionCheck` — the Lock-2 entrypoint (AC 11).
 
-Canonical: .pi/architecture/modules/authority.md#application-services
+Canonical: docs/architecture/modules/authority.md#application-services
 Reference: docs/contracts/authority-contract-freeze.md §2.9
 
 It is deliberately **not** a sixth catalog service: it is the enforcement-shaped façade over

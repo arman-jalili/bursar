@@ -1,6 +1,6 @@
 """Console end-to-end through the public HTTP API (the React app's contract).
 
-Canonical: .pi/architecture/modules/console.md#api-endpoints
+Canonical: docs/architecture/modules/console.md#api-endpoints
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-01, CON-02, CON-03, CON-06, CON-08)
 
 These go through the real composition root (middleware, scope checks, error envelope, SQLite):

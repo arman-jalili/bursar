@@ -1,7 +1,7 @@
 """AggregateRoot — the consistency boundary and the event recorder.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/mandate.md#components
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/mandate.md#components
 
 Two responsibilities, both structural:
 

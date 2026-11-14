@@ -7,7 +7,7 @@ pragma solidity 0.8.24;
 ///         no Anvil (see `tests/unit/settlement/chain/test_payment_router_contract.py`).
 ///
 /// Reference: `docs/contracts/settlement-contract-freeze.md` (SC-9, SC-10)
-/// Canonical: `.pi/architecture/modules/settlement.md#components`
+/// Canonical: `docs/architecture/modules/settlement.md#components`
 ///
 /// It is a **test fixture**, not a token design: `mint` is unguarded, decimals are fixed at 6 to match
 /// USDC, and no fee/blacklist behaviour is modelled because the router must not depend on any.

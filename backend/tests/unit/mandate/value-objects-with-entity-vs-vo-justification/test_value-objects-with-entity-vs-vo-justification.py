@@ -1,7 +1,7 @@
 """Contract tests — value objects and the entity-vs-VO line (mandate v1).
 
-Canonical: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
-Reference: .pi/architecture/decisions/ADR-008-proportional-modeling-depth.md
+Canonical: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Reference: docs/architecture/decisions/ADR-008-proportional-modeling-depth.md
 
 What is frozen here is the *modelling decision*, not the behaviour: which types are value objects
 (immutable, equal by value, no identity), which are entities (equality by identity), and which are

@@ -1,7 +1,7 @@
 """Mandate tables — SQLAlchemy 2.0 models. Never imported by `domain/` or `application/`.
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Design notes:
 

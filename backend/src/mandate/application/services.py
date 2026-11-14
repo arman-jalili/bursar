@@ -1,11 +1,10 @@
 """The six catalog application services of the Mandate context — frozen interfaces (v1).
 
-Canonical: .pi/architecture/modules/mandate.md#application-services
-Reference: .pi/architecture/decisions/ADR-003-cross-context-communication.md
+Canonical: docs/architecture/modules/mandate.md#application-services
+Reference: docs/architecture/decisions/ADR-003-cross-context-communication.md
 
-Names and FR mappings are authoritative: they come from the exploration use-cases pass
-(`.pi/domain/exploration/*.raw.json`) and an implementation item may not rename, drop or substitute
-them.
+Names and FR mappings are authoritative: they come from the exploration use-cases pass and an
+implementation item may not rename, drop or substitute them.
 
     CreateMandate                FR-001
     PublishConstitutionVersion   FR-002

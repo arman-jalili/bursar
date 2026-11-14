@@ -1,6 +1,6 @@
 """Settlement application services — the catalog names, frozen (FR-019, FR-021).
 
-Canonical: .pi/architecture/modules/settlement.md#application-services
+Canonical: docs/architecture/modules/settlement.md#application-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.10
 
     DispatchPayment  FR-019  sign the allowed order locally, persist the hash, then broadcast it

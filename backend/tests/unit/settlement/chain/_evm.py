@@ -1,7 +1,7 @@
 """Compile `contracts/src` with solc 0.8.24 and deploy it to an in-process EVM.
 
 Canonical: `docs/contracts/settlement-contract-freeze.md` §1 (SC-5, SC-6, SC-9, SC-10)
-Reference: `.pi/architecture/modules/settlement.md#components`
+Reference: `docs/architecture/modules/settlement.md#components`
 
 `forge`/`anvil` are not installed here, so the Solidity is compiled with `py-solc-x` and executed on
 `eth-tester`'s py-evm backend. That is the real compiler and a real EVM: the tests below assert the

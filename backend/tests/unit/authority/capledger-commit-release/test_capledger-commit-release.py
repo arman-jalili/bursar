@@ -1,7 +1,7 @@
 """A-10 / A-11 — a reservation resolves exactly once, and committed spend never shrinks (AC 5).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#aggregate-cap-ledge
+Reference: docs/architecture/modules/authority.md#aggregate-cap-ledge
 
 Two failures this defends against: a reservation that resolves twice (money counted twice, or lost), and a
 ledger whose committed total can be un-committed (the same cap spent again). Both are asserted by requiring

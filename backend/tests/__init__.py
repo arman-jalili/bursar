@@ -1,6 +1,6 @@
 """Bursar test suite.
 
-Canonical: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+Canonical: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 
 Contains the interpreter guard: the harness's local CI resolves `pytest` from `PATH`, which on a
 stock machine is a Python 3.9 interpreter without the project's dependencies. Without an explicit

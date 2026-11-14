@@ -1,7 +1,7 @@
 """E-5 — envelopes are append-only; a correction is a new envelope linked by `previous_hash`.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 A rewritten row would leave the old hash anchored while the bytes behind it changed, which is exactly
 the tampering the chain exists to expose. The repository port therefore has no `save`/`update`/`delete`;

@@ -1,7 +1,7 @@
 """A-6 / AC 11 — when Mandate cannot be read, the answer is "no", not "probably" (AC 11).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#api-endpoints
+Reference: docs/architecture/modules/authority.md#api-endpoints
 
 ADR-007 says the precondition check fails closed: an unreachable Mandate must make dispatch impossible.
 A payment that stalls is recoverable; a payment made on a stale read is not. This is asserted at the port

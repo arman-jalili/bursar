@@ -1,6 +1,6 @@
 """Approval and OwnerSignature — one signature, one intent, one use (frozen).
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 Reference: docs/contracts/authority-contract-freeze.md (A-13 … A-15)
 
     A-13  binds intent_id + amount + payee_address + bank_digest; any mismatch invalidates it

@@ -1,6 +1,6 @@
 """ValueObject — invalid values must be unconstructible, not merely rejected later.
 
-Canonical: .pi/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
+Canonical: docs/architecture/modules/mandate.md#value-objects-with-entity-vs-vo-justification
 """
 
 from __future__ import annotations

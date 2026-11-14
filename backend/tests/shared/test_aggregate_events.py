@@ -1,6 +1,6 @@
 """AggregateRoot + DomainEvent — fact recording and delivery metadata (ADR-003).
 
-Canonical: .pi/architecture/decisions/ADR-003-cross-context-communication.md
+Canonical: docs/architecture/decisions/ADR-003-cross-context-communication.md
 """
 
 from __future__ import annotations

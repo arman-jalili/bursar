@@ -1,6 +1,6 @@
 """005_settlement_signed — the `signed` state and the signed bytes that carry the hash.
 
-Canonical: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Canonical: docs/architecture/modules/settlement.md#aggregate-settlementorder
 Reference: docs/contracts/settlement-contract-freeze.md §2.8 and §7 (the two-phase `ChainGateway`)
 
 SC-3 requires the tx hash to be persisted **before** broadcast. Signing is local, so there is a real

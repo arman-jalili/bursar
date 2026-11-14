@@ -1,6 +1,6 @@
 """EvidenceEnvelope — the signed, immutable wrapper around one domain fact (frozen).
 
-Canonical: .pi/architecture/modules/evidence.md#components-evidenceenvelope
+Canonical: docs/architecture/modules/evidence.md#components-evidenceenvelope
 Reference: docs/contracts/evidence-contract-freeze.md (E-1 … E-9)
 
     E-1  canonical encoding is byte-deterministic across runs and key orderings

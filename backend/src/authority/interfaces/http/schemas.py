@@ -1,6 +1,6 @@
 """Wire schemas for the Authority endpoints — the frozen shapes from the contract.
 
-Canonical: .pi/architecture/modules/authority.md#api-endpoints
+Canonical: docs/architecture/modules/authority.md#api-endpoints
 Reference: docs/contracts/authority-contract-freeze.md §2.9
 
 Two deliberate constraints:

@@ -1,6 +1,6 @@
 """Evidence — the capture-and-verify context.
 
-Canonical: .pi/architecture/modules/evidence.md
+Canonical: docs/architecture/modules/evidence.md
 Reference: docs/contracts/evidence-contract-freeze.md
 
 Evidence is a **witness, not a guard**: it seals every domain fact into a signed envelope and

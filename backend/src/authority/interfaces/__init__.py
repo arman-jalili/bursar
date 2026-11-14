@@ -1,6 +1,6 @@
 """Authority interfaces — the driving adapters (Phase B).
 
-Canonical: .pi/architecture/modules/authority.md#api-endpoints
+Canonical: docs/architecture/modules/authority.md#api-endpoints
 Reference: docs/contracts/authority-contract-freeze.md §2.9
 
 Empty on purpose in Phase A. Routers and Pydantic request/response schemas are **concrete**; they do

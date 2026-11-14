@@ -1,7 +1,7 @@
 """E-11 — `src/evidence/domain/` imports no FastAPI, SQLAlchemy or web3.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/decisions/ADR-001-architecture-pattern.md
+Reference: docs/architecture/decisions/ADR-001-architecture-pattern.md
 
 The domain must be testable without a web framework, an ORM or a chain client. This is enforced by
 scanning imports, not by convention. The second assertion keeps the test honest: canonical hashing is

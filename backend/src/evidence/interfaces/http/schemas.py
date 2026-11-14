@@ -1,6 +1,6 @@
 """Request/response schemas for the Evidence HTTP contract (concrete).
 
-Canonical: .pi/architecture/modules/evidence.md#api-endpoints
+Canonical: docs/architecture/modules/evidence.md#api-endpoints
 Reference: docs/contracts/evidence-contract-freeze.md §2.9
 
 The wire model is separate from the application DTO so the endpoint declares exactly what it returns.

@@ -1,6 +1,6 @@
 """Clock — time is injected because approvals expire and caps are per-day.
 
-Canonical: .pi/architecture/modules/authority.md#components
+Canonical: docs/architecture/modules/authority.md#components
 """
 
 from __future__ import annotations

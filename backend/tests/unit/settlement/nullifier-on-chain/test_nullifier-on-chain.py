@@ -1,7 +1,7 @@
 """SC-6 — a replayed nullifier reverts on-chain, and the app records a refusal.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1 (SC-6)
-Reference: .pi/architecture/modules/settlement.md#components-nullifier
+Reference: docs/architecture/modules/settlement.md#components-nullifier
 
 Defends module AC #6 (scenario 6, bypass path): even with the app bypassed, the contract reverts on a
 spent nullifier, and Settlement records `SettlementReverted` — not a retry. The Anvil integration run is

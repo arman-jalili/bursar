@@ -1,6 +1,6 @@
 """Evidence interfaces — HTTP contract frozen, handlers land in Phase B.
 
-Canonical: .pi/architecture/modules/evidence.md#api-endpoints
+Canonical: docs/architecture/modules/evidence.md#api-endpoints
 Reference: docs/contracts/evidence-contract-freeze.md §2.8
 
 Route handlers are **concrete** and do not get a second interface file: `interfaces/http/` will hold a

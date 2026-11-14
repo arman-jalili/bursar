@@ -1,6 +1,6 @@
 """G-3 — `RigorixCommandAdapter` is a refusal-or-ack executor over the Rigorix host (SC-2).
 
-Canonical: .pi/architecture/modules/settlement.md#ports-infrastructure-adapters
+Canonical: docs/architecture/modules/settlement.md#ports-infrastructure-adapters
 Reference: docs/contracts/settlement-contract-freeze.md §2.8
 
 No test here reaches a server: the fake client has the same call surface as

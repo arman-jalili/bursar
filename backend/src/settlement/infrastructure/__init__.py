@@ -1,6 +1,6 @@
 """Settlement infrastructure — the persistence adapters (Phase B).
 
-Canonical: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Canonical: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 Reference: docs/contracts/settlement-contract-freeze.md §5
 
 What landed here: SQLAlchemy models, mappers and the three repository adapters, plus the outbox writer.
@@ -10,7 +10,7 @@ gas and fee (SC-10).
 
 What did not land, and why it is named rather than stubbed: `Web3RouterAdapter` (needs a funded account and
 a deployed `PaymentRouter.sol` on Anvil/Base Sepolia, plus the B-1 re-freeze that lets the hash be
-persisted before broadcast). Its contract is the `ChainGateway` port; the runbook records it as gap G-1 so
+persisted before broadcast). Its contract is the `ChainGateway` port; the settlement contract records it as gap G-1 so
 nobody mistakes a green unit suite for a live chain write. `PaymentRouter.sol` is a Foundry item
 (contracts/src) and has no counterpart here yet.
 

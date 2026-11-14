@@ -1,7 +1,7 @@
 """The Mandate HTTP router — concrete, registered once in the app shell.
 
-Canonical: .pi/architecture/modules/mandate.md#api-endpoints
-Reference: .pi/architecture/decisions/ADR-004-api-design.md
+Canonical: docs/architecture/modules/mandate.md#api-endpoints
+Reference: docs/architecture/decisions/ADR-004-api-design.md
 
 This file is intentionally thin: it translates HTTP into commands, calls one application service, and
 maps the result back. No rule lives here — every branch below is a transport concern (body parsing,

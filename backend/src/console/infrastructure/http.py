@@ -1,6 +1,6 @@
 """HTTP adapters for the six upstream ports (transport only, frozen surface).
 
-Canonical: .pi/architecture/modules/console.md#ports-upstream-clients
+Canonical: docs/architecture/modules/console.md#ports-upstream-clients
 Reference: docs/contracts/console-contract-freeze.md §2.9
 
 Adapters inherit the ports so mypy fails a client whose surface drifts. They own transport only —

@@ -1,6 +1,6 @@
 """Settlement's read models — the anti-corruption views the factory is allowed to see (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#aggregate-settlementorder
+Canonical: docs/architecture/modules/settlement.md#aggregate-settlementorder
 Reference: docs/contracts/settlement-contract-freeze.md §2.4
 
 The module doc's factory signature is `order(intent: PaymentIntentView, network, determination:

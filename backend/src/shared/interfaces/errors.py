@@ -1,7 +1,7 @@
 """Error envelope — the one shape every failure takes on the wire.
 
-Canonical: .pi/architecture/decisions/ADR-004-api-design.md
-Reference: .pi/architecture/modules/console.md#components
+Canonical: docs/architecture/decisions/ADR-004-api-design.md
+Reference: docs/architecture/modules/console.md#components
 
     {"error": {"code", "message", "retryable", "correlation_id", "details"?}}
 

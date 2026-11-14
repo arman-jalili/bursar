@@ -1,7 +1,7 @@
 """Contract tests — `Payee.review_presented_digest` (mandate v1, P-2 / P-4, scenario 2).
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-payee
-Reference: .pi/architecture/modules/mandate.md#acceptance-criteria (AC #3, AC #5)
+Canonical: docs/architecture/modules/mandate.md#aggregate-payee
+Reference: docs/architecture/modules/mandate.md#acceptance-criteria (AC #3, AC #5)
 
 This is the operation the whole scam story turns on, so the contract is deliberately blunt about
 two things:

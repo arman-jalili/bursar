@@ -1,7 +1,7 @@
 """E-7 — one changed payload byte raises `HMAC_MISMATCH` and names the field.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 Scenario 7's tamper half. The HMAC is recomputed over the bytes as they are now; a single changed byte
 must be enough to fail, and the failure must name the sealed field instead of returning a bare boolean.

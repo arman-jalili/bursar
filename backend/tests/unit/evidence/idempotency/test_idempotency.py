@@ -1,7 +1,7 @@
 """E-4 — the same `event_id` delivered three times produces exactly one envelope.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#acceptance-criteria
+Reference: docs/architecture/modules/evidence.md#acceptance-criteria
 
 At-least-once delivery means duplicates are normal. The claim on `(event_id, handler)` happens before
 the append, so a replay is a no-op rather than a second proof of the same fact. Fails today from

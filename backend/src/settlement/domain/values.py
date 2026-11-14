@@ -1,6 +1,6 @@
 """Settlement value objects and closed sets (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#value-objects-entity-vs-vo-justification
+Canonical: docs/architecture/modules/settlement.md#value-objects-entity-vs-vo-justification
 Reference: docs/contracts/settlement-contract-freeze.md (SC-5, SC-6, SC-7, SC-11)
 
     Nullifier       keccak(invoice_hash, scope) — the once-only marker; spending it twice is impossible

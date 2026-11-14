@@ -1,6 +1,6 @@
 """AC #6 — a digest mismatch is reported to Mandate and refused downstream (scenario 2).
 
-Canonical: .pi/architecture/modules/billing.md#acceptance-criteria
+Canonical: docs/architecture/modules/billing.md#acceptance-criteria
 Reference: docs/contracts/billing-contract-freeze.md (B-4)
 
 Billing's half of scenario 2 is narrow: hand the digest *as presented* to Mandate and record the bill

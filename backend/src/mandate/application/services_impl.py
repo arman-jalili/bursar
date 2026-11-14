@@ -1,7 +1,7 @@
 """The six catalog application services, implemented (one unit of work each).
 
-Canonical: .pi/architecture/modules/mandate.md#application-services
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#application-services
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Every method follows the same shape, deliberately:
 

@@ -1,7 +1,7 @@
 """Contract tests — `Payee.reapprove` (mandate v1, P-3 / P-5, AC #4).
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-payee
-Reference: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Canonical: docs/architecture/modules/mandate.md#aggregate-payee
+Reference: docs/architecture/decisions/ADR-005-authentication-authorization.md
 
 The recovery path. Quarantine would be a dead end without it, and a dead end is not a feature — so
 `reapprove` is part of the frozen contract, with three guarantees expressed in the signature:

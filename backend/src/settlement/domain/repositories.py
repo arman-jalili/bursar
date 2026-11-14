@@ -1,6 +1,6 @@
 """Settlement repository ports — owned by `domain/` (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Canonical: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 Reference: docs/contracts/settlement-contract-freeze.md §2.7
 
     SettlementOrderRepository   add (SC-3 write-ahead) · find_by_id · find_by_intent · save

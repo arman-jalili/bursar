@@ -1,6 +1,6 @@
 """CON-10 — both surfaces fit 390x844 and owner approval stays within three taps (NFR-011).
 
-Canonical: .pi/architecture/modules/console.md#acceptance-criteria
+Canonical: docs/architecture/modules/console.md#acceptance-criteria
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-10), §2.2
 
 The demo is a phone in someone's hand. Horizontal scroll is not a cosmetic defect here: a payee

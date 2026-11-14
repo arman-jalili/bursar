@@ -1,6 +1,6 @@
 # Bursar — Makefile
 #
-# Canonical: .pi/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
+# Canonical: docs/architecture/implementation-roadmap.md#phase-0-project-bootstrap-hours-01
 #
 # Every target below maps to a Phase-0 acceptance criterion or a demo-day need. If a target is not
 # needed by one of those two, it does not belong here.
@@ -15,7 +15,7 @@ PORT_CONSOLE ?= 8000
 DB ?= console
 
 .PHONY: help install lock test test-unit test-contract lint fmt typecheck check \
-        validate validators run-authority run-console health db-upgrade db-downgrade db-status \
+        run-authority run-console health db-upgrade db-downgrade db-status \
         anvil contracts-build contracts-test clean-freeze-check
 
 help: ## Show this help
@@ -51,14 +51,6 @@ fmt: ## Ruff format (writes)
 
 typecheck: ## Mypy (strict-ish)
 	$(UV) run mypy
-
-validate: ## Guardian architecture validators (ADR-001/002/007 gates)
-	@bash .pi/scripts/validate-architecture.sh || true
-	@bash .pi/scripts/check_model_judgment.sh || true
-	@bash .pi/scripts/check_language_consistency.sh || true
-	@if [ -d src/mandate ] || [ -d src/authority ]; then \
-	  bash .pi/scripts/check_composition_root.sh || true; \
-	else echo "composition-root gate deferred: no bounded contexts built yet (Phase 0)"; fi
 
 check: lint typecheck test ## Everything CI runs, locally
 

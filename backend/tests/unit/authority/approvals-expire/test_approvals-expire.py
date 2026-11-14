@@ -1,7 +1,7 @@
 """A-14 — an approval expires; a stale signature cannot dispatch (AC 10).
 
 Canonical: docs/contracts/authority-contract-freeze.md §1
-Reference: .pi/architecture/modules/authority.md#components
+Reference: docs/architecture/modules/authority.md#components
 
 An approval with no window is a standing authority, which is exactly what the mandate exists to prevent.
 Expiry is checked at *both* signing and consumption, because the dangerous window is the one between them.

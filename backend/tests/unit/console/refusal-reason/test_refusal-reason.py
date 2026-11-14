@@ -1,6 +1,6 @@
 """CON-07 — a refusal reaches the owner as a human reason derived from the closed code set.
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-07), §2.3
 
 Scenarios 2, 3 and 4 all end in a refusal. If the owner sees `DIGEST_MISMATCH` or a generic

@@ -1,7 +1,7 @@
 """Contract tests — Household aggregate root (mandate v1, H-1…H-3).
 
-Canonical: .pi/architecture/modules/mandate.md#aggregate-household
-Reference: .pi/architecture/modules/mandate.md#acceptance-criteria (AC #9)
+Canonical: docs/architecture/modules/mandate.md#aggregate-household
+Reference: docs/architecture/modules/mandate.md#acceptance-criteria (AC #9)
 
 Frozen: the aggregate's identity, its three parties, the **factory** (`open`) and the two owner-guard
 operations. Behaviour (does `open` really emit three events, does `assert_owner_acts` really raise for

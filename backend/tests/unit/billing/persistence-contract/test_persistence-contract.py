@@ -1,7 +1,7 @@
 """B-1 / B-3 — the storage layer mirrors the domain guards rather than trusting callers.
 
 Canonical: docs/contracts/billing-contract-freeze.md §2.6
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 The ports are where "one attempt at a time" and "one invoice per hash" become durable facts. Two things
 are asserted here:

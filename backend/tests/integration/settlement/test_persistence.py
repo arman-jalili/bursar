@@ -1,7 +1,7 @@
 """SC-3 / SC-5 / SC-10 — the storage layer keeps the guarantees the domain states.
 
 Canonical: docs/contracts/settlement-contract-freeze.md §1
-Reference: .pi/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
+Reference: docs/architecture/modules/settlement.md#repository-interfaces-owned-by-domain
 
 Real SQLite, real adapters, real constraints. The point is the durable half of the contract:
 

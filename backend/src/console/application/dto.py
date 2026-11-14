@@ -1,6 +1,6 @@
 """Console read models (frozen) — DTOs, not entities.
 
-Canonical: .pi/architecture/modules/console.md#entity-relationship--projections-only-no-aggregates
+Canonical: docs/architecture/modules/console.md#entity-relationship--projections-only-no-aggregates
 Reference: docs/contracts/console-contract-freeze.md §2.1
 
 Two decisions encoded in the types rather than in a formatter:

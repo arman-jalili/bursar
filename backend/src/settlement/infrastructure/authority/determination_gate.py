@@ -1,6 +1,6 @@
 """Authority adapters — the dispatch gate and the frozen intent facts, read live.
 
-Canonical: .pi/architecture/modules/settlement.md#dependencies (Depends On: Authority)
+Canonical: docs/architecture/modules/settlement.md#dependencies (Depends On: Authority)
 Reference: docs/contracts/settlement-contract-freeze.md §2.8 (SC-1)
 
 `AuthorityHttpAdapter` implements the frozen `DeterminationGate` port. SC-1 says the verdict must be

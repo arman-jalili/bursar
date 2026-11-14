@@ -1,6 +1,6 @@
 """CON-01 — every surface owns its whitelist; there is no shared "pass everything" projection.
 
-Canonical: .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+Canonical: docs/architecture/modules/console.md#anti-corruption-layer--field-whitelists
 Reference: docs/contracts/console-contract-freeze.md §1 (CON-01), §2.8
 
 Six surfaces, six tuples. The failure this prevents is not only an unknown key: a single shared

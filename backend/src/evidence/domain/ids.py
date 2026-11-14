@@ -1,6 +1,6 @@
 """Evidence identifiers — one NewType each, so envelopes and anchors cannot be swapped.
 
-Canonical: .pi/architecture/modules/evidence.md#components
+Canonical: docs/architecture/modules/evidence.md#components
 Reference: docs/contracts/evidence-contract-freeze.md §2.1
 
 `EnvelopeId` and `AnchorId` are opaque strings, but a request that confuses them is a real bug:

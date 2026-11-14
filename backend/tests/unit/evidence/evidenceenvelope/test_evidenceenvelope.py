@@ -1,7 +1,7 @@
 """E-2 / E-3 — the envelope carries the fact's subject and chain link without reinterpreting it.
 
 Canonical: docs/contracts/evidence-contract-freeze.md §1
-Reference: .pi/architecture/modules/evidence.md#components-evidenceenvelope
+Reference: docs/architecture/modules/evidence.md#components-evidenceenvelope
 
 An envelope is a wrapper, not an editor: the subject ids come from the publisher's payload, the actor
 is recorded, and a freshly sealed envelope starts a chain (`previous_hash is None`). Fails today from

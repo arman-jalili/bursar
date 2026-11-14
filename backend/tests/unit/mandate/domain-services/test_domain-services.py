@@ -1,7 +1,7 @@
 """Contract tests — Mandate domain services and ports (v1).
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-005-authentication-authorization.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-005-authentication-authorization.md
 
 Two ports are frozen here, and each exists to keep a decision out of an aggregate:
 

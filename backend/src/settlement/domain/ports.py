@@ -1,6 +1,6 @@
 """Settlement ports — the two adapters and the authority gate (frozen).
 
-Canonical: .pi/architecture/modules/settlement.md#ports-infrastructure-adapters
+Canonical: docs/architecture/modules/settlement.md#ports-infrastructure-adapters
 Reference: docs/contracts/settlement-contract-freeze.md §2.8 (amended in §7 — two-phase `ChainGateway`)
 
 Three ports, each keeping a foreign concern out of the domain:

@@ -1,7 +1,7 @@
 """Integration — Mandate persistence adapters (AC #12: events land in the same transaction).
 
-Canonical: .pi/architecture/modules/mandate.md#components
-Reference: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
+Canonical: docs/architecture/modules/mandate.md#components
+Reference: docs/architecture/decisions/ADR-002-data-storage-strategy.md
 
 Run against a real SQLite file with the real pragmas: the partial unique index (H-4) and the
 optimistic-concurrency check are storage behaviours, and an in-memory fake would prove neither.

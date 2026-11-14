@@ -1,7 +1,7 @@
 """B-3 — an invoice hash identifies the bill: a second identical hash is the same invoice.
 
 Canonical: docs/contracts/billing-contract-freeze.md §1
-Reference: .pi/architecture/modules/billing.md#components-invoice
+Reference: docs/architecture/modules/billing.md#components-invoice
 
 A replay must not enter the funnel as new demand: if it did, the cap ledger would happily pay the same
 bill twice. The rule is asserted at the recording point, which is the earliest place it can be caught.

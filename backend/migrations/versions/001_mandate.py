@@ -1,7 +1,7 @@
 """001_mandate — household, constitution lineage, payees, outbox.
 
-Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
-Reference: .pi/architecture/modules/mandate.md#components
+Canonical: docs/architecture/decisions/ADR-002-data-storage-strategy.md
+Reference: docs/architecture/modules/mandate.md#components
 
 Storage-level guarantees the module doc states as invariants:
 

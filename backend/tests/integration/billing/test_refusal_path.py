@@ -1,6 +1,6 @@
 """AC #7 — a denied determination sets the attempt REFUSED and frees the invoice.
 
-Canonical: .pi/architecture/modules/billing.md#acceptance-criteria
+Canonical: docs/architecture/modules/billing.md#acceptance-criteria
 Reference: docs/contracts/billing-contract-freeze.md (B-7)
 
 The failure mode this defends is a refusal that still leaves a hole: an attempt that can be dispatched
