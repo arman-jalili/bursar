@@ -8,6 +8,8 @@ interface Props {
   attempts: Attempt[];
   signed: boolean;
   signing: boolean;
+  /** Set when the signature is recorded but the governed broadcast has not completed. */
+  broadcastPending?: string | null;
   hasWallet: boolean;
   storyActive: boolean;
   onSign: () => void;
@@ -23,6 +25,7 @@ export function Attention({
   attempts,
   signed,
   signing,
+  broadcastPending,
   hasWallet,
   storyActive,
   onSign,
@@ -82,7 +85,7 @@ export function Attention({
               </button>
               <span className="attention-note">
                 {request.approvalId
-                  ? "Console approval — demo signer, signature forwarded unmodified"
+                  ? "Owner key (Anvil demo) — signs the exact intent digest"
                   : hasWallet
                     ? "EIP-712 via your wallet"
                     : "No wallet detected — demo signer"}
@@ -135,16 +138,31 @@ export function Attention({
         <div className="attention-card">
           <div className="attention-main">
             <span className="attention-eyebrow" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
-              ✓ Signed · dispatch authorised
+              {broadcastPending ? "✓ Signed · broadcast pending" : "✓ Signed · dispatch authorised"}
             </span>
-            <h2>Approved. The receipt is ready.</h2>
+            <h2>
+              {broadcastPending
+                ? "Approved. The order is signed."
+                : "Approved. The receipt is ready."}
+            </h2>
             <p className="attention-sub">
-              {formatAmount(request.amountUsdc)} to {request.payee.name} was authorised with your
-              exact intent signature. The evidence is a signed envelope in the ledger.
+              {broadcastPending ? (
+                <>
+                  {formatAmount(request.amountUsdc)} to {request.payee.name} carries your exact
+                  intent signature and a capacity reservation. The governed broadcast has not been
+                  accepted yet — the order keeps its hash and is re-broadcast, never re-signed.
+                </>
+              ) : (
+                <>
+                  {formatAmount(request.amountUsdc)} to {request.payee.name} was authorised with
+                  your exact intent signature. The evidence is a signed envelope in the ledger.
+                </>
+              )}
             </p>
             <div className="attention-signed">
               Signed by the owner · intent {shortHash(request.intentDigest, 8, 4)} · nonce{" "}
               {request.nonce}. No one can change the amount after this point.
+              {broadcastPending ? ` Broadcast: ${broadcastPending}` : ""}
             </div>
             <div className="attention-actions">
               {signedAttempt ? (
@@ -174,15 +192,17 @@ export function Attention({
               </span>
             </div>
             <div className="what-step">
-              <span className="n">✓</span>
+              <span className="n">{broadcastPending ? "○" : "✓"}</span>
               <span>
-                <b>Settled</b> — USDC on chain.
+                <b>{broadcastPending ? "Pending" : "Settled"}</b>
+                {broadcastPending ? " — broadcast not yet accepted." : " — USDC on chain."}
               </span>
             </div>
             <div className="what-step">
-              <span className="n">✓</span>
+              <span className="n">{broadcastPending ? "○" : "✓"}</span>
               <span>
-                <b>Sealed</b> — receipt ready to verify.
+                <b>{broadcastPending ? "Pending" : "Sealed"}</b>
+                {broadcastPending ? " — receipt waits for the bytes." : " — receipt ready to verify."}
               </span>
             </div>
             <div className="chain">

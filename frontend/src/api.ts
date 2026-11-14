@@ -24,6 +24,11 @@ const CONSOLE_BASE =
   (import.meta.env.VITE_CONSOLE_API_URL as string | undefined) ?? "http://127.0.0.1:8000";
 const OWNER_TOKEN =
   (import.meta.env.VITE_OWNER_TOKEN as string | undefined) ?? "demo-owner-token";
+// Anvil account 0 — the household owner in the demo. It signs the intent digest and the router
+// Payment digest. Public test key; never a real key.
+export const DEMO_OWNER_KEY =
+  (import.meta.env.VITE_DEMO_OWNER_KEY as string | undefined) ??
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const FORCE_MOCK = (import.meta.env.VITE_FORCE_MOCK as string | undefined) === "1";
 
 export type Source = "api" | "mock";
@@ -175,6 +180,7 @@ function mapBillStatus(status: string): AttemptStatus {
     case "DENIED":
       return "refused";
     case "DISPATCHED":
+    case "IN_FLIGHT":
       return "dispatched";
     case "FAILED":
       return "failed";
@@ -218,6 +224,7 @@ function approvalAttempt(item: ConsoleApproval, thresholdUsdc: string): Attempt 
 function approvalRequest(item: ConsoleApproval, attempt: Attempt): ApprovalRequest {
   return {
     approvalId: item.approval_id,
+    intentId: item.intent_id,
     attemptId: attempt.id,
     intentDigest: item.typed_data_hash,
     invoiceId: item.invoice_id,
@@ -340,8 +347,10 @@ function mapConsole(
     mode,
     policy,
     chain,
-    attempts: [...liveAttempts, ...base.attempts],
-    approval: primary ?? base.approval,
+    // Live mode shows only what the backend actually holds: a fixture row beside a real
+    // determination is how a demo starts lying. The story/lab remain a local overlay.
+    attempts: liveAttempts.map((a) => ({ ...a, live: true })),
+    approval: primary,
     source: "api",
   };
 }
@@ -401,9 +410,16 @@ export async function signApproval(request: ApprovalRequest): Promise<{
   signature: string;
   ownerAddress: string;
 }> {
-  // Console approvals: Authority's typed-data document is not exposed, so the
-  // console forwards a demo signature unmodified (the only write on the surface).
-  if (request.approvalId) return demoSignature();
+  // Console approvals: Authority verifies a secp256k1 signature over the intent's 32-byte digest.
+  // The demo owner key is the Anvil account 0 key, so the signature is real and recoverable.
+  if (request.approvalId) {
+    const { Wallet } = await import("ethers");
+    const wallet = new Wallet(DEMO_OWNER_KEY);
+    return {
+      signature: wallet.signingKey.sign(request.intentDigest).serialized,
+      ownerAddress: wallet.address,
+    };
+  }
 
   const eth = (window as unknown as { ethereum?: unknown }).ethereum as
     | { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
@@ -419,6 +435,27 @@ export async function signApproval(request: ApprovalRequest): Promise<{
     request.eip712.message,
   );
   return { signature, ownerAddress: await signer.getAddress() };
+}
+
+export interface DispatchResult {
+  order_id: string;
+  intent_id: string;
+  status: string;
+  nullifier: string;
+  tx_hash?: string | null;
+}
+
+/** Dispatch an authorised intent: authority gate -> local signing -> Rigorix broadcast. */
+export async function dispatchIntent(intentId: string): Promise<DispatchResult> {
+  const res = await fetch(`${CONSOLE_BASE}/v1/intents/${encodeURIComponent(intentId)}/dispatch`, {
+    method: "POST",
+    headers: { accept: "application/json", authorization: `Bearer ${OWNER_TOKEN}` },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `dispatch: HTTP ${res.status}`);
+  }
+  return (await res.json()) as DispatchResult;
 }
 
 export function settledToday(attempts: Attempt[]): number {

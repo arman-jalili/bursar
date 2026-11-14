@@ -14,6 +14,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from src.billing.application.dto import ProposePaymentCommand, RecordInvoiceCommand
+from src.billing.application.queries import BillingQueries
 from src.billing.application.services_impl import (
     GetAttemptService,
     GetInvoiceService,
@@ -82,6 +83,15 @@ def build_router() -> APIRouter:
             duplicate=result.duplicate,
             events=list(result.events),
         )
+
+    @router.get(
+        "/payer/bills",
+        dependencies=[Depends(require_scope("console:read"))],
+        summary="Payer bills in household language (FR-025 upstream)",
+    )
+    async def payer_bills(request: Request) -> dict[str, object]:
+        queries: BillingQueries = _services(request)["queries"]  # type: ignore[assignment]
+        return {"items": await queries.payer_bills()}
 
     @router.get(
         "/invoices",
@@ -161,6 +171,7 @@ def build_services(session_factory: object) -> dict[str, object]:
         "list_invoices": ListInvoicesService(session_factory),  # type: ignore[arg-type]
         "get_invoice": GetInvoiceService(session_factory),  # type: ignore[arg-type]
         "get_attempt": GetAttemptService(session_factory),  # type: ignore[arg-type]
+        "queries": BillingQueries(session_factory),  # type: ignore[arg-type]
     }
 
 

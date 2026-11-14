@@ -62,6 +62,15 @@ class TestHouseholdFactory:
         assert isinstance(inspect.getattr_static(Household, "open"), classmethod)
 
     def test_open_requires_all_three_parties_and_the_constitution(self) -> None:
+        """Amended (2026-11-14): `household_id` joined the factory.
+
+        The id must exist before the constitution and the actor's `PartyRef` are built, otherwise
+        the constitution row is bound to an id the household then does not have, and every
+        read-through by household finds no in-force version. Generating it inside `open` cannot
+        work: the caller needs it first. It is optional and defaults to a fresh id, so every
+        pre-existing call site is unchanged — which is what keeps this an amendment rather than a
+        new contract.
+        """
         signature = inspect.signature(Household.open)
         assert set(signature.parameters) == {
             "owner",
@@ -69,7 +78,14 @@ class TestHouseholdFactory:
             "agent",
             "constitution",
             "actor",
+            "household_id",
         }
+
+    def test_the_amended_household_id_is_optional(self) -> None:
+        """An amendment that made the new parameter required would silently break every caller."""
+        parameter = inspect.signature(Household.open).parameters["household_id"]
+        assert parameter.default is None
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
 
     def test_open_is_keyword_only(self) -> None:
         """Positional `owner`/`payer` swaps are silent and catastrophic; kw-only prevents them."""

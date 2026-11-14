@@ -46,6 +46,10 @@ class HttpAdapterConfig:
 
     base_url: str
     timeout_seconds: float = 2.0
+    #: Live services instead of the recorded demo transport (the compose demo sets this).
+    live: bool = False
+    #: Service identity for upstreams whose read routes require a scope (Mandate/Settlement/Evidence).
+    read_token: str = "demo-owner-token"
 
 
 class _HttpClientMixin:
@@ -59,7 +63,12 @@ class _HttpClientMixin:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._config = config
-        self._transport = transport if transport is not None else demo_transport()
+        if transport is not None:
+            self._transport = transport
+        elif config.live:
+            self._transport = httpx.AsyncHTTPTransport()
+        else:
+            self._transport = demo_transport()
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
@@ -89,9 +98,13 @@ class AuthorityHttpAdapter(_HttpClientMixin, ApprovalInboxPort, DeterminationPor
     """Authority: approvals, signature passthrough, refusal reason codes."""
 
     async def list_pending(self, owner_scope: str) -> tuple[Mapping[str, object], ...]:
+        # The live inbox wears the console's upstream shape; the recorded demo answers the same
+        # fields on /v1/approvals, so only the path changes.
+        path = "/v1/approvals/inbox" if self._config.live else "/v1/approvals"
+        params = None if self._config.live else {"status": "pending"}
         body = await self._get_json(
-            "/v1/approvals",
-            params={"status": "pending"},
+            path,
+            params=params,
             headers={"Authorization": f"Bearer {owner_scope}"},
         )
         items = body.get("items", ()) if isinstance(body, Mapping) else ()
@@ -111,7 +124,11 @@ class AuthorityHttpAdapter(_HttpClientMixin, ApprovalInboxPort, DeterminationPor
             response = await client.post(
                 path,
                 content=raw_body,
-                headers={"Content-Type": content_type or "application/json"},
+                headers={
+                    "Content-Type": content_type or "application/json",
+                    # Authority requires authority:sign; the demo forwards the owner identity.
+                    "Authorization": f"Bearer {self._config.read_token}",
+                },
             )
             response.raise_for_status()
             body = response.json()
@@ -129,7 +146,8 @@ class BillingHttpAdapter(_HttpClientMixin, BillsPort):
     """Billing: invoice list and status. Reads only — there is no write method on the port (CON-04)."""
 
     async def list_invoices(self, scope: str) -> tuple[Mapping[str, object], ...]:
-        body = await self._get_json("/v1/invoices", headers={"Authorization": f"Bearer {scope}"})
+        path = "/v1/payer/bills" if self._config.live else "/v1/invoices"
+        body = await self._get_json(path, headers={"Authorization": f"Bearer {scope}"})
         items = body.get("items", ()) if isinstance(body, Mapping) else ()
         return tuple(item for item in items if isinstance(item, Mapping))
 
@@ -144,9 +162,16 @@ class SettlementHttpAdapter(_HttpClientMixin, ReceiptPort):
     """Settlement: receipt lookup for the payer view."""
 
     async def receipt_for(self, invoice_id: str) -> Mapping[str, object] | None:
-        path = f"/v1/receipts/{invoice_id}"
+        path = (
+            f"/v1/receipts/invoice/{invoice_id}"
+            if self._config.live
+            else f"/v1/receipts/{invoice_id}"
+        )
         async with self._client() as client:
-            response = await client.get(path)
+            response = await client.get(
+                path,
+                headers={"Authorization": f"Bearer {self._config.read_token}"},
+            )
         if response.status_code == 404:
             # CON-06: no receipt means no settlement, not a fabricated one.
             return None
@@ -163,34 +188,69 @@ class SettlementHttpAdapter(_HttpClientMixin, ReceiptPort):
 class EvidenceHttpAdapter(_HttpClientMixin, EvidencePort):
     """Evidence: envelopes and the verified/tampered verdict, proxied (CON-08)."""
 
+    def _auth(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self._config.read_token}"}
+
     async def list_envelopes(self, intent_id: str | None) -> tuple[Mapping[str, object], ...]:
         params = {"intent_id": intent_id} if intent_id is not None else None
-        body = await self._get_json("/v1/evidence", params=params)
+        body = await self._get_json("/v1/evidence", params=params, headers=self._auth())
         items = body.get("items", ()) if isinstance(body, Mapping) else ()
-        return tuple(item for item in items if isinstance(item, Mapping))
+        rows = []
+        for item in items:
+            if not isinstance(item, Mapping):
+                continue
+            # The live envelope record names the stored bytes and the anchor; the console's
+            # presentation contract also asks for a result label. A stored envelope is SEALED.
+            rows.append({"result": "SEALED", **item} if "result" not in item else item)
+        return tuple(rows)
 
     async def verify(self, envelope_id: str) -> Mapping[str, object]:
         path = f"/v1/evidence/{envelope_id}/verify"
         try:
-            body = await self._get_json(path)
+            async with self._client() as client:
+                response = await client.get(path, headers=self._auth())
+            if self._config.live and response.status_code == 409:
+                from datetime import UTC, datetime
+
+                return {
+                    "envelope_id": envelope_id,
+                    "outcome": "tampered",
+                    "checked_at": datetime.now(UTC).isoformat(),
+                    "detail": "the stored bytes do not match the sealed envelope",
+                }
+            response.raise_for_status()
+            body = response.json()
         except httpx.HTTPError as exc:
             # CON-08: no verdict is invented when Evidence cannot answer.
             raise VerificationRefused(f"Evidence did not answer {path!r}: {exc}") from exc
         if not isinstance(body, Mapping):
             raise VerificationRefused(f"Evidence returned a non-object verdict for {path!r}")
-        return body
+        if not self._config.live:
+            return body
+        from datetime import UTC, datetime
+
+        result = str(body.get("result", "")).upper()
+        return {
+            "envelope_id": envelope_id,
+            "outcome": "verified" if result == "VERIFIED" else "unknown",
+            "checked_at": datetime.now(UTC).isoformat(),
+            "detail": result,
+        }
 
 
 class MandateHttpAdapter(_HttpClientMixin, ConstitutionPort):
     """Mandate: constitution and payee list for display; the console may not publish either."""
 
+    def _auth(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self._config.read_token}"}
+
     async def current(self) -> Mapping[str, object]:
-        body = await self._get_json("/v1/constitution")
+        body = await self._get_json("/v1/constitution", headers=self._auth())
         if not isinstance(body, Mapping):
             raise ConsoleRefusal("Mandate returned a non-object constitution")
         return body
 
     async def payees(self) -> tuple[Mapping[str, object], ...]:
-        body = await self._get_json("/v1/payees")
+        body = await self._get_json("/v1/payees", headers=self._auth())
         items = body.get("items", ()) if isinstance(body, Mapping) else ()
         return tuple(item for item in items if isinstance(item, Mapping))

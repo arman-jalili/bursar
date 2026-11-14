@@ -60,6 +60,9 @@ class DeterminationResponse(BaseModel):
     constitution_version: int
     payee_status: str
     read_at: datetime | None = None
+    #: The owner's verified, unconsumed approval for an `escalate` (A-13/A-14). The settlement gate
+    #: reads it live; without it an escalation is not a permission.
+    approval_granted: bool = False
 
 
 class IntentResponse(BaseModel):

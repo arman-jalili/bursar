@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   approveConsole,
   demoState,
+  dispatchIntent,
   loadState,
   signApproval,
   verifyEvidence,
   type BursarState,
+  type DispatchResult,
 } from "./api";
 import {
   INITIAL_APPROVAL,
@@ -21,8 +23,10 @@ import {
 } from "./data";
 import { Attention } from "./components/Attention";
 import { Constitution, type ActiveRule } from "./components/Constitution";
+import { EngineStrip } from "./components/EngineStrip";
 import { EvidenceDrawer } from "./components/EvidenceDrawer";
 import { Feed, type FeedFilter } from "./components/Feed";
+import { InspectorPanel } from "./components/InspectorPanel";
 import { Lab } from "./components/Lab";
 import { STORY, StoryRail } from "./components/StoryRail";
 import { TopBar } from "./components/TopBar";
@@ -235,6 +239,7 @@ export default function App() {
   const [storyStep, setStoryStep] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [live, setLive] = useState(false);
+  const [broadcastPending, setBroadcastPending] = useState<string | null>(null);
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
@@ -325,8 +330,10 @@ export default function App() {
   const hasWallet =
     typeof window !== "undefined" && Boolean((window as { ethereum?: unknown }).ethereum);
 
-  const committed = sumCommitted(state.attempts);
-  const left = leftToday(state.policy, state.attempts);
+  const capAttempts =
+    state.source === "api" ? state.attempts.filter((a) => a.live) : state.attempts;
+  const committed = sumCommitted(capAttempts);
+  const left = leftToday(state.policy, capAttempts);
   const cap = Number(state.policy.dailyCapUsdc);
   const pct = cap > 0 ? Math.min(100, (left / cap) * 100) : 0;
 
@@ -334,6 +341,9 @@ export default function App() {
     const request = state.approval;
     if (!request || signed || signing) return;
     setSigning(true);
+    setBroadcastPending(null);
+    let dispatched: DispatchResult | null = null;
+    let broadcastError = "";
     try {
       if (request.approvalId && state.source === "api") {
         const { signature } = await signApproval(request);
@@ -341,10 +351,21 @@ export default function App() {
         if (!outcome.granted) {
           throw new Error(outcome.reason_plain ?? "authority refused the signature");
         }
+        // Authority has now reserved capacity. Dispatch runs the live gate, signs locally and
+        // hands the bytes to Rigorix's governed run_command. A broadcast refusal is not a refusal
+        // of the signature: the order keeps its hash and stays re-broadcastable.
+        if (request.intentId) {
+          try {
+            dispatched = await dispatchIntent(request.intentId);
+          } catch (err) {
+            broadcastError = (err as Error).message;
+          }
+        }
       } else {
         await new Promise((resolve) => window.setTimeout(resolve, 700));
       }
       setSigned(true);
+      setBroadcastPending(broadcastError || null);
       setFilter("all");
       setState((s) => ({
         ...s,
@@ -352,33 +373,33 @@ export default function App() {
           a.id === request.attemptId
             ? {
                 ...a,
-                status: "settled",
+                status: dispatched ? "settled" : state.source === "api" ? "dispatched" : "settled",
                 decision: {
                   allow: true,
                   source: "rigorix-dispatch",
                   rule: "owner_signature",
-                  reason: "Owner EIP-712 signature verified at dispatch and on-chain.",
+                  reason: "The owner's signature was verified and capacity was reserved.",
                 },
-                settlement: {
-                  txHash: `0x${"a".repeat(64)}`,
-                  block: s.chain.block + 1,
-                  receipt: "0x7c3d…91aa",
-                },
-                narrative:
-                  "The owner signed the exact payment. Rigorix dispatched it and USDC settled.",
-                rigorix: {
-                  ...a.rigorix,
-                  executionId: a.rigorix?.executionId ?? "01a1d567-9fd7-7ee2-8fa8-22c7af0a07af",
-                  envelopeHash: `0x${"b".repeat(64)}`,
-                  envelopeUri: `/api/attempts/${a.id}/envelope`,
-                  anchoredTx: s.chain.anchor,
-                },
+                settlement: dispatched?.tx_hash
+                  ? { txHash: dispatched.tx_hash, block: s.chain.block, receipt: dispatched.tx_hash }
+                  : a.settlement,
+                narrative: dispatched
+                  ? "The owner signed the exact payment. Rigorix broadcast it and USDC settled."
+                  : broadcastError
+                    ? "The owner signed and the order is signed. The governed broadcast is pending."
+                    : "The owner signed the exact payment.",
               }
             : a,
         ),
-        chain: { ...s.chain, block: s.chain.block + 1, sealed: s.chain.sealed + 1 },
+        chain: dispatched?.tx_hash
+          ? { ...s.chain, block: s.chain.block + 1, sealed: s.chain.sealed + 1 }
+          : s.chain,
       }));
-      showToast("Signed. Dispatch authorised — the receipt is ready to verify.");
+      showToast(
+        broadcastError
+          ? `Signed. Broadcast pending: ${broadcastError}`
+          : "Signed. Rigorix broadcast the payment and USDC settled.",
+      );
     } catch (err) {
       showToast(`Approval failed: ${(err as Error).message}`);
     } finally {
@@ -410,12 +431,14 @@ export default function App() {
       ),
     }));
     setSigned(false);
+    setBroadcastPending(null);
     showToast("Declined. No dispatch, no transaction.");
   }, [state.approval, showToast]);
 
   const onReview = useCallback(
     (attempt: Attempt) => {
       setSigned(false);
+      setBroadcastPending(null);
       setState((s) => ({ ...s, approval: approvalFor(attempt) }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       showToast("Approval ready. Sign the exact payment at the top of the page.");
@@ -461,6 +484,7 @@ export default function App() {
     setState(applyScenario(storyBase(state), "normal"));
     setStoryStep(0);
     setSigned(false);
+    setBroadcastPending(null);
     setSigning(false);
     setVerified({});
     setDrawerAttempt(null);
@@ -521,6 +545,8 @@ export default function App() {
         onStory={onStoryButton}
       />
 
+      <EngineStrip />
+
       <section className="masthead">
         <div>
           <div className="eyebrow">
@@ -567,6 +593,7 @@ export default function App() {
         attempts={state.attempts}
         signed={signed}
         signing={signing}
+        broadcastPending={broadcastPending}
         hasWallet={hasWallet}
         storyActive={storyStep !== null}
         onSign={onSign}
@@ -598,7 +625,7 @@ export default function App() {
         <div className="rules-panel">
           <Constitution
             policy={state.policy}
-            attempts={state.attempts}
+            attempts={state.source === "api" ? state.attempts.filter((a) => a.live) : state.attempts}
             activeRule={activeRule}
             onToggleQuarantine={() => {
               setState((s) => ({
@@ -628,6 +655,7 @@ export default function App() {
       />
 
       {toast ? <div className="toast">{toast}</div> : null}
+      <InspectorPanel />
     </div>
   );
 }

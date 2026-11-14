@@ -613,3 +613,93 @@
     .story-caption{flex:1 1 100%}
     .attention-fields{grid-template-columns:1fr}
   }
+
+/* ── Engine strip: a reading, not a logo ─────────────────────────────────────
+   Sits directly under the top bar and is the first thing on the page after it,
+   because the question "is an engine actually running?" precedes every claim the
+   product makes below. Red when unreachable — an indicator that can only be
+   green is decoration. */
+.engine-strip{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  flex-wrap:wrap;
+  margin:0 0 18px; padding:10px 14px;
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  font-size:12px; letter-spacing:.02em;
+}
+.engine-strip.engine-down{ border-color:var(--red); background:var(--red-soft); }
+.engine-left{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+.engine-right{ display:flex; align-items:center; gap:8px; }
+.engine-dot{ width:8px; height:8px; border-radius:50%; background:var(--green); flex:none; }
+.engine-down .engine-dot{ background:var(--red); }
+.engine-label{ font-size:11px; letter-spacing:.14em; color:var(--muted); }
+.engine-name{ font-weight:600; }
+.engine-muted{ color:var(--muted); }
+.engine-muted b{ color:var(--ink); font-weight:600; }
+.engine-muted code{ font-size:11px; color:var(--ink); }
+.engine-latency{
+  font-variant-numeric:tabular-nums; padding:2px 8px; border-radius:999px;
+  background:var(--green-soft); color:var(--green); font-weight:600; font-size:11px;
+}
+.engine-latency-bad{ background:var(--red-soft); color:var(--red); }
+.engine-btn{
+  font:inherit; font-size:11px; padding:4px 10px; border-radius:999px; cursor:pointer;
+  background:transparent; color:var(--ink); border:1px solid var(--line-strong);
+  text-decoration:none; display:inline-flex; align-items:center;
+}
+.engine-btn:hover{ background:var(--paper); }
+.engine-raw{
+  flex-basis:100%; margin:10px 0 0; padding:12px; max-height:260px; overflow:auto;
+  background:var(--paper); border:1px solid var(--line); border-radius:10px;
+  font-size:11px; line-height:1.5;
+}
+
+/* ── Call inspector: the page's own network log ────────────────────────────── */
+.inspector{ position:fixed; right:20px; bottom:20px; z-index:60; width:min(560px, calc(100vw - 40px)); }
+.inspector-trigger{
+  display:flex; align-items:center; gap:10px; width:100%; cursor:pointer;
+  padding:9px 14px; border-radius:12px 12px 0 0;
+  background:var(--ink); color:var(--paper); border:1px solid var(--ink);
+  font:inherit; font-size:11px; letter-spacing:.12em;
+}
+.inspector:not(.inspector-open) .inspector-trigger{ border-radius:12px; }
+.inspector-title{ font-weight:600; }
+.inspector-count{ margin-left:auto; color:var(--mint); letter-spacing:.02em; }
+.inspector-failures{ color:var(--pink); letter-spacing:.02em; }
+.inspector-chevron{ color:var(--muted); }
+.inspector-body{
+  background:var(--card); border:1px solid var(--line); border-top:none;
+  border-radius:0 0 12px 12px; padding:12px 14px; max-height:min(60vh, 480px); overflow:auto;
+}
+.inspector-note{ margin:0 0 10px; font-size:11px; color:var(--muted); line-height:1.5; }
+.inspector-actions{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.inspector-hint{ font-size:10px; color:var(--muted); }
+.call-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.call{ border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--paper); }
+.call-ok{ border-left:3px solid var(--green); }
+.call-error{ border-left:3px solid var(--red); }
+.call-pending{ border-left:3px solid var(--yellow); }
+.call-head{ display:flex; align-items:stretch; }
+.call-toggle{
+  flex:1; display:flex; align-items:center; gap:8px; min-width:0;
+  padding:7px 10px; background:transparent; border:none; cursor:pointer;
+  font:inherit; font-size:11px; text-align:left; color:var(--ink);
+}
+.call-method{ font-weight:700; font-size:10px; letter-spacing:.06em; color:var(--muted); width:44px; flex:none; }
+.call-path{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.call-status{ margin-left:auto; font-variant-numeric:tabular-nums; font-weight:600; }
+.call-error .call-status{ color:var(--red); }
+.call-ok .call-status{ color:var(--green); }
+.call-duration{ color:var(--muted); font-variant-numeric:tabular-nums; width:58px; text-align:right; flex:none; }
+.call-copy{
+  font:inherit; font-size:10px; padding:0 10px; cursor:pointer;
+  background:transparent; border:none; border-left:1px solid var(--line); color:var(--muted);
+}
+.call-copy:hover{ color:var(--ink); background:var(--card); }
+.call-body{ border-top:1px solid var(--line); padding:8px 10px; background:var(--card); }
+.call-meta{ margin:0 0 4px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.call-meta-bad{ color:var(--red); text-transform:none; letter-spacing:0; }
+.call-body pre{
+  margin:0 0 8px; padding:8px; max-height:180px; overflow:auto;
+  background:var(--paper); border:1px solid var(--line); border-radius:8px;
+  font-size:10.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word;
+}

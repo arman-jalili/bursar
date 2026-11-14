@@ -32,6 +32,7 @@ from src.settlement.application.dto import (
     DispatchPaymentCommand,
     ListOrdersQuery,
 )
+from src.settlement.application.queries import InvoiceReceiptQuery
 from src.settlement.application.services import DispatchPayment
 from src.settlement.application.services_impl import (
     CostSummaryService,
@@ -157,6 +158,18 @@ def build_router() -> APIRouter:
         service: GetReceiptService = _services(request)["get_receipt"]  # type: ignore[assignment]
         return _receipt_response(await service.execute(order_id))
 
+    @router.get("/v1/receipts/invoice/{invoice_id}")
+    async def receipt_for_invoice(
+        invoice_id: str,
+        request: Request,
+        _scopes: frozenset[str] = Depends(_SETTLEMENT_READ),
+    ) -> dict[str, object]:
+        query: InvoiceReceiptQuery = _services(request)["invoice_receipt"]  # type: ignore[assignment]
+        receipt = await query.for_invoice(invoice_id)
+        if receipt is None:
+            raise HTTPException(status_code=404, detail="no receipt for this invoice")
+        return receipt
+
     @router.get("/v1/receipts", response_model=ReceiptListResponse)
     async def list_receipts(
         request: Request,
@@ -253,6 +266,7 @@ def build_services(
         "list_receipts": ListReceiptsService(session_factory),  # type: ignore[arg-type]
         "cost_summary": CostSummaryService(session_factory),  # type: ignore[arg-type]
         "nullifier_status": NullifierStatusService(session_factory),  # type: ignore[arg-type]
+        "invoice_receipt": InvoiceReceiptQuery(session_factory),  # type: ignore[arg-type]
     }
     if settings is not None:
         services["dispatch"] = build_dispatch_service(
@@ -301,7 +315,12 @@ def _build_chain_gateway(settings: Settings) -> object | None:
 
         return Web3ChainGateway(
             Web3(Web3.HTTPProvider(settings.rpc_url)),
-            ChainNetwork.for_chain(settings.chain_id),
+            ChainNetwork.for_chain(
+                settings.chain_id,
+                router_address=settings.payment_router_address,
+                usdc_address=settings.usdc_address,
+                confirmations_required=settings.confirmations_required,
+            ),
             settings,
         )
     except Exception:

@@ -27,6 +27,7 @@ from src.shared.infrastructure.db import build_engine, build_session_factory
 from src.shared.infrastructure.logging import configure_logging, get_logger
 from src.shared.infrastructure.middleware import CorrelationIdMiddleware, MetricsMiddleware
 from src.shared.infrastructure.migrations import upgrade_to_head_async
+from src.shared.interfaces.engine import build_engine_router
 from src.shared.interfaces.errors import install_error_handlers
 from src.shared.interfaces.health import build_health_router, metrics_router
 
@@ -117,6 +118,10 @@ def build_app(service: ServiceName, settings: Settings | None = None) -> FastAPI
 
     install_error_handlers(app)
     app.include_router(metrics_router)
+    # Only the browser-facing deployable serves it: the authority service is not reachable from
+    # a page (ADR-001), and an engine-status route there would be a second, unattended surface.
+    if service == "console-api":
+        app.include_router(build_engine_router(cfg))
     app.state.settings = cfg
     #: Filled by `install_context` before the app starts; run once the engine exists.
     app.state.startup_hooks = []

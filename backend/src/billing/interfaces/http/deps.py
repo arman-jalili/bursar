@@ -23,7 +23,7 @@ __all__ = ["require_any_scope", "require_scope"]
 #: Demo token → scopes (ADR-005). Mirrors the process-wide demo identity.
 _DEMO_TOKENS: dict[str, frozenset[str]] = {
     "demo-owner-token": frozenset(
-        {"mandate:read", "mandate:write", "authority:read", "evidence:read"}
+        {"mandate:read", "mandate:write", "authority:read", "evidence:read", "console:read"}
     ),
     "demo-agent-token": frozenset({"billing:propose", "billing:read", "authority:evaluate"}),
     "demo-payer-token": frozenset({"console:read"}),

@@ -33,6 +33,7 @@ from src.authority.domain.ports import (
     PayeeView,
 )
 from src.authority.domain.values import Money
+from src.billing.infrastructure.models import InvoiceRow, PaymentAttemptRow
 from src.mandate.domain.services import PayeeEligibilityResolver
 from src.mandate.domain.values import (
     BankDigest,
@@ -49,6 +50,7 @@ from src.mandate.infrastructure.models import (
 from src.shared.domain.errors import BursarError, ErrorCode, NotFoundError
 
 __all__ = [
+    "SqlAttemptViewPort",
     "SqlMandateView",
     "SqlOwnerDirectory",
     "UnavailableAttemptViewPort",
@@ -188,4 +190,33 @@ class UnavailableAttemptViewPort:
 
     async def load(self, attempt_id: str) -> tuple[AttemptView, InvoiceView]:
         raise upstream_unavailable("Billing", attempt_id=attempt_id)
+
+
+class SqlAttemptViewPort:
+    """`AttemptViewPort` over Billing's tables in a single-database deployment.
+
+    The demo runs both deployables against one SQLite file, so the read-through is real: the row
+    Authority sees is the row Billing wrote, read at evaluation time. Routing fields stay out of the
+    view (A-2) — the adapter exposes only the identifiers and the invoice amount.
+    """
+
+    def __init__(self, session_factory: object) -> None:
+        self._factory = session_factory
+
+    async def load(self, attempt_id: str) -> tuple[AttemptView, InvoiceView]:
+        async with self._factory() as session:  # type: ignore[operator]
+            attempt = await session.get(PaymentAttemptRow, attempt_id)
+            if attempt is None:
+                raise NotFoundError("attempt not found", attempt_id=attempt_id)
+            invoice = await session.get(InvoiceRow, attempt.invoice_id)
+            if invoice is None:
+                raise upstream_unavailable("Billing invoice", invoice_id=attempt.invoice_id)
+            return (
+                AttemptView(attempt_id=attempt.id, invoice_id=attempt.invoice_id),
+                InvoiceView(
+                    invoice_id=invoice.id,
+                    payee_id=invoice.payee_id,
+                    amount=Money(invoice.amount_micro_usdc),
+                ),
+            )
 

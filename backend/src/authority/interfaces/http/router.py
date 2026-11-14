@@ -20,6 +20,7 @@ the denial is raised here, after the service's transaction commits, rather than 
 
 from __future__ import annotations
 
+import os
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request
@@ -181,7 +182,9 @@ def build_router() -> APIRouter:
     )
     async def get_determination(intent_id: str, request: Request) -> DeterminationResponse:
         queries: AuthorityQueries = _services(request)["queries"]  # type: ignore[assignment]
-        return _determination_response(await queries.determination(intent_id))
+        determination = await queries.determination(intent_id)
+        granted = await queries.approval_granted(intent_id)
+        return _determination_response(determination, approval_granted=granted)
 
     @router.get(
         "/ledger/{day}",
@@ -201,6 +204,15 @@ def build_router() -> APIRouter:
         )
 
     # ── approvals ──────────────────────────────────────────────────────────
+    @router.get(
+        "/approvals/inbox",
+        dependencies=[Depends(require_scope("authority:read"))],
+        summary="Owner inbox with the exact intent fields the console renders (FR-024)",
+    )
+    async def approval_inbox(request: Request) -> dict[str, object]:
+        queries: AuthorityQueries = _services(request)["queries"]  # type: ignore[assignment]
+        return {"items": await queries.approval_inbox()}
+
     @router.get(
         "/approvals",
         response_model=list[ApprovalResponse],
@@ -284,7 +296,9 @@ def build_router() -> APIRouter:
     return router
 
 
-def _determination_response(view: DeterminationView) -> DeterminationResponse:
+def _determination_response(
+    view: DeterminationView, *, approval_granted: bool = False
+) -> DeterminationResponse:
     return DeterminationResponse(
         determination_id=view.determination_id,
         intent_id=view.intent_id,
@@ -293,6 +307,7 @@ def _determination_response(view: DeterminationView) -> DeterminationResponse:
         constitution_version=view.constitution_version,
         payee_status=view.payee_status,
         read_at=view.read_at,
+        approval_granted=approval_granted,
     )
 
 
@@ -301,11 +316,16 @@ def build_services(session_factory: object) -> dict[str, object]:
 
     The startup hook runs after the engine exists, because a session factory is the seam every service
     takes (ADR-002). Upstream adapters are not injected here: the defaults read Mandate in the same
-    transaction and fail closed on Billing until its persistence layer lands.
+    transaction and fail closed on Billing until its persistence layer lands. The single-database
+    deployment opts into the SQL read-through with `BURSAR_BILLING_READ_MODE=shared`.
     """
+    from src.authority.infrastructure.adapters import SqlAttemptViewPort
+
+    shared = os.environ.get("BURSAR_BILLING_READ_MODE", "unavailable") == "shared"
+    attempts = SqlAttemptViewPort(session_factory) if shared else None
     return {
         "precondition": PreconditionCheck(session_factory),  # type: ignore[arg-type]
-        "evaluate": EvaluateAuthorityService(session_factory),  # type: ignore[arg-type]
+        "evaluate": EvaluateAuthorityService(session_factory, attempts=attempts),  # type: ignore[arg-type]
         "reserve": ReserveCapacityService(session_factory),  # type: ignore[arg-type]
         "escalate": EscalateForSignatureService(session_factory),  # type: ignore[arg-type]
         "signature": SubmitOwnerSignatureService(session_factory),  # type: ignore[arg-type]

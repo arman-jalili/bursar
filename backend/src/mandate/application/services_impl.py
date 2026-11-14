@@ -155,6 +155,7 @@ class CreateMandateService(_Service, CreateMandate):
             agent=Agent(id=AgentId(new_id()), key_id=command.agent_key_id),
             constitution=constitution,
             actor=actor,
+            household_id=household_id,
         )
         household.record(
             MandateCreated(

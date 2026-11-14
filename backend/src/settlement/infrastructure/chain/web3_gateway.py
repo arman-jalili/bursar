@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import os
 import re
 from typing import TYPE_CHECKING, Any, Final
 
@@ -219,24 +220,29 @@ class Web3ChainGateway(ChainGateway):
         """
         if order.tx_hash is not None:
             raise SecondTransactionRefused(order_id=str(order.id), existing_tx_hash=order.tx_hash)
+
+        owner_signature = b""
         if order.requires_owner_signature:
-            # The router verifies an EIP-712 signature from the immutable owner. The order carries the
-            # fact that one is required but no signature bytes, so the only honest answer is a refusal:
-            # sending an empty signature would make the contract revert, and dropping the flag would
-            # disarm the lock the order asked for.
-            raise SettlementRefusal(
-                ErrorCode.CONFLICT,
-                "This payment requires the owner's signature; the settlement key cannot supply it.",
-                details={"order_id": str(order.id), "reason": "owner_signature_required"},
-            )
+            # The router verifies an EIP-712 signature from the immutable owner. In production the
+            # owner signs the Payment digest in their wallet and the caller supplies the bytes; the
+            # demo stack sets a well-known Anvil owner key so the on-chain lock is still exercised
+            # end to end. With no key configured the only honest answer is a refusal — sending an
+            # empty signature would revert, and dropping the flag would disarm the lock.
+            owner_signature = self._demo_owner_signature(order)
+            if not owner_signature:
+                raise SettlementRefusal(
+                    ErrorCode.CONFLICT,
+                    "This payment requires the owner's signature; the settlement key cannot supply it.",
+                    details={"order_id": str(order.id), "reason": "owner_signature_required"},
+                )
 
         call = self._router.functions.pay(
             self.order_ref(order.id),
             _word(order.nullifier.value, field="nullifier"),
             to_checksum_address(order.payee_address.value),
             order.amount.micro_usdc,
-            False,
-            b"",
+            order.requires_owner_signature,
+            owner_signature,
         )
         try:
             return await asyncio.to_thread(self._sign_sync, call)
@@ -244,6 +250,28 @@ class Web3ChainGateway(ChainGateway):
             raise
         except Exception as exc:  # provider boundary: every failure is a refusal
             raise self._refusal(exc, stage="prepare", order_id=str(order.id)) from exc
+
+    def _demo_owner_signature(self, order: SettlementOrder) -> bytes:
+        """Sign the router's Payment digest with the demo owner key, or return b"".
+
+        The owner key is a well-known Anvil test key, configured only in the demo stack. It signs the
+        same EIP-712 digest the router checks, so the recovered address is the household owner and the
+        second lock is real. In production the owner signature arrives from the owner's wallet instead;
+        this helper is the one place the demo differs, and it is empty unless explicitly configured.
+        """
+        from eth_account import Account
+
+        key = os.environ.get("BURSAR_DEMO_OWNER_PRIVATE_KEY", "")
+        if not key:
+            return b""
+        digest = self._router.functions.paymentDigest(
+            self.order_ref(order.id),
+            _word(order.nullifier.value, field="nullifier"),
+            self.payer,
+            to_checksum_address(order.payee_address.value),
+            order.amount.micro_usdc,
+        ).call()
+        return bytes(Account.unsafe_sign_hash(bytes(digest), private_key=key).signature)
 
     async def broadcast(self, signed: SignedPayment) -> None:
         """Send already-signed bytes; return nothing, because the hash is not news to the caller.

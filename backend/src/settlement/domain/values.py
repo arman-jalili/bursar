@@ -174,8 +174,19 @@ class ChainNetwork(ValueObject):
         )
 
     @classmethod
-    def for_chain(cls, chain_id: int) -> ChainNetwork:
-        """Look up a known configuration.
+    def for_chain(
+        cls,
+        chain_id: int,
+        *,
+        router_address: str | None = None,
+        usdc_address: str | None = None,
+        confirmations_required: int | None = None,
+    ) -> ChainNetwork:
+        """Look up a known configuration, with the deployment's addresses when supplied.
+
+        The chain id is refuse-by-default (SC-11). The addresses are overridden by configuration
+        because a deployed router's address is a deployment fact, not a network constant; supplying
+        them here keeps the four fields bound as one unit.
 
         Raises:
             UnknownNetwork: the chain id has no configuration — refusing is the point, because a
@@ -183,7 +194,20 @@ class ChainNetwork(ValueObject):
         """
         for known in (cls.anvil(), cls.base_sepolia()):
             if known.chain_id == chain_id:
-                return known
+                if (
+                    router_address is None
+                    and usdc_address is None
+                    and confirmations_required is None
+                ):
+                    return known
+                return cls(
+                    chain_id=chain_id,
+                    router_address=router_address or known.router_address,
+                    usdc_address=usdc_address or known.usdc_address,
+                    confirmations_required=(
+                        confirmations_required or known.confirmations_required
+                    ),
+                )
         raise UnknownNetwork(chain_id)
 
 

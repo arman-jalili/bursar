@@ -23,6 +23,7 @@ from src.mandate.application.dto import (
     RegisterPayeeCommand,
     ReviewPresentedDigestCommand,
 )
+from src.mandate.application.queries import MandateQueries
 from src.mandate.application.services_impl import (
     CreateMandateService,
     EligibilityReaderService,
@@ -231,6 +232,24 @@ def build_router() -> APIRouter:
         )
 
     @router.get(
+        "/payees",
+        dependencies=[Depends(require_scope("mandate:read"))],
+        summary="Display-only payee list for the owner console",
+    )
+    async def payees(request: Request) -> dict[str, object]:
+        queries: MandateQueries = _services(request)["queries"]  # type: ignore[assignment]
+        return {"items": await queries.payees()}
+
+    @router.get(
+        "/constitution",
+        dependencies=[Depends(require_scope("mandate:read"))],
+        summary="The in-force constitution for display (cap, threshold, version)",
+    )
+    async def constitution(request: Request) -> dict[str, object]:
+        queries: MandateQueries = _services(request)["queries"]  # type: ignore[assignment]
+        return await queries.constitution()
+
+    @router.get(
         "/payees/{payee_id}/eligibility",
         response_model=EligibilityResponse,
         dependencies=[Depends(require_scope("authority:evaluate"))],
@@ -265,4 +284,5 @@ def build_services(session_factory: object) -> dict[str, object]:
         "reapprove_payee": ReapprovePayeeDigestService(session_factory),  # type: ignore[arg-type]
         "freeze_payee": FreezePayeeService(session_factory),  # type: ignore[arg-type]
         "eligibility": EligibilityReaderService(session_factory),  # type: ignore[arg-type]
+        "queries": MandateQueries(session_factory),  # type: ignore[arg-type]
     }

@@ -47,6 +47,8 @@ export interface Attempt {
   };
   settlement?: { txHash?: string; block?: number; receipt?: string };
   narrative: string;
+  /** True for rows read from the live console (they count toward the live cap). */
+  live?: boolean;
   /** Console API: the approval this attempt is waiting on. */
   approvalId?: string;
   /** Console API: the Evidence envelope linked to this attempt. */
@@ -68,6 +70,8 @@ export interface Policy {
 
 export interface ApprovalRequest {
   approvalId?: string;
+  /** Console/Authority: the intent the settlement dispatch names. */
+  intentId?: string;
   attemptId: string;
   intentDigest: string;
   invoiceId: string;

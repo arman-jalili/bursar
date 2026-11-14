@@ -15,6 +15,7 @@ body model — because a body model is a rewrite (CON-03).
 
 from __future__ import annotations
 
+import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Final
@@ -75,9 +76,11 @@ __all__ = [
     "verify",
 ]
 
-#: Upstream base URLs. The demo/CI transport answers these paths with recorded payloads; a
-#: production composition injects a real `httpx` transport (see `infrastructure/transport.py`).
-AUTHORITY_BASE_URL: Final[str] = "http://127.0.0.1:8001"
+#: Upstream base URLs. The demo/CI transport answers these paths with recorded payloads; the live
+#: composition (`BURSAR_CONSOLE_UPSTREAM=live`) reaches the real services instead.
+AUTHORITY_BASE_URL: Final[str] = os.environ.get(
+    "BURSAR_CONSOLE_AUTHORITY_URL", "http://127.0.0.1:8001"
+)
 IN_PROCESS_BASE_URL: Final[str] = "http://127.0.0.1:8000"
 
 
@@ -300,11 +303,14 @@ def build_router(deps: ConsoleDeps | None = None) -> object:
 
 def build_deps() -> ConsoleDeps:
     """Compose the three projections over the six upstream adapters (composition root only)."""
-    authority = AuthorityHttpAdapter(HttpAdapterConfig(base_url=AUTHORITY_BASE_URL))
-    billing = BillingHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL))
-    settlement = SettlementHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL))
-    mandate = MandateHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL))
-    evidence = EvidenceHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL))
+    live = os.environ.get("BURSAR_CONSOLE_UPSTREAM") == "live"
+    authority = AuthorityHttpAdapter(
+        HttpAdapterConfig(base_url=AUTHORITY_BASE_URL, live=live)
+    )
+    billing = BillingHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL, live=live))
+    settlement = SettlementHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL, live=live))
+    mandate = MandateHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL, live=live))
+    evidence = EvidenceHttpAdapter(HttpAdapterConfig(base_url=IN_PROCESS_BASE_URL, live=live))
 
     return ConsoleDeps(
         approval_inbox=ProjectApprovalInbox(authority, authority, mandate),

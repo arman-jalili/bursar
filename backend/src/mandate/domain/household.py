@@ -52,6 +52,7 @@ class Household(AggregateRoot):
         agent: Agent,
         constitution: Constitution,
         actor: PartyRef,
+        household_id: HouseholdId | None = None,
     ) -> Household:
         """Create the household. Emits `OwnerRegistered` + `PayerEnrolled` + `AgentAuthorised`.
 
@@ -62,7 +63,9 @@ class Household(AggregateRoot):
         if actor.role is not Role.OWNER:
             raise OwnerActionRequired(role=actor.role.value)
         household = cls(
-            id=HouseholdId(new_id()),
+            # The caller may already have bound the constitution to an id; the household must
+            # be the same id or every read-through by household finds no in-force version.
+            id=household_id or HouseholdId(new_id()),
             owner=owner,
             payer=payer,
             agent=agent,

@@ -624,6 +624,12 @@ must be **read-through** (no cache, no fallback to a previous response) — this
 | Component | Pattern | Rationale |
 |---|---|---|
 | `Household.open` | **Factory method** | Creating a household requires three parties *and* a constitution v1; a constructor would allow illegal halves. |
+
+> **Amendment 2026-11-14 — `Household.open(..., household_id: HouseholdId | None = None)`.**
+> The id must exist *before* the constitution and the owner's `PartyRef` are constructed, or the
+> constitution is bound to an id the household does not have and every read-through by household
+> finds no in-force version. The parameter is optional with a fresh id as the default, so existing
+> call sites are unchanged. Frozen-signature test: `test_open_requires_all_three_parties_and_the_constitution`.
 | `Constitution.append` | **Immutable snapshot lineage** | Versions are frozen dataclasses; supersession is a state flip, never an edit. |
 | `Payee.eligibility` | **Strategy-by-lookup** | Four statuses map to three verdicts; the mapping is data, so it needs no class hierarchy yet (curriculum rule: no speculative abstraction). |
 | `EligibilityResolver` | **Domain service** | Combines two aggregates (constitution flag + payee status); belongs to neither. |
