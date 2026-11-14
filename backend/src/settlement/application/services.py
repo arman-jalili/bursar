@@ -3,7 +3,7 @@
 Canonical: .pi/architecture/modules/settlement.md#application-services
 Reference: docs/contracts/settlement-contract-freeze.md §2.10
 
-    DispatchPayment  FR-019  execute the allowed order via run_command, submit, write-ahead the hash
+    DispatchPayment  FR-019  sign the allowed order locally, persist the hash, then broadcast it
     SettleOnce       FR-021  re-poll the same hash, enforce finality, conclude once, publish the outcome
     GetReceipt               read one order's receipt (SC-10)
     ListOrders               read orders for the console
@@ -13,12 +13,14 @@ Reference: docs/contracts/settlement-contract-freeze.md §2.10
 Names come from the exploration use-cases pass and are not negotiable: they are how the console, the
 agent and the evidence trail refer to these use cases.
 
-Each implementation must open exactly one `session_scope` and append the drained events to
-`settlement_outbox` in that same transaction (ADR-003). Two orderings are part of the contract, not an
-implementation detail:
+Each implementation must open exactly one `session_scope` **per state change** and append the drained
+events to `settlement_outbox` in that same transaction (ADR-003). Two orderings are part of the
+contract, not an implementation detail:
 
-1. **Persist the tx hash before broadcast** (SC-3). The use case writes `mark_submitted` then calls
-   `ChainGateway.submit`; a crash between them must re-poll the hash, never sign a second transaction.
+1. **Persist the tx hash before broadcast** (SC-3). The use case signs locally (`ChainGateway.prepare`,
+   hash known, nothing sent), writes `mark_signed` — hash *and* signed bytes — in a transaction that
+   commits, and only then runs the governed broadcast. A crash before the broadcast re-sends the same
+   bytes; it never signs a second transaction.
 2. **A revert ends the use case** (SC-6, SC-8). `SettleOnce` records `SettlementReverted` and returns;
    there is no retry branch, because a retry branch is the timeout double-pay.
 
@@ -59,11 +61,12 @@ class DispatchPayment(ABC):
 
     @abstractmethod
     async def execute(self, command: DispatchPaymentCommand) -> DispatchPaymentResult:
-        """Create the order and submit it.
+        """Create the order, sign it, persist its hash, then broadcast through the governed step.
 
         Raises:
             DispatchWithoutAuthority: no determination permits dispatch (SC-1).
-            DuplicateSettlementBlocked: the invoice's nullifier is already spent (SC-5).
+            DuplicateSettlementBlocked: the invoice's nullifier is already spent (SC-5), or the intent
+                already has an order (SC-4).
             AmountIntegrityViolation: the amount handed to the chain differs from the signed amount
                 (SC-9) — refused before anything is broadcast.
             SecondTransactionRefused: the order already has a hash (SC-3).

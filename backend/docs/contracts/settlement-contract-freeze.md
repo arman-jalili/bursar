@@ -261,18 +261,30 @@ duplicates, update does not, so the invariant is not hidden in an upsert. `list_
 
 ### 2.8 Ports — `domain/ports.py`
 
+**Amended (see §7):** `ChainGateway.submit` was split into `prepare` + `broadcast`. The frozen shape is
+the one below; the reason it could not stay as it was is §7's subject.
+
 ```python
 @dataclass(frozen=True, slots=True)
 class CommandAck:
-    command_ref: str
+    command_ref: str           # the settlement command's identity (`payments.dispatch`, SC-2)
     accepted: bool
     precondition: str = ""
+    execution_id: str = ""     # additive: the governed execution's id (= the order id)
+    audit_uri: str = ""        # additive: the host's audit trail for this run
+    command_text: str = ""     # additive (§7): the rendered command the host executed
+
+@dataclass(frozen=True, slots=True)
+class SignedPayment:
+    tx_hash: str               # known before broadcast; this is what SC-3 persists
+    raw_transaction: str       # 0x-hex of the signed bytes; public by definition
 
 class PaymentExecutor(Protocol):
     async def execute(self, order: SettlementOrder) -> CommandAck: ...
 
 class ChainGateway(Protocol):
-    async def submit(self, order: SettlementOrder) -> str: ...
+    async def prepare(self, order: SettlementOrder) -> SignedPayment: ...
+    async def broadcast(self, signed: SignedPayment) -> None: ...
     async def receipt(self, tx_hash: str) -> ChainReceipt | None: ...
     async def is_nullifier_spent(self, nullifier: Nullifier) -> bool: ...
     async def anchor(self, anchored_hash: str) -> str: ...
@@ -283,11 +295,18 @@ class DeterminationGate(Protocol):
 
 * `PaymentExecutor` receives the **order**, not a params dict — the command path can only come from
   `order.command_params()` (SC-2).
-* `ChainGateway.submit` is not "pay": submission and the write-ahead record are separate steps, which is
-  what makes SC-3's ordering checkable.
+* `ChainGateway.prepare` signs locally and sends nothing: the hash is known while nothing is on the
+  wire, which is what makes SC-3's write-ahead ordering expressible. It MUST refuse
+  (`SecondTransactionRefused`) when `order.tx_hash` is set — a second signature is a second nonce — and
+  MUST refuse (`SettlementRefusal`) when `order.requires_owner_signature` (the settlement key cannot
+  produce the owner's EIP-712 signature; A-15).
+* `ChainGateway.broadcast` sends already-signed bytes and nothing else. It is idempotent-*safe*, not
+  idempotent: the same bytes are the same transaction, and the on-chain nullifier is what refuses a
+  second payment (SC-5). `submit` is gone: one call that signs *and* sends can only hand back a hash
+  the caller could not have persisted first.
 * `DeterminationGate` is a live read; there is no cached-verdict method (SC-1).
 * Ports are `Protocol`s: methods are declarations (`...`), not bodies, so the freeze contains no logic.
-  Adapters (`RigorixCommandAdapter`, `Web3RouterAdapter`, `AuthorityHttpAdapter`) are Phase B.
+  Adapters (`RigorixCommandAdapter`, `Web3ChainGateway`, `AuthorityHttpAdapter`) are Phase B.
 
 ### 2.9 Enumerations — `domain/values.py`
 
@@ -481,3 +500,70 @@ Verification: `bash .pi/scripts/freeze.sh verify --module settlement`
 
 Rejecting these is the point of a freeze: the failing tests are the specification, and each one maps to
 an invariant in §1.
+
+---
+
+## 7. Amendment — the two-phase `ChainGateway` (closes B-1)
+
+**Status:** Accepted by the re-freeze that implements the on-chain write path.
+**Supersedes:** §2.8's `ChainGateway.submit(order) -> str`. Everything else in this file stands.
+
+### 7.1 What changed
+
+```python
+# before — one call, hash only afterwards
+class ChainGateway(Protocol):
+    async def submit(self, order: SettlementOrder) -> str: ...
+
+# after — two phases, the hash exists before anything is sent
+@dataclass(frozen=True, slots=True)
+class SignedPayment:
+    tx_hash: str
+    raw_transaction: str
+
+class ChainGateway(Protocol):
+    async def prepare(self, order: SettlementOrder) -> SignedPayment: ...
+    async def broadcast(self, signed: SignedPayment) -> None: ...
+```
+
+Three supporting changes, each of which the split needs:
+
+| Change | Why it is part of the same amendment |
+|---|---|
+| `SettlementStatus.SIGNED` (`"signed"`) | The state between "an order exists" and "the chain has it": the hash and the signed bytes are persisted, nothing has been broadcast. It is storable (`ck_settlement_orders_status`, migration `005_settlement_signed`) and reachable only through `SettlementOrder.mark_signed`. |
+| `SettlementOrder.mark_signed(tx_hash, raw_transaction, signed_amount)` + `raw_transaction` on the order | SC-3 persists a *hash*; a hash without its bytes is a record an operator cannot act on. Storing the bytes makes recovery "re-send this", never "sign again" — the two are one transaction (one nonce), which is why a re-broadcast cannot pay twice. |
+| `CommandAck.command_text` (additive, defaulted) | `command_ref` is the settlement command's identity and stays `payments.dispatch` (SC-2, and evidence keys on it). Since the amendment the governed step resolves that identity to `payments.broadcast --raw-tx <hex>`, so the audit record has to name the rendered text too. |
+
+### 7.2 Why
+
+`submit` signed **and** broadcast in one call, so the caller learned the hash only *after* the
+transaction was on the wire. SC-3 requires the opposite order ("the caller has already persisted the hash
+it is about to receive"), and no amount of application-layer care could restore it: the ordering was
+unrepresentable in the port's shape. Faking a hash, or marking an order `SUBMITTED` without one, would
+have destroyed the single ordering the commit-point lock depends on.
+
+Signing is local — `eth_account` returns the signed bytes *and* their hash from the same call — so the
+hash is available before anything is sent. That is why the port, not the wallet, was the blocker.
+
+### 7.3 What it enables, in the contract's own terms
+
+| Id | Now expressible as |
+|---|---|
+| **SC-3** | `prepare` → `mark_signed` (hash + bytes, status `signed`) → commit → governed broadcast → `mark_submitted`. The hash is durable before a node sees the bytes, and `SecondTransactionRefused` still refuses a second signature. |
+| **SC-5** | Recovery re-broadcasts the persisted bytes, which is the same transaction; the on-chain nullifier remains the thing that refuses a second payment. |
+| **SC-2** | Unchanged and stricter: the governed command is one module constant rendered from the order (`payments.broadcast --raw-tx {raw_transaction}`), and `payments.broadcast` accepts one option — it cannot look up an order, re-derive a network or sign. |
+| **SC-6 / SC-7** | Untouched: a revert is still a refusal concluded once by `SettleOnce`, and finality is still a confirmation count. |
+
+### 7.4 What is still *not* frozen
+
+* **The broadcast transport.** That the governed step runs `payments.broadcast`, and that the binary
+  sends bytes through `BURSAR_RPC_URL`, is an implementation decision recorded in the runbook — the
+  contract fixes only that the command path is a module constant and that the bytes are already signed.
+* **`ChainGateway.broadcast`'s caller.** The governed path broadcasts through Rigorix's `run_command`, so
+  the port's in-process `broadcast` has no production caller today; it is the adapter-level form of the
+  same single operation (same bytes, no new transaction) and is exercised by the chain suite. Wiring a
+  second caller is a design change, not a refactor.
+* **B-2 is still open.** `SettlementStatus.PENDING` / `ABANDONED` exist and the state diagram transitions
+  into them, but `SettlementOrder` has no intention method for either, so `SettleOnce` cannot be written
+  without a second amendment. An order therefore stops at `SUBMITTED`; nothing decides finality on the
+  write path, and a receipt is read once after the broadcast as evidence only.

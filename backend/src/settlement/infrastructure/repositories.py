@@ -117,6 +117,9 @@ class SqlSettlementOrderRepository(SettlementOrderRepository):
         # not writable after insert, which is S-2 in the storage layer.
         row.status = order.status.value
         row.tx_hash = order.tx_hash
+        # Written together with the hash: the write-ahead record is only re-broadcastable while the
+        # signed bytes are stored beside it (SC-3).
+        row.raw_transaction = order.raw_transaction
         row.version = row.version + 1
         order.version = row.version
 

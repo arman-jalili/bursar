@@ -16,9 +16,16 @@ caller write `SettlementOrder(..., command_ref="payments.anything")` — precise
 rule (module AC #2) says must be impossible. A ClassVar means there is no constructor argument and no
 instance field to taint; the value is the module constant or nothing.
 
+`mark_signed` then `mark_submitted` are the two halves of SC-3, and they are separate on purpose. The
+already-signed bytes are known before anything is sent (that is what `eth_account` gives back), so the
+order can hold its one hash and the exact bytes that carry it *before* a broadcaster runs. `SIGNED` is
+that state; `SUBMITTED` is the same hash after the governed step accepted it. A retry never signs
+again: it re-broadcasts `raw_transaction`, which the node treats as the same transaction (SC-3, SC-5).
+
 `mark_submitted` takes the **signed** amount as a second argument. That is not ceremony: it is the only
 place where "what the chain will move" and "what the owner signed" are both in hand, so SC-9 is checked
-there (`AmountIntegrityViolation`) instead of being asserted in a comment.
+there (`AmountIntegrityViolation`) instead of being asserted in a comment. `mark_signed` checks the same
+fact one step earlier, for the same reason.
 """
 
 from __future__ import annotations
@@ -51,6 +58,7 @@ from src.settlement.domain.values import (
 )
 from src.settlement.domain.views import DeterminationView, PaymentIntentView
 from src.shared.domain.aggregate import AggregateRoot
+from src.shared.domain.errors import ValidationError
 from src.shared.domain.money import Money
 
 __all__ = ["PAYMENT_COMMAND", "SettlementOrder"]
@@ -63,9 +71,10 @@ PAYMENT_COMMAND = "payments.dispatch"
 class SettlementOrder(AggregateRoot):
     """An allowed intent made executable. Identity persists; `status` only moves forward.
 
-    `tx_hash` is the write-ahead record: it is set by `mark_submitted` and survives a crash. It is
-    `None` while `ORDERED` and never `None` afterwards — an order that reached the chain without a
-    persisted hash would be a payment nobody can re-poll (SC-3).
+    `tx_hash` is the write-ahead record: `mark_signed` sets it — and the signed bytes that carry it —
+    while `status` is still `SIGNED`, i.e. before any broadcaster can run. It survives a crash, and it
+    is `None` only while `ORDERED`: an order that reached the chain without a persisted hash would be a
+    payment nobody can re-poll (SC-3).
     """
 
     id: OrderId
@@ -83,6 +92,10 @@ class SettlementOrder(AggregateRoot):
     #: only way `test_params_carry_the_intent_digest_not_an_invoice_supplied_one` can hold.
     bank_digest: BankDigest
     tx_hash: str | None = None
+    #: The signed transaction bytes (`0x`-hex) that carry `tx_hash`. Persisted with the hash so a crash
+    #: between signing and broadcasting is recovered by re-sending the *same* bytes, never by signing a
+    #: second transaction with a new nonce (SC-3). Written by `mark_signed` only.
+    raw_transaction: str | None = None
     #: Escalation facts carried from the intent so the framework's precondition sees them (SC-2).
     is_new_payee: bool = False
     requires_owner_signature: bool = False
@@ -143,22 +156,73 @@ class SettlementOrder(AggregateRoot):
             "invoice_id": self.invoice_id,
             "payee": self.payee_address.value,
             "payee_address": self.payee_address.value,
-            # The frozen amount, not an argument: SC-9 is checked at `mark_submitted`, and there is
-            # no path by which a caller could substitute a different number here.
+            # The frozen amount, not an argument: SC-9 is checked at `mark_signed`/`mark_submitted`,
+            # and there is no path by which a caller could substitute a different number here.
             "amount_usdc": self.amount.micro_usdc,
             "bank_digest": self.bank_digest.hash,
             "is_new_payee": self.is_new_payee,
             "requires_owner_signature": self.requires_owner_signature,
             "nullifier": self.nullifier.value,
             "chain_id": self.network.chain_id,
+            # The bytes the governed broadcast step sends. Empty while the order is unsigned, so a
+            # command rendered too early is visibly incomplete rather than silently someone else's
+            # transaction (SC-2).
+            "raw_transaction": self.raw_transaction or "",
         }
 
-    def mark_submitted(self, tx_hash: str, signed_amount: Money) -> None:
-        """Record the tx hash **before** broadcast, and prove the amount is the signed one (SC-3, SC-9).
+    def mark_signed(self, tx_hash: str, raw_transaction: str, signed_amount: Money) -> None:
+        """Persist the hash **and** the signed bytes before anything is broadcast (SC-3).
+
+        This is the first half of the write-ahead ordering, and the reason SC-3 is now expressible at
+        all: signing is local, so the hash exists before a broadcaster runs. Nothing is emitted here —
+        the frozen event set has no "signed" event, and `SettlementSubmitted` means *broadcast*, which
+        has not happened yet.
 
         Raises:
-            IllegalTransition: the order is not `ORDERED` — a concluded or already-submitted order has
-                no legal path back to submission (SC-4, SC-6).
+            AmountIntegrityViolation: `signed_amount` differs from the order's frozen amount (SC-9).
+            ValidationError: `raw_transaction` is not `0x`-prefixed hex — a value the node could not
+                accept, and not something the aggregate will carry as if it were a signed payment.
+            IllegalTransition: the order is not `ORDERED`; a concluded order has no path back (SC-4).
+            SecondTransactionRefused: the order already carries a different hash. Re-signing is a second
+                nonce and a second payment (SC-3).
+        """
+        if signed_amount != self.amount:
+            raise AmountIntegrityViolation(
+                signed_micro_usdc=str(self.amount.micro_usdc),
+                submitted_micro_usdc=str(signed_amount.micro_usdc),
+            )
+        if not raw_transaction.startswith("0x") or len(raw_transaction) <= 2:
+            raise ValidationError(
+                "signed transaction bytes must be 0x-prefixed hex",
+                raw_transaction=raw_transaction[:80],
+            )
+        if self.status in (
+            SettlementStatus.CONFIRMED,
+            SettlementStatus.REVERTED,
+            SettlementStatus.ABANDONED,
+        ):
+            raise IllegalTransition(self.status.value, SettlementStatus.SIGNED.value)
+        if self.tx_hash is not None:
+            if self.tx_hash != tx_hash:
+                # A second hash is a second nonce and a second payment — the exact double-spend the
+                # write-ahead record exists to make impossible (SC-3).
+                raise SecondTransactionRefused(order_id=str(self.id), existing_tx_hash=self.tx_hash)
+            # Already signed with this hash: re-recording it is not a new signature.
+            return
+        if self.status is not SettlementStatus.ORDERED:
+            raise IllegalTransition(self.status.value, SettlementStatus.SIGNED.value)
+
+        self.tx_hash = tx_hash
+        self.raw_transaction = raw_transaction
+        self.status = SettlementStatus.SIGNED
+
+    def mark_submitted(self, tx_hash: str, signed_amount: Money) -> None:
+        """Record that the persisted hash was handed to a broadcaster, and prove the amount (SC-3, SC-9).
+
+        Raises:
+            IllegalTransition: the order is concluded (SC-4), or it has no legal path to `SUBMITTED`.
+                `ORDERED` reaches it directly (a caller that signs and sends in one step); `SIGNED`
+                reaches it when the governed broadcast step accepts the bytes it already holds.
             SecondTransactionRefused: a different hash is offered for an order that already has one; a
                 new hash means a new nonce and a second payment (SC-3).
             AmountIntegrityViolation: `signed_amount` differs from the order's frozen amount (SC-9).
@@ -182,13 +246,15 @@ class SettlementOrder(AggregateRoot):
         if self.tx_hash is not None:
             if self.tx_hash != tx_hash:
                 raise SecondTransactionRefused(order_id=str(self.id), existing_tx_hash=self.tx_hash)
-            # The same hash again is a re-poll after a restart, not a second transaction (SC-3).
-            return
-
-        if self.status is not SettlementStatus.ORDERED:
+            if self.status is SettlementStatus.SUBMITTED:
+                # The same hash again is a re-poll after a restart, not a second transaction (SC-3).
+                return
+            if self.status is not SettlementStatus.SIGNED:
+                raise IllegalTransition(self.status.value, SettlementStatus.SUBMITTED.value)
+        elif self.status is not SettlementStatus.ORDERED:
             raise IllegalTransition(self.status.value, SettlementStatus.SUBMITTED.value)
 
-        # Write-ahead ordering: the hash exists on the order before the caller broadcasts.
+        # Write-ahead ordering: the hash existed on the order before anything was broadcast.
         self.tx_hash = tx_hash
         self.status = SettlementStatus.SUBMITTED
         self.record(
@@ -210,6 +276,10 @@ class SettlementOrder(AggregateRoot):
             SettlementNotFinal: fewer confirmations than `network.confirmations_required`; no cap commit
                 may happen yet (SC-7).
             IllegalTransition: the order never reached the chain, so it has no receipt to conclude (SC-3).
+
+        A `SIGNED` order may conclude: the persisted hash is pollable, so a receipt for it is a real
+        chain fact whatever the local state said about broadcasting. That is the recovery path for a
+        process that died between `mark_signed` and the governed broadcast.
         """
         if self.status in (
             SettlementStatus.CONFIRMED,

@@ -70,6 +70,7 @@ def order_to_domain(row: SettlementOrderRow) -> SettlementOrder:
         status=SettlementStatus(row.status),
         bank_digest=BankDigest(row.bank_digest),
         tx_hash=row.tx_hash,
+        raw_transaction=row.raw_transaction,
         is_new_payee=row.is_new_payee,
         requires_owner_signature=row.requires_owner_signature,
         version=row.version,
@@ -95,6 +96,7 @@ def order_to_row(order: SettlementOrder) -> SettlementOrderRow:
         requires_owner_signature=order.requires_owner_signature,
         status=order.status.value,
         tx_hash=order.tx_hash,
+        raw_transaction=order.raw_transaction,
         version=order.version,
     )
 

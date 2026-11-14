@@ -6,24 +6,28 @@
 **Contract:** Frozen v1.0.0 — see [`docs/contracts/settlement-contract-freeze.md`](../../docs/contracts/settlement-contract-freeze.md)
 **Depends:** Authority (allow/approved determination), Mandate (payee address via intent)
 **Used by:** Evidence, Console
-**Last reviewed:** 2026-11-14
+**Last reviewed:** 2026-11-15
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
 
-### Implementation status (2026-11-14)
+### Implementation status (2026-11-15)
 
-Domain, persistence and the read API are implemented; the on-chain write path is deferred on two
-frozen-contract blockers (below). This section is the sync between the doc and the code.
+Domain, persistence, the read API and the **write path's first half** are implemented. A dispatch now
+signs locally, persists the hash and the signed bytes, and only then lets the governed step broadcast —
+so SC-3's write-ahead ordering is real. What is still missing is everything after "broadcast accepted":
+`SettleOnce` and the `PENDING`/`ABANDONED` transitions (blocker B-2).
 
 | Surface | State |
 |---|---|
-| Domain (`SettlementOrder`, `ChainReceipt`, `Nullifier`, `ChainNetwork`, `NullifierPolicy`, `FinalityPolicy`) | Implemented — all 80 frozen suites green |
-| Persistence (`settlement_orders/_nullifiers/_receipts/_outbox`, migration `003_settlement`) | Implemented — 7 SQLite integration tests |
+| Domain (`SettlementOrder`, `ChainReceipt`, `Nullifier`, `ChainNetwork`, `NullifierPolicy`, `FinalityPolicy`) | Implemented — all 80 frozen suites green, plus `mark_signed`/`SIGNED` |
+| Persistence (`settlement_orders/_nullifiers/_receipts/_outbox`) | Implemented — migrations `003_settlement` + `005_settlement_signed` (the `signed` state and the signed bytes), 7 SQLite integration tests |
 | Read API (orders, receipts, cost, nullifier status) | Wired into `console-api` (ADR-009) — 9 E2E tests |
-| `DispatchPayment`, `SettleOnce` | **Deferred** — blockers B-1/B-2, see ADR-009 |
-| `PaymentRouter.sol` + `ChainGateway`/`PaymentExecutor` adapters | **Not built** — ADR-009 gaps G-1…G-4 |
+| `DispatchPayment` | **Implemented** — live gate (SC-1), local signing (SC-3), write-ahead hash + bytes, governed broadcast (SC-2), then `SUBMITTED`; a refused broadcast leaves the order `signed` |
+| `SettleOnce` | **Deferred** — blocker B-2 (`PENDING`/`ABANDONED` have no intention method), see ADR-009 |
+| `PaymentRouter.sol` + `ChainGateway`/`PaymentExecutor` adapters | **Built, not deployed** — contract + `Web3ChainGateway` (prepare/broadcast, receipts, nullifier reads) + `RigorixCommandAdapter` + `payments.broadcast`; no Anvil/Sepolia deployment and no funded key in this environment |
+| `POST /v1/anchors` | **`501`** — needs a deployed router; the adapter exists |
 
-Two amendments were made during implementation and are recorded here because the freeze file is not
-edited after the fact:
+Amendments made during implementation are recorded here because the freeze file is not edited after the
+fact (see also its §7):
 
 1. `SettlementOrder` carries `bank_digest`, `is_new_payee` and `requires_owner_signature` (copied from the
    intent). `command_params` must return the digest and the escalation bits; the module-doc stub already
@@ -31,11 +35,20 @@ edited after the fact:
 2. The nullifier seed is the invoice **identity** (`invoice_id`), not Billing's content hash. A content
    hash changes when a bill is re-issued, which would mint a second nullifier for one invoice and defeat
    scenario 6. `Nullifier.derive` documentes the derivation; the frozen test pins `order.invoice_id`.
+3. **`ChainGateway` is two-phase** (`prepare` → `SignedPayment`, then `broadcast`), and `SettlementStatus`
+   gained `SIGNED` with `SettlementOrder.mark_signed`. Blocker **B-1 is closed**: SC-3's
+   persist-before-broadcast is now expressible, because signing is local and the hash exists before
+   anything is sent. `SettlementOrder.command_ref` is still the module constant `payments.dispatch`
+   (SC-2 — the settlement command's identity); the command it renders is
+   `payments.broadcast --raw-tx <hex>`, and `CommandAck.command_text` records the rendered text.
+4. `DispatchPayment` signs **before** it inserts the order row. If signing refuses, nothing is persisted:
+   an `ORDERED` row would occupy the intent's only dispatch slot (`uq_settlement_orders_intent`) for a
+   payment that was never signed.
 
-The two write-path blockers are contract changes, never an agent's decision — a human unfreezes,
-reviews and re-freezes: **B-1** `ChainGateway.submit` broadcasts and returns the hash, so SC-3's
-persist-before-broadcast cannot be expressed; **B-2** `SettlementStatus.PENDING`/`ABANDONED` exist but
-`SettlementOrder` has no intention method to enter them.
+The remaining write-path blocker is a contract change, never an agent's decision — a human unfreezes,
+reviews and re-freezes: **B-2** `SettlementStatus.PENDING`/`ABANDONED` exist but `SettlementOrder` has no
+intention method to enter them, so `SettleOnce` and finality are still unimplemented and an order stops
+at `SUBMITTED`.
 
 ## Description
 
@@ -57,8 +70,8 @@ the refusal happens inside the transaction.
 |-------|--------------|
 | **Domain** | `SettlementOrder`, `ChainReceipt`, `Nullifier`, `PayeeAddress`, `ChainNetwork`, `SettlementStatus`, repository interfaces, `NullifierPolicy` | `src/settlement/domain/` |
 | **Application** | `DispatchPayment`, `SettleOnce`, reconciliation | `src/settlement/application/` |
-| **Infrastructure** | SQLAlchemy models/mappers/repositories + outbox writer (implemented); Rigorix `run_command` client, web3/eth-account adapter, contract ABI, receipt poller (deferred — ADR-009) | `src/settlement/infrastructure/` |
-| **Interfaces** | REST handlers (orders, receipts, cost, nullifier status — live); dispatch/anchors answer 501 naming the blocker; event subscribers (`PaymentAllowed`) deferred | `src/settlement/interfaces/` |
+| **Infrastructure** | SQLAlchemy models/mappers/repositories + outbox writer (implemented); Rigorix `run_command` client and `payments.broadcast` (implemented); web3/eth-account adapter with `prepare`/`broadcast`, contract ABI, receipt reads (implemented, undeployed); receipt poller for `SettleOnce` (deferred — B-2) | `src/settlement/infrastructure/` |
+| **Interfaces** | REST handlers (orders, receipts, cost, nullifier status, dispatch — live); anchors answer 501 naming the undeployed router (G-2); event subscribers (`PaymentAllowed`) deferred | `src/settlement/interfaces/` |
 
 ## Contract Freeze
 
@@ -106,7 +119,8 @@ disagree:
 
 Entry point for verification: `bash .pi/scripts/freeze.sh verify --module settlement` (an implemented
 module short-circuits the freeze check) and `bash .pi/scripts/ci/check_settlement_contracts.sh`
-(74 deterministic contract checks, hardening stage 2c).
+(89 deterministic contract checks, hardening stage 2c — including the two-phase port and the
+governed broadcast step added by the §7 amendment).
 
 Runtime decision: [ADR-009](../decisions/ADR-009-runtime-wiring-multilang-judgment.md) (Accepted) — what
 is wired, why the write path is deferred, and the B-1/B-2 re-freeze list.
@@ -210,6 +224,7 @@ classDiagram
         <<value object>>
         <<enumeration>>
         ORDERED
+        SIGNED
         SUBMITTED
         PENDING
         CONFIRMED
@@ -228,7 +243,9 @@ classDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> ORDERED : PaymentAllowed + nullifier unspent
-    ORDERED --> SUBMITTED : tx broadcast (hash persisted BEFORE send)
+    ORDERED --> SIGNED : prepare() signed locally — hash + bytes persisted, NOTHING broadcast
+    SIGNED --> SUBMITTED : governed payments.broadcast accepted the same bytes
+    ORDERED --> SUBMITTED : sign-and-send in one step (single-process caller)
     SUBMITTED --> PENDING : receipt found, confirmations < required
     PENDING --> CONFIRMED : confirmations >= required → commit
     SUBMITTED --> REVERTED : contract revert (nullifier spent / sig invalid)
@@ -246,6 +263,12 @@ stateDiagram-v2
     note right of ABANDONED
         Release the reservation, keep the
         same tx hash forever. Never re-sign.
+    end note
+    note right of SIGNED
+        A real state, not an error: the hash
+        and the signed bytes are persisted and
+        nothing was broadcast. Recovery re-sends
+        those bytes (one nonce) — never re-signs.
     end note
 ```
 
@@ -416,9 +439,13 @@ class ChainReceiptRepository(ABC):
 
 | Port | Adapter | Note |
 |---|---|---|
-| `PaymentExecutor` | `RigorixCommandAdapter` | Calls `run_command` with `SettlementOrder.command_params()`. |
-| `ChainGateway` | `Web3RouterAdapter` | Submits `PaymentRouter.pay(...)`, polls receipts, reads `spentNullifiers`. |
+| `PaymentExecutor` | `RigorixCommandAdapter` | Calls `run_command` with `SettlementOrder.command_params()`. The one command is `payments.broadcast --raw-tx <hex>`; an order with no signed bytes is refused before the host is contacted. |
+| `ChainGateway` | `Web3ChainGateway` | **Two-phase**: `prepare(order) -> SignedPayment` signs `PaymentRouter.pay(...)` locally (hash known, nothing sent, `SecondTransactionRefused` / owner-signature refusal), then `broadcast(signed)` sends those exact bytes. Also polls receipts and reads `spentNullifiers`. |
 | `DeterminationGate` | `AuthorityHttpAdapter` | Verifies an allow/approved determination exists for the intent **right now**. |
+
+The governed broadcaster is a console script, not a second payment path:
+`payments.broadcast --raw-tx <hex>` (`src/settlement/infrastructure/chain/broadcast_cli.py`). It takes one
+option and has no database, no order lookup, no network re-derivation and no signer.
 
 ### Domain Services
 
@@ -496,10 +523,13 @@ Status as of 2026-11-14: 1, 2, 5 and 9 are done; 3, 4, 6, 7 and 8 are deferred (
 
 1. ✅ `ChainNetwork` (Anvil + Base Sepolia configs), `PayeeAddress`, `Nullifier` + derivation test.
 2. ✅ `SettlementOrder` with S-1…S-6 and the write-ahead hash test.
-3. ⏸ `PaymentRouter.sol` (Foundry): nullifier map, EIP-712 check, anchor event; deploy to Anvil — gap G-2.
-4. ⏸ `ChainGateway` adapter: submit, poll, parse revert reasons; receipt fixtures for tests — gaps G-1/B-1.
+3. 🟡 `PaymentRouter.sol`: nullifier map, EIP-712 check, anchor event — built and exercised on an
+   in-process EVM; **not deployed** to Anvil/Base Sepolia (gap G-2, operational).
+4. 🟡 `ChainGateway` adapter: `prepare`/`broadcast`, receipts, revert reasons — built and tested end to
+   end against `eth-tester`; no deployed router address and no funded signer (gap G-1, operational).
 5. ✅ `NullifierRepository` with unique constraint; local duplicate test (scenario 6, app path).
-6. ⏸ `DispatchPayment` wiring Rigorix `run_command` with code-generated params — gaps G-3/B-1.
+6. ✅ `DispatchPayment`: live gate → `prepare` → persist hash + signed bytes (`signed`) → governed
+   `payments.broadcast` → `SUBMITTED` (B-1 closed by the two-phase port).
 7. ⏸ `SettleOnce` + `FinalityPolicy` on the live path; on-chain duplicate test — gap B-2.
 8. ⏸ Publish `SettlementConfirmed`/`SettlementReverted` → Authority reconciliation — follows 6/7.
 9. ✅ `AnchorHash` + `CostSummary` (ADR-006) — service implemented; the chain write is gap G-1.
@@ -520,8 +550,8 @@ Status as of 2026-11-14: 1, 2, 5 and 9 are done; 3, 4, 6, 7 and 8 are deferred (
 | # | Component | Criterion | Verify In |
 |---|---|---|---|
 | 1 | `SettlementOrder.order` | Without an allow/approved determination → `DispatchWithoutAuthority`, nothing persisted. | unit |
-| 2 | `command_params` | Returns the fixed `payments.dispatch` path; a caller supplying a path is impossible via the API (no field exists). | unit |
-| 3 | Write-ahead hash | Killing the process after `mark_submitted` and restarting re-polls the same hash; no second tx is created. | integration |
+| 2 | `command_params` | Returns the fixed `payments.dispatch` path (whose rendered command is `payments.broadcast --raw-tx <hex>`); a caller supplying a path is impossible via the API (no field exists). | unit |
+| 3 | Write-ahead hash | `prepare` signs locally, the hash and bytes are persisted at `mark_signed` (status `signed`), and only then does the governed step broadcast. Killing the process after that leaves a hash to re-poll and bytes to re-send; no second tx is ever signed. A refused broadcast keeps the order `signed` with its hash. | unit + integration |
 | 4 | `conclude` | Second call raises `OrderAlreadyConcluded`. | unit |
 | 5 | Nullifier local | Replay of a settled invoice through the API → `DuplicateSettlementBlocked`, zero transactions. (scenario 6) | integration |
 | 6 | Nullifier on-chain | Direct contract call replaying a spent nullifier reverts; app records `SettlementReverted`. (scenario 6) | integration (Anvil) |

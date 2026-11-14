@@ -7,20 +7,21 @@ Scope, stated honestly: `GetReceipt`, `ListOrders`, `CostSummary` and `AnchorHas
 and wired into the console composition root (see `src/apps/console_api/app.py`). They need a database
 and, for `AnchorHash`, a `ChainGateway` port — nothing they cannot get.
 
-`DispatchPayment` is implemented in `application/dispatch.py` (gate + governed command; the chain write is
-still a recorded contract blocker). `SettleOnce` is **not** implemented, and that is a blocker, not an
-omission:
+`DispatchPayment` is implemented in `application/dispatch.py`: gate → sign locally → persist the hash
+and the signed bytes (SC-3) → governed broadcast. `SettleOnce` is **not** implemented, and that is still
+a blocker, not an omission:
 
-* `ChainGateway.submit(order) -> str` broadcasts and returns the hash, so there is no point at which the
-  caller can persist the hash *before* broadcast — SC-3's ordering cannot be expressed with this
-  signature. It needs a sign/prepare step (or a two-phase port). That is why `DispatchPayment` stops after
-  the governed command and leaves the order `ORDERED` with no tx hash.
 * `SettlementStatus` declares `PENDING` and `ABANDONED`, and the module doc's state diagram transitions
   into them, but `SettlementOrder` has no intention method to make those moves. An application service
   would have to write `order.status = …` from outside, which is exactly what the aggregate forbids.
+* Nothing decides finality on the write path yet: a receipt is read once as evidence after the broadcast,
+  and the `PENDING`/`CONFIRMED`/`REVERTED` conclusion is `SettleOnce`'s (SC-6, SC-7). An order today stops
+  at `SUBMITTED`.
 
-Both are amendments to a frozen contract (unfreeze → review → re-freeze), so no adapter layer may invent
-them. See `docs/runbook-settlement.md` (Integration gaps) and ADR-009.
+B-2 (the missing transitions) is still an amendment to a frozen contract (unfreeze → review → re-freeze),
+so no adapter layer may invent it. See `docs/runbook-settlement.md` (Integration gaps) and ADR-009;
+B-1, the two-phase `ChainGateway` gap, is closed by the amendment recorded in
+`docs/contracts/settlement-contract-freeze.md` §7.
 
 Every method here is thin on purpose: one unit of work, one repository call, a DTO. No rule lives in
 this file — the rules are on the aggregate and the two domain services.
