@@ -35,12 +35,15 @@ def test_readyz_checks_database_and_reports_build_state(
     assert body["status"] == "ready"
     assert body["checks"]["database"] == "ok"
     assert body["build"]["phase"] == 0
-    assert body["build"]["pending_contexts"], "the gap between planned and wired must stay visible"
-    # console-api hosts Mandate since Phase 1; authority-service wires its context in Phase 3.
+    # console-api hosts Mandate (Phase 1) and still owes Billing/Settlement/Evidence/Console;
+    # authority-service hosts Authority (Phase 3) and owes no context any more. The gap between
+    # planned and wired stays visible on the deployable that still has one.
     if body["service"] == "console-api":
         assert body["build"]["wired_contexts"] == ["Mandate"]
+        assert body["build"]["pending_contexts"], "unbuilt contexts must stay visible"
     else:
-        assert body["build"]["wired_contexts"] == []
+        assert body["build"]["wired_contexts"] == ["Authority"]
+        assert body["build"]["pending_contexts"] == []
 
 
 def test_readyz_never_leaks_secrets(console_client: TestClient) -> None:

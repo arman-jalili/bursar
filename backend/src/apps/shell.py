@@ -39,7 +39,7 @@ ServiceName = Literal["authority-service", "console-api"]
 #: Contexts each deployable will host once built (roadmap Phases 1-6). Reported by `/readyz` so a
 #: skeleton states its gaps rather than implying completeness.
 CONTEXT_PLAN: dict[ServiceName, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "authority-service": ((), ("Authority",)),
+    "authority-service": (("Authority",), ()),
     "console-api": (("Mandate",), ("Billing", "Settlement", "Evidence", "Console")),
 }
 
