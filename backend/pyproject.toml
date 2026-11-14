@@ -29,6 +29,12 @@ dependencies = [
     # Authority's approval binder: secp256k1 recovery and keccak address derivation for A-15.
     # Recovery is public-key arithmetic — no private key ever reaches this process.
     "eth-account>=0.14.0",
+    # Rigorix: the governed-execution client (`rigorix-client` speaks the frozen
+    # `rigorix.*` JSON-RPC catalog and the envelope verifier checks the audit trail).
+    "rigorix-verifier>=0.10",
+    # The wallet: PaymentRouter.sol on Anvil/Base Sepolia. web3 signs and broadcasts;
+    # eth-account does the EIP-712/EIP-1559 signing the contract verifies.
+    "web3>=7.6",
     # Console upstream adapters: transport, timeout and status handling for the six ports.
     # The demo/CI composition swaps the transport for recorded fixtures (console/infrastructure).
     "httpx>=0.27",
@@ -36,6 +42,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    # Contract toolchain: forge is not installed here, so the Solidity is compiled with
+    # solc-x and executed against an in-process EVM (eth-tester) in the test suite.
+    "py-solc-x>=2.0",
+    "eth-tester[py-evm]>=0.11",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
