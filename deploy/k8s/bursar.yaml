@@ -1,0 +1,475 @@
+# Bursar on k3s — the core demo stack.
+#
+#   kubectl apply -f deploy/k8s/bursar.yaml
+#
+# Prerequisites (see deploy/k8s/README.md):
+#   * images built and available to the cluster (bursar-backend:dev, bursar-frontend:dev,
+#     bursar-rigorix:dev)
+#   * ConfigMap `bursar-env` from .env.demo  (kubectl create configmap --from-env-file)
+#   * Secret    `bursar-llm` with BURSAR_LLM_API_KEY
+#
+# Single-node assumption: the SQLite file, the audit tree and the precondition authority are
+# ReadWriteOnce PVCs shared by pods on the same node. That is the k3s demo shape; a multi-node
+# deployment needs a clustered filesystem (or the per-deployable databases ADR-002 describes).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bursar
+---
+# The operator's dispatch authority and the check Rigorix runs. The console seeds this volume from
+# the ConfigMap on first start and then owns authority.json; Rigorix only reads it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bursar-preconditions
+  namespace: bursar
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bursar-precondition
+  namespace: bursar
+data:
+  check-payee.py: |
+    #!/usr/bin/env python3
+    """Is this payee allowed to be paid right now? (fail closed)"""
+    import json
+    import sys
+    from pathlib import Path
+
+    try:
+        payload = json.load(sys.stdin)
+    except Exception:
+        print("precondition: no stdin — refusing (fail closed)", file=sys.stderr)
+        sys.exit(4)
+
+    address = str((payload.get("parameters") or {}).get("payee_address") or "").lower()
+    if not address:
+        print("precondition: no payee_address on the step — refusing (fail closed)", file=sys.stderr)
+        sys.exit(4)
+
+    try:
+        authority = json.loads((Path(__file__).resolve().parent / "authority.json").read_text())
+    except Exception:
+        print("precondition: no readable authority.json — refusing (fail closed)", file=sys.stderr)
+        sys.exit(4)
+
+    status = authority.get(address, "unknown")
+    print(f"precondition: {address} is {status}", file=sys.stderr)
+    sys.exit(0 if status == "active" else 3)
+  preconditions.toml: |
+    [[preconditions]]
+    id = "payee-authorized"
+    match = { tool = "run_command", params = [{ pointer = "/command", kind = "glob", value = "*payments.broadcast*" }] }
+    require_params = ["/command", "/payee_address"]
+    command = ["python3", "/tmp/bursar-preconditions/check-payee.py"]
+    timeout_ms = 5000
+    failure = "deny"
+    authority_path = "/tmp/bursar-preconditions/authority.json"
+  authority.json: |
+    {
+      "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "active",
+      "0x15d34aaf54267db7d7c367839aaf71a00a2c6a65": "active",
+      "0x90f79bf6eb2c4f870365e785982e1f101e93b906": "active",
+      "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc": "active"
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bursar-data
+  namespace: bursar
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bursar-shared
+  namespace: bursar
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bursar-audit
+  namespace: bursar
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# ── chain ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anvil
+  namespace: bursar
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: anvil }
+  template:
+    metadata:
+      labels: { app: anvil }
+    spec:
+      containers:
+        - name: anvil
+          image: ghcr.io/foundry-rs/foundry:stable
+          args: ["anvil", "--host", "0.0.0.0", "--chain-id", "31337", "--block-time", "1"]
+          env:
+            - { name: ANVIL_IP_ADDR, value: "0.0.0.0" }
+          ports:
+            - { name: rpc, containerPort: 8545 }
+          readinessProbe:
+            exec:
+              command: ["cast", "chain-id", "--rpc-url", "http://127.0.0.1:8545"]
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anvil
+  namespace: bursar
+spec:
+  selector: { app: anvil }
+  ports:
+    - { name: rpc, port: 8545, targetPort: rpc }
+---
+# One-shot: deploy TestUsdc + PaymentRouter and write /shared/chain.env.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: contracts
+  namespace: bursar
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-anvil
+          image: bursar-backend:dev
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              until curl -fsS -H 'content-type: application/json'
+              -d '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}'
+              http://anvil:8545 >/dev/null; do sleep 2; done
+      containers:
+        - name: deploy
+          image: bursar-backend:dev
+          imagePullPolicy: IfNotPresent
+          command: ["python", "scripts/deploy_contracts.py"]
+          envFrom:
+            - configMapRef: { name: bursar-env }
+          volumeMounts:
+            - { name: shared, mountPath: /shared }
+      volumes:
+        - name: shared
+          persistentVolumeClaim: { claimName: bursar-shared }
+---
+# ── enforcement ────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authority
+  namespace: bursar
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: authority }
+  template:
+    metadata:
+      labels: { app: authority }
+    spec:
+      initContainers:
+        - name: wait-chain
+          image: busybox:1.36
+          command: ["sh", "-c", "until [ -f /shared/chain.env ]; do sleep 2; done"]
+          volumeMounts:
+            - { name: shared, mountPath: /shared, readOnly: true }
+      containers:
+        - name: authority
+          image: bursar-backend:dev
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              set -a; . /shared/chain.env 2>/dev/null || true; set +a;
+              exec uvicorn src.apps.authority_service.app:app --host 0.0.0.0 --port 8001
+          envFrom:
+            - configMapRef: { name: bursar-env }
+          ports:
+            - { name: http, containerPort: 8001 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 3
+          volumeMounts:
+            - { name: data, mountPath: /app/data }
+            - { name: shared, mountPath: /shared, readOnly: true }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: bursar-data }
+        - name: shared
+          persistentVolumeClaim: { claimName: bursar-shared }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authority
+  namespace: bursar
+spec:
+  selector: { app: authority }
+  ports:
+    - { name: http, port: 8001, targetPort: http }
+---
+# ── governed execution host ────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rigorix
+  namespace: bursar
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: rigorix }
+  template:
+    metadata:
+      labels: { app: rigorix }
+    spec:
+      initContainers:
+        # Seed the check + authority onto the shared volume (the console usually wins the race).
+        - name: seed-precondition
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - cp -n /seed/check-payee.py /pre/check-payee.py; cp -n /seed/authority.json /pre/authority.json; true
+          volumeMounts:
+            - { name: seed, mountPath: /seed, readOnly: true }
+            - { name: preconditions, mountPath: /pre }
+      containers:
+        - name: rigorix
+          image: bursar-rigorix:dev
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: bursar-env }
+          env:
+            - { name: RIGORIX_SERVER_BIND, value: "0.0.0.0:3001" }
+            - { name: RIGORIX_SANDBOX, value: "container" }
+            - { name: RIGORIX_HMAC_KEY, value: "bursar-demo-operator-held-evidence-key-4c1f9a" }
+            - { name: RIGORIX_REPO_ROOT, value: "/workspace" }
+          ports:
+            - { name: rpc, containerPort: 3001 }
+          readinessProbe:
+            httpGet: { path: /health, port: rpc }
+            periodSeconds: 3
+          volumeMounts:
+            - { name: audit, mountPath: /workspace/.rigorix }
+            - name: preconditions-toml
+              mountPath: /workspace/.rigorix/preconditions.toml
+              subPath: preconditions.toml
+            - { name: preconditions, mountPath: /tmp/bursar-preconditions, readOnly: true }
+      volumes:
+        - name: audit
+          persistentVolumeClaim: { claimName: bursar-audit }
+        - name: preconditions
+          persistentVolumeClaim: { claimName: bursar-preconditions }
+        - name: preconditions-toml
+          configMap:
+            name: bursar-precondition
+            items:
+              - { key: preconditions.toml, path: preconditions.toml }
+        - name: seed
+          configMap:
+            name: bursar-precondition
+            items:
+              - { key: check-payee.py, path: check-payee.py }
+              - { key: authority.json, path: authority.json }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rigorix
+  namespace: bursar
+spec:
+  selector: { app: rigorix }
+  ports:
+    - { name: rpc, port: 3001, targetPort: rpc }
+---
+# ── console + agent ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console
+  namespace: bursar
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: console }
+  template:
+    metadata:
+      labels: { app: console }
+    spec:
+      initContainers:
+        - name: wait-chain
+          image: busybox:1.36
+          command: ["sh", "-c", "until [ -f /shared/chain.env ]; do sleep 2; done"]
+          volumeMounts:
+            - { name: shared, mountPath: /shared, readOnly: true }
+        - name: seed-precondition
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - cp -n /seed/check-payee.py /pre/check-payee.py; cp -n /seed/authority.json /pre/authority.json; true
+          volumeMounts:
+            - { name: seed, mountPath: /seed, readOnly: true }
+            - { name: preconditions, mountPath: /pre }
+      containers:
+        - name: console
+          image: bursar-backend:dev
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              set -a; . /shared/chain.env 2>/dev/null || true; set +a;
+              exec uvicorn src.apps.console_api.app:app --host 0.0.0.0 --port 8000
+          envFrom:
+            - configMapRef: { name: bursar-env }
+          env:
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef: { name: bursar-llm, key: BURSAR_LLM_API_KEY }
+            - { name: LLM_BASE_URL, value: "https://openrouter.ai/api/v1" }
+            - { name: LLM_MODEL, value: "google/gemma-4-26b-a4b-it:free" }
+            - { name: LLM_FALLBACK_MODEL, value: "inclusionai/ling-3.2-flash:free" }
+            # In-cluster service DNS, never host.docker.internal.
+            - { name: BURSAR_RIGORIX_BASE_URL, value: "http://rigorix:3001" }
+            - { name: RIGORIX_AUDIT_DIR, value: "/rigorix-audit" }
+            - { name: BURSAR_PRECONDITION_DIR, value: "/tmp/bursar-preconditions" }
+            # The page's public origin, for CORS (edit to the ingress host).
+            - { name: BURSAR_CORS_ORIGINS, value: "https://bursar.example.com" }
+          ports:
+            - { name: http, containerPort: 8000 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 3
+          volumeMounts:
+            - { name: data, mountPath: /app/data }
+            - { name: shared, mountPath: /shared, readOnly: true }
+            - { name: audit, mountPath: /rigorix-audit }
+            - { name: preconditions, mountPath: /tmp/bursar-preconditions }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: bursar-data }
+        - name: shared
+          persistentVolumeClaim: { claimName: bursar-shared }
+        - name: audit
+          persistentVolumeClaim: { claimName: bursar-audit }
+        - name: preconditions
+          persistentVolumeClaim: { claimName: bursar-preconditions }
+        - name: seed
+          configMap:
+            name: bursar-precondition
+            items:
+              - { key: check-payee.py, path: check-payee.py }
+              - { key: authority.json, path: authority.json }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: console
+  namespace: bursar
+spec:
+  selector: { app: console }
+  ports:
+    - { name: http, port: 8000, targetPort: http }
+---
+# ── UI ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: bursar
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: frontend }
+  template:
+    metadata:
+      labels: { app: frontend }
+    spec:
+      containers:
+        - name: frontend
+          image: bursar-frontend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 80 }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 3
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: bursar
+spec:
+  selector: { app: frontend }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+# k3s ships Traefik. Two hosts: the page and the API (the build must use the API host as
+# VITE_CONSOLE_API_URL and the page host in BURSAR_CORS_ORIGINS).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bursar
+  namespace: bursar
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: bursar.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: { number: 80 }
+    - host: api.bursar.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: console
+                port: { number: 8000 }

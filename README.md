@@ -88,10 +88,40 @@ EXPLORER_HOST=demo.example.com EXPLORER_PORT=4000 \
   docker compose -f explorer/blockscout/anvil.yml -p bursar-explorer up -d
 ```
 
+Also set the console's public origin for CORS:
+
+```bash
+BURSAR_CORS_ORIGINS=https://demo.example.com
+```
+
 Expose the browser-facing surfaces (`5173`, `8000`, `4000`). Keep Anvil (`8545`), Rigorix (`3001`)
 and the authority service (`8001`) private — the authority has no CORS on purpose and an open Anvil
-RPC lets anyone send unsigned transactions. Rigorix itself still runs on the host via
-`scripts/run-rigorix.sh` (or the experimental `container-rigorix` profile).
+RPC lets anyone send unsigned transactions.
+
+### Rigorix on a VPS
+
+Rigorix is not a host-only dependency: it has its own image (`backend/Dockerfile.rigorix`) that
+contains `rigorix-server` **and** the `payments.broadcast` command the governed step executes. On a
+server, run it as a container rather than a host process:
+
+```bash
+# build a clean context (never `docker build ../..`: rigorix-oss/target is tens of GB)
+RIGORIX_OSS=/path/to/rigorix-oss ./scripts/build-rigorix-image.sh
+
+# the console reaches Rigorix by service name, not host.docker.internal
+BURSAR_RIGORIX_BASE_URL=http://rigorix:3001 \
+  docker compose --profile container-rigorix up -d anvil contracts migrate authority rigorix console frontend
+
+./scripts/setup-preconditions.sh   # writes .rigorix-runtime/.rigorix/preconditions.toml
+docker compose restart rigorix     # containers 2+ read it at boot
+```
+
+The audit tree and the operator's precondition files are bind-mounted into the Rigorix container
+(the console reads the same host paths), so the trail and the freeze switch keep working.
+
+**k3s** manifests live in `deploy/k8s/` — see `deploy/k8s/README.md`. The differences are the
+things that are always different in a cluster: service DNS instead of `host.docker.internal`,
+PVCs instead of host bind mounts, and the precondition check in a ConfigMap.
 
 ### Dispatch-time precondition
 
@@ -191,8 +221,11 @@ All keys in `.env.demo` are public Anvil test keys and are unsafe on any real ne
 
 - The Settlement finality poller (contract item B-2) is not wired; orders stop at `submitted`.
 - Evidence envelopes are not relayed from the outboxes into the Evidence projection yet.
-- The containerised Rigorix image (compose profile `container-rigorix`) is experimental; the host
-  `scripts/run-rigorix.sh` is the supported demo path because the OSS workspace rebuild is large.
+- The containerised Rigorix image is built by `scripts/build-rigorix-image.sh` (clean build
+  context) and run with `--profile container-rigorix`; the host `scripts/run-rigorix.sh` remains
+  the fastest local loop because the Rust release build is large.
+- The k3s manifests target a single node (RWO volumes); a multi-node cluster needs a shared
+  filesystem or the per-deployable databases ADR-002 describes.
 - The LLM parser is convenience only: the amount always comes from the sentence, and a local regex
   parser takes over when the provider is unavailable. Free OpenRouter models can be rate-limited
   upstream; `LLM_FALLBACK_MODEL` keeps the demo answering.

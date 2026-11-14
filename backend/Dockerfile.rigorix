@@ -30,7 +30,11 @@ COPY proximata/bursar/backend/contracts ./contracts
 RUN pip install --no-cache-dir uv && uv pip install --system .
 
 COPY --from=rigorix-build /src/rigorix-oss/target/release/rigorix-server /usr/local/bin/rigorix-server
-COPY proximata/bursar/backend/docker/rigorix/rigorix.toml /workspace/.rigorix/rigorix.toml
+# A bind-mounted runtime root hides anything baked into /workspace/.rigorix, so keep the default
+# config beside the image and let the entrypoint seed the volume when it is empty.
+COPY proximata/bursar/backend/docker/rigorix/rigorix.toml /opt/rigorix/rigorix.toml
+COPY proximata/bursar/backend/docker/rigorix/entrypoint.sh /usr/local/bin/rigorix-entrypoint.sh
+RUN chmod +x /usr/local/bin/rigorix-entrypoint.sh
 
 WORKDIR /workspace
 ENV RIGORIX_SERVER_BIND=0.0.0.0:3001 \
@@ -38,4 +42,5 @@ ENV RIGORIX_SERVER_BIND=0.0.0.0:3001 \
     RIGORIX_REPO_ROOT=/workspace
 
 EXPOSE 3001
+ENTRYPOINT ["/usr/local/bin/rigorix-entrypoint.sh"]
 CMD ["rigorix-server"]

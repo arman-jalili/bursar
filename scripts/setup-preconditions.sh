@@ -12,40 +12,42 @@ RUNTIME="${RIGORIX_RUNTIME_DIR:-$ROOT/.rigorix-runtime}"
 
 mkdir -p "$DIR" "$RUNTIME/.rigorix"
 
-cat > "$DIR/check-payee.mjs" <<'JS'
-#!/usr/bin/env node
-// The whole authority: is this payee allowed to be paid right now?
-// Reads the step's parameters on stdin, the operator's status file next to itself.
-// 0 = authorized, 3 = frozen/unknown, 4 = the check itself is broken.
-import { readFileSync } from "node:fs";
+# Python, not Node: the check runs inside the Rigorix execution boundary, and both the demo
+# container and a minimal VPS image have python3 but not necessarily node.
+cat > "$DIR/check-payee.py" <<'PY'
+#!/usr/bin/env python3
+"""The whole authority: is this payee allowed to be paid right now?
 
-let input = {};
-try {
-  input = JSON.parse(readFileSync(0, "utf8"));
-} catch {
-  console.error("precondition: no stdin — refusing (fail closed)");
-  process.exit(4);
-}
+Reads the step's parameters on stdin and the operator's status file next to itself.
+Exit 0 = authorized, 3 = frozen/unknown, 4 = the check itself is broken (fail closed).
+"""
+import json
+import sys
+from pathlib import Path
 
-const address = String(input.parameters?.payee_address ?? "").toLowerCase();
-if (!address) {
-  console.error("precondition: no payee_address on the step — refusing (fail closed)");
-  process.exit(4);
-}
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    print("precondition: no stdin — refusing (fail closed)", file=sys.stderr)
+    sys.exit(4)
 
-let authority;
-try {
-  authority = JSON.parse(readFileSync(new URL("./authority.json", import.meta.url), "utf8"));
-} catch {
-  console.error("precondition: no readable authority.json — refusing (fail closed)");
-  process.exit(4);
-}
+address = str((payload.get("parameters") or {}).get("payee_address") or "").lower()
+if not address:
+    print("precondition: no payee_address on the step — refusing (fail closed)", file=sys.stderr)
+    sys.exit(4)
 
-const status = authority[address] ?? "unknown";
-console.error(`precondition: ${address} is ${status}`);
-process.exit(status === "active" ? 0 : 3);
-JS
-chmod +x "$DIR/check-payee.mjs"
+try:
+    authority = json.loads((Path(__file__).resolve().parent / "authority.json").read_text())
+except Exception:
+    print("precondition: no readable authority.json — refusing (fail closed)", file=sys.stderr)
+    sys.exit(4)
+
+status = authority.get(address, "unknown")
+print(f"precondition: {address} is {status}", file=sys.stderr)
+sys.exit(0 if status == "active" else 3)
+PY
+chmod +x "$DIR/check-payee.py"
+rm -f "$DIR/check-payee.mjs"
 
 if [[ ! -f "$DIR/authority.json" ]]; then
   cat > "$DIR/authority.json" <<'JSON'
@@ -64,13 +66,13 @@ cat > "$RUNTIME/.rigorix/preconditions.toml" <<TOML
 id = "payee-authorized"
 match = { tool = "run_command", params = [{ pointer = "/command", kind = "glob", value = "*payments.broadcast*" }] }
 require_params = ["/command", "/payee_address"]
-command = ["$DIR/check-payee.mjs"]
+command = ["python3", "$DIR/check-payee.py"]
 timeout_ms = 5000
 failure = "deny"
 authority_path = "$DIR/authority.json"
 TOML
 
-echo "precondition installed: $DIR/check-payee.mjs"
+echo "precondition installed: $DIR/check-payee.py"
 echo "authority:             $DIR/authority.json"
 echo "gate config:           $RUNTIME/.rigorix/preconditions.toml"
 echo "restart rigorix-server to arm the gate (the authority file is read live)."

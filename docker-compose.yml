@@ -90,6 +90,13 @@ services:
       LLM_MODEL: ${LLM_MODEL:-google/gemma-4-26b-a4b-it:free}
       LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-inclusionai/ling-3.2-flash:free}
       RIGORIX_AUDIT_DIR: /rigorix-audit
+      # Where Settlement reaches Rigorix. Host-run Rigorix (the local demo path) is on the Docker
+      # host; the containerized profile is the compose service `rigorix`. Set it in `.env` for a
+      # VPS using the profile: BURSAR_RIGORIX_BASE_URL=http://rigorix:3001
+      BURSAR_RIGORIX_BASE_URL: ${BURSAR_RIGORIX_BASE_URL:-http://host.docker.internal:3001}
+    extra_hosts:
+      # Makes host-run Rigorix reachable on Linux too (Docker Desktop provides this for free).
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     volumes:
@@ -109,23 +116,26 @@ services:
       retries: 40
 
   # rigorix-server + the Bursar broadcaster inside one declared container boundary.
-  # Build context is the parent of this repository because rigorix-oss sits beside bursar.
+  # Built by scripts/build-rigorix-image.sh (it assembles a clean context; the parent checkout is
+  # tens of GB and must not be sent to the daemon).
+  #   BURSAR_RIGORIX_BASE_URL=http://rigorix:3001 docker compose --profile container-rigorix up -d
   rigorix:
     profiles: ["container-rigorix"]
     image: bursar-rigorix:dev
-    build:
-      context: ../..
-      dockerfile: proximata/bursar/backend/Dockerfile.rigorix
     env_file: .env.demo
     environment:
       RIGORIX_SERVER_BIND: 0.0.0.0:3001
       RIGORIX_SANDBOX: container
       RIGORIX_HMAC_KEY: bursar-demo-operator-held-evidence-key-4c1f9a
       RIGORIX_REPO_ROOT: /workspace
-    ports:
-      - "3001:3001"
+    # Internal only: the console reaches it by service name; nothing else needs it.
+    expose:
+      - "3001"
     volumes:
-      - rigorix:/workspace/.rigorix
+      # The same host dir the console reads: audit envelopes and preconditions.toml.
+      - ./.rigorix-runtime/.rigorix:/workspace/.rigorix
+      # The operator check and authority, read by the governed step at dispatch time.
+      - /tmp/bursar-preconditions:/tmp/bursar-preconditions:ro
     depends_on:
       anvil:
         condition: service_healthy
@@ -153,4 +163,3 @@ services:
 volumes:
   data:
   shared:
-  rigorix:

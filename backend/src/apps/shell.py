@@ -15,6 +15,7 @@ mode `check_composition_root.sh` exists to catch.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
@@ -107,9 +108,16 @@ def build_app(service: ServiceName, settings: Settings | None = None) -> FastAPI
     if service == "console-api":
         # Only the console is browser-facing (ADR-001). The authority service must not be
         # reachable from a page — it is the enforcement lock, not a UI backend.
+        # A deployment whose page is served from another origin (a VPS, an ingress host) adds its
+        # origin here, comma-separated, in BURSAR_CORS_ORIGINS.
+        extra_origins = [
+            origin.strip()
+            for origin in os.environ.get("BURSAR_CORS_ORIGINS", "").split(",")
+            if origin.strip()
+        ]
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+            allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", *extra_origins],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
