@@ -13,6 +13,12 @@ PATH="$PWD/.venv/bin:$PATH" bash .pi/scripts/ci/run_preflight.sh   # harness pre
 
 `tests/conftest.py` raises an explicit error if it is imported by an interpreter older than 3.12.
 
+## Billing context — operational procedures
+
+The Billing runbook (invoices, attempts, duplicate replay, forbidden proposals, settled invoices,
+outbox backlog) lives in [`docs/runbook-billing.md`](runbook-billing.md). Billing is hosted by the same
+`console-api` process and owns the `billing_*` tables.
+
 ## Mandate context — operational procedures
 
 The Mandate context is hosted by **console-api** (port 8000) and owns the `mandate_*` tables in

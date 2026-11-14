@@ -2,10 +2,10 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented
 **Depends:** Authority (determinations, approvals), Evidence (verification), Mandate (constitution, payees), Billing (invoices), Settlement (receipts)
 **Used by:** — (edge of the system)
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-14
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
 
 ## Description
@@ -314,6 +314,70 @@ This module introduces **no** domain terms of its own. It renders the existing g
 
 No aggregates, no domain services, no invariants of its own — deliberately. The console is the
 one place where "no model" is the correct model.
+
+## Contract Freeze
+
+**Contract:** [`docs/contracts/console-contract-freeze.md`](../../docs/contracts/console-contract-freeze.md)
+**State:** Phase A (frozen signatures, red behaviour tests) — recorded by a human after review.
+
+Phase A ships no implementation. `src/console/**` contains only dataclasses, enums, protocols and
+repository ports; every body raises `NotImplementedError("CON-n — see module doc")`. The three
+projections, the ACL whitelists, the copy tables and the eight routes are frozen as data so the
+React team and the auth matrix can build against them before the router exists.
+
+The ten invariants are the module's reason to exist. A test that does not defend one does not belong
+in the suite.
+
+| Id | Rule | Illegal state prevented | Defending suite |
+|---|---|---|---|
+| **CON-01** | An upstream payload reaches a surface only through that surface's whitelist; an un-named key is dropped, model output is refused. | A new field (`internal_note`) becoming screen truth. | `whitelist/`, `anti-corruption-layer-field-whitelists/` |
+| **CON-02** | `payee_address`, `bank_digest` and `amount_usdc` are byte-identical to Authority's intent. | The owner signing a display that differs from the signed bytes. | `exact-fields/`, `ports-upstream-clients/` |
+| **CON-03** | `POST /v1/console/approvals/{id}/signature` forwards the received body unmodified. | The console repairing a signature and becoming a signing authority. | `passthrough/` |
+| **CON-04** | The signature passthrough is the only write; no endpoint or port creates an intent, attempt or settlement order. | Owner-token escalation into the paths that move money. | `read-only/`, `ports-upstream-clients/` |
+| **CON-05** | Payer copy contains none of USDC, gas, chain, wallet, nullifier, determination. | Crypto vocabulary on a household screen (NFR-017). | `payer-copy/` |
+| **CON-06** | Every settled payer bill carries `payout_simulated: true` and the demo label. | A demo transfer presented as a real bank payment. | `simulated-payout/` |
+| **CON-07** | A refusal is rendered from the closed reason-code set in household language, never the raw code. | A blocked payment the owner cannot explain (scenarios 2/3/4). | `refusal-reason/` |
+| **CON-08** | The evidence view proxies Evidence's verdict: `verified` / `tampered` / `unknown`. | The console computing a second, weaker verification opinion. | `verify-toggle/` |
+| **CON-09** | `src/console/domain/` does not exist. | Business rules hiding in the generic subdomain (ADR-008). | `no-domain-layer/` |
+| **CON-10** | Both surfaces fit 390x844; owner approval is at most 3 taps. | A phone demo that quietly requires a desktop (NFR-011). | `mobile/` |
+
+Frozen surface by file:
+
+| Concern | File | Invariants |
+|---|---|---|
+| Read models, status enums | `application/dto.py` | CON-01, CON-02, CON-05, CON-06 |
+| Copy tables, viewport | `application/presentation.py` | CON-05, CON-06, CON-10 |
+| Reason codes + translation | `application/refusals.py` | CON-07 |
+| Console refusals | `application/errors.py` | CON-01 … CON-10 |
+| Six upstream ports | `application/ports.py` | CON-01, CON-02, CON-03, CON-04, CON-06, CON-07, CON-08 |
+| Three projections | `application/services.py` | CON-01, CON-02, CON-05, CON-06, CON-08 |
+| Surface whitelists + projections | `infrastructure/acl.py` | CON-01, CON-02, CON-08 |
+| Upstream HTTP adapters | `infrastructure/http.py` | CON-01, CON-02, CON-03, CON-06, CON-07, CON-08 |
+| Layer-purity seam | `infrastructure/purity.py` | CON-09 |
+| Read-model cache port | `infrastructure/repository/cache.py` | CON-01, CON-02 |
+| Eight routes + handlers | `interfaces/api.py` | CON-01 … CON-04, CON-06, CON-08 |
+
+Phase-B order (each step's "done when" is in the contract doc §3):
+
+1. ACL whitelists + copy tables (CON-01, CON-05, CON-07)
+2. `ProjectPayerBills` (CON-06)
+3. `ProjectApprovalInbox` with exact fields (CON-02)
+4. Signature passthrough + rejection copy (CON-03, CON-07)
+5. `ProjectEvidence` + verification proxy (CON-08)
+6. Router + auth matrix (CON-04)
+7. Adapter-purity gate wiring (CON-09)
+8. React surfaces + mobile pass (CON-10)
+9. OpenAPI export (CON-04)
+
+**Explicitly out of scope** — and therefore not frozen here: a domain layer, creating intents /
+attempts / settlement orders, allow-deny logic, EIP-712 signing or recovery, database schema and
+migrations, HMAC envelope format or anchoring, auth token issuance, and React component internals.
+The contract doc's §4 table names where each belongs instead.
+
+**Dependency note:** CON-06 and CON-08 exercise Settlement and Evidence receipts/
+verdicts. Their ports are frozen here, but the freeze gate's `dependencies` check stays red until the
+Evidence and Settlement contract freezes land (Phase 4/5). Phase-B steps 1-4 and 6-7 can start
+before then; integration tests for the payer receipt path and the verification proxy cannot.
 
 ## Acceptance Criteria
 

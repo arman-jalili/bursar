@@ -177,11 +177,13 @@ class SqlOwnerDirectory:
 
 
 class UnavailableAttemptViewPort:
-    """`AttemptViewPort` that fails closed while Billing has no persistence layer.
+    """`AttemptViewPort` that fails closed until Authority reads Billing across the process boundary.
 
-    This is not a stub that returns made-up data: it refuses. That keeps the endpoint's contract
-    ("anything but 200 means do not run the command") true today, and it makes the remaining Billing
-    work visible in `/readyz` output and in this docstring instead of hidden in a fake invoice.
+    Billing is implemented, but it lives in the **console** deployable and its own database. Reading
+    `billing_attempts` from this process would find nothing and report "attempt not found" for a real
+    attempt — a wrong answer that looks authoritative. Refusing with `503 retryable` is the honest
+    answer until the read-through call to the console API is wired, and it keeps AC 11's status-code
+    contract ("anything but 200 means do not run the command") true today.
     """
 
     async def load(self, attempt_id: str) -> tuple[AttemptView, InvoiceView]:

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1",
-  "frameworkVersion": "0.1.167",
+  "frameworkVersion": "0.1.171",
   "source": "pi",
   "tools": [
     "pi"
@@ -180,7 +180,7 @@
     },
     ".pi/extensions/architect.ts": {
       "category": "framework",
-      "originalHash": "sha256:4699770bf84f42d3a3bcd30fc6a77b8918fa630139ce43f562a2ec5a9dfad57f",
+      "originalHash": "sha256:9b8e76d4e921a0e952d43a9f69dd980c37c7aff66fab5e3f76124ca1877e3fc0",
       "status": "unchanged"
     },
     ".pi/extensions/architect-lib/helpers.ts": {
@@ -655,7 +655,7 @@
     },
     ".pi/scripts/epic-registry.sh": {
       "category": "framework",
-      "originalHash": "sha256:b2ac7718eb3277fa158a89d5024c25393573e36338c44ab0b9249a7e92fc99ee",
+      "originalHash": "sha256:71512a5578c7a2c5101889074a6e502d855b6050771e42700a2f0a726c2c951f",
       "status": "unchanged"
     },
     ".pi/scripts/validate-exploration-depth.sh": {
@@ -1120,7 +1120,7 @@
     },
     ".pi/preflight_report.json": {
       "category": "framework",
-      "originalHash": "sha256:ae3ba106514db76d4a6c4bb2847b1503beb481ef978519f9d12b816687bbcbc1",
+      "originalHash": "sha256:117f944242ccc4476ebb8c46f530235ea6a6a2f41f5903dd4f7690325420a700",
       "status": "unchanged"
     },
     ".pi/domain/ubiquitous-language.md": {
@@ -1440,12 +1440,12 @@
     },
     ".pi/scripts/epic-runner.mjs": {
       "category": "framework",
-      "originalHash": "sha256:8ba13c4d76caa0de533dc43b75fecf8cbf7dc3dd89e09c2d227788bd667f9ba2",
+      "originalHash": "sha256:f65a24fd83fa836c0bdbcfa0c4fbb6318c37f7170399ef1f027e8f6adb2c12a0",
       "status": "unchanged"
     },
     ".pi/scripts/freeze.sh": {
       "category": "framework",
-      "originalHash": "sha256:a9fab5259ef3f1f03938ba26120949efc97ccebfa315a834d92852ced3b0af77",
+      "originalHash": "sha256:0d9f474f8a780ec065aac2abf6a4521dc6df205c0097669434750ca468b56d17",
       "status": "unchanged"
     }
   },
@@ -1474,5 +1474,5 @@
     "domainDescription": ""
   },
   "scaffoldedAt": "2026-11-13T15:05:52.994Z",
-  "lastUpdatedAt": "2026-11-13T22:29:15.992Z"
+  "lastUpdatedAt": "2026-11-14T01:29:21.989Z"
 }

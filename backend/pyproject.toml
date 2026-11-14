@@ -19,7 +19,19 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "aiosqlite>=0.20",
     "alembic>=1.14",
+    # keccak256 for the settlement nullifier. The EVM's keccak is not hashlib's sha3_256, and the
+    # nullifier must equal the value `PaymentRouter.spentNullifiers` computes — a mismatch would be
+    # either a duplicate payment or a false refusal (SC-5). eth-hash is the one dependency the
+    # settlement contract freeze permits (docs/contracts/settlement-contract-freeze.md §2.2), and it
+    # is also the keccak implementation the Phase-B chain adapter will use, so the domain and the
+    # adapter agree by construction rather than by coincidence.
+    "eth-hash[pycryptodome]>=0.7",
+    # Authority's approval binder: secp256k1 recovery and keccak address derivation for A-15.
+    # Recovery is public-key arithmetic — no private key ever reaches this process.
     "eth-account>=0.14.0",
+    # Console upstream adapters: transport, timeout and status handling for the six ports.
+    # The demo/CI composition swaps the transport for recorded fixtures (console/infrastructure).
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +58,12 @@ target-version = "py312"
 src = ["src", "tests"]
 # `.pi/` holds the Guardian harness (vendored scripts and extensions). Formatting it would create
 # noise in every epic diff and rewrite tooling we do not own.
-exclude = [".pi", ".venv", "contracts/lib", "out", "cache", "data"]
+# `.pi/` holds the Guardian harness (vendored scripts and extensions). Formatting it would create
+# noise in every epic diff and rewrite tooling we do not own.
+# `docs/contracts/` holds frozen contract artifacts. They are evidence, not code: a formatter that
+# rewrites them turns a cosmetic pass into a "contracts changed since the freeze" failure. Freezing
+# means byte-stable, so the formatter must not touch them.
+exclude = [".pi", ".venv", "contracts/lib", "out", "cache", "data", "docs/contracts"]
 
 [tool.ruff.lint]
 select = [
@@ -78,12 +95,18 @@ ignore = [
 "tests/unit/**/*services*/__init__.py" = ["N999"]
 "tests/unit/**/repository-interfaces-owned-by-domain/__init__.py" = ["N999"]
 "tests/unit/**/layer-purity/__init__.py" = ["N999"]
+# Console contract-suite directories are named after the invariant they defend (`read-only/`,
+# `refusal-reason/`); the package exists for pytest collection and is never imported by path.
+"tests/unit/console/**/__init__.py" = ["N999"]
 # Domain refusal names are frozen by the architecture docs and quoted by acceptance criteria
 # (`ConstitutionCorrupted` in AC #8, `OwnerProofInvalid` in AC #4). The `-Error` suffix rule loses to
 # the ubiquitous language: these are behaviours, not generic exceptions.
 "src/mandate/domain/errors.py" = ["N818"]
 "src/billing/domain/errors.py" = ["N818"]
 "src/authority/domain/errors.py" = ["N818"]
+"src/evidence/domain/errors.py" = ["N818"]
+"src/settlement/domain/errors.py" = ["N818"]
+"src/console/application/errors.py" = ["N818"]
 
 # ── mypy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]

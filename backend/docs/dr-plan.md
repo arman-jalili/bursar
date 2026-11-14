@@ -49,6 +49,11 @@ Record what failed, what was restored, and whether any payment is ambiguous. Nev
 ambiguous effect with a guess.
 
 
+## Billing-specific recovery
+
+See [`docs/dr-plan-billing.md`](dr-plan-billing.md) for the Billing restore/reconcile procedure and the
+post-restore invariant queries (`UNIQUE(invoice_hash)`, partial unique index on the active attempt).
+
 ## Mandate-specific recovery
 
 Both SQLite files are the whole state; the chain is the other half. A restore is only correct if the

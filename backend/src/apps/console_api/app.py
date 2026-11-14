@@ -16,7 +16,11 @@ import uvicorn
 from fastapi import FastAPI
 
 from src.apps.shell import ServiceName, build_app, install_context
+from src.billing.interfaces.http import router as billing
+from src.console.interfaces import api as console
+from src.evidence.interfaces.http import router as evidence
 from src.mandate.interfaces.http import router as mandate
+from src.settlement.interfaces.http import router as settlement
 
 SERVICE_NAME: ServiceName = "console-api"
 DEFAULT_PORT = 8000
@@ -25,7 +29,10 @@ DEFAULT_PORT = 8000
 #: Each build phase adds its module here and nothing else changes at the edge.
 HOSTED_CONTEXTS = (
     mandate,  # Mandate (Phase 1) — payees, constitution lineage, eligibility read-through
-    # Billing (Phase 2), Settlement (Phase 4), Evidence (Phase 5), Console (Phase 6) follow.
+    billing,  # Billing (Phase 2) — invoices, payment attempts, duplicate + one-active guards
+    settlement,  # Settlement (Phase 4) — orders, receipts, cost, nullifier status (read side)
+    evidence,  # Evidence (Phase 5) — append-only envelopes, anchors, verify/tamper surface
+    console,  # Console (Phase 6) — read models, one signature passthrough (no domain layer)
 )
 
 

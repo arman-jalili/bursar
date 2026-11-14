@@ -1,9 +1,9 @@
 ---
 guardian_issue:
   id: "ISSUE-CONTRACT-FREEZE"
-  epic: "authority"
+  epic: "console"
   component: "Contract Freeze"
-  module: "authority"
+  module: "console"
   status: planned
   priority: critical
   dependencies: []
@@ -29,7 +29,7 @@ guardian_issue:
       - REST/event contracts
 
   canonical_references:
-    - module: ".pi/architecture/modules/authority.md"
+    - module: ".pi/architecture/modules/console.md"
 
   acceptance_criteria:
     - "All component interfaces defined as stubs (TODO bodies)"
@@ -47,44 +47,35 @@ guardian_issue:
     interfaces, types, DTOs, event schemas, API paths, error formats.
 
   file_changes:
-    - "create: src/authority/domain/"
-    - "create: src/authority/application/"
-    - "create: src/authority/infrastructure/"
-    - "create: src/authority/interfaces/"
+    - "create: src/console/domain/"
+    - "create: src/console/application/"
+    - "create: src/console/infrastructure/"
+    - "create: src/console/interfaces/"
 ---
 
-# Contract Freeze: authority
+# Contract Freeze: console
 
 ## Intent
 
-Define and freeze all public interfaces, contracts, and schemas for the authority
+Define and freeze all public interfaces, contracts, and schemas for the console
 epic before any implementation begins. This prevents architecture drift — implementation
 must satisfy contracts, not the other way around.
 
 ## Included Components
 
-- Aggregate: PaymentIntent
-- Aggregate: Determination
-- Aggregate: CapLedger
-- Entity: Reservation / Entity: Approval
-- Value Objects (entity-vs-VO justification)
-- Repository interfaces (owned by `domain/`)
-- Ports to upstream contexts (ACL)
-- Domain Services
-- `PaymentIntent.issue`
-- `requires_owner_signature`
-- `CapLedger` cap
-- `CapLedger.commit/release`
-- Determination reasons
-- Re-read rule
-- `Approval` binding
-- `Approval` single-use
-- Approvals expire
-- Precondition fail-closed
-- Refusal has no side effect
-- Ledger consistency
-- No LLM
-- Layer purity
+- Application services (catalog)
+- Anti-corruption layer — field whitelists
+- Ports (upstream clients)
+- Whitelist
+- Exact fields
+- Passthrough
+- Read-only
+- Payer copy
+- Simulated payout
+- Refusal reason
+- Verify toggle
+- No domain layer
+- Mobile
 
 ## What Must Be Frozen
 
@@ -120,33 +111,26 @@ must satisfy contracts, not the other way around.
 
 | # | Component | Criterion | Verify In |
 |---|-----------|-----------|-----------|
-| 1 | `PaymentIntent.issue` | A proposal carrying its own `payee_address` cannot influence the intent: the intent uses Mandate's address and the test asserts inequality. | unit |
-| 2 | `PaymentIntent.issue` | Attempt amount ≠ invoice amount → `AmountMismatch`, no intent persisted. | unit |
-| 3 | `requires_owner_signature` | True for a new payee at 5 USDC and for an eligible payee at 320 USDC with threshold 25; false for eligible at 12 USDC. | unit |
-| 4 | `CapLedger` cap | 6 concurrent 25 USDC attempts against a 150 USDC cap: exactly 6 reserve if headroom allows, else the excess returns `CapacityRefused` and the ledger never exceeds 150. (scenario 4) | integration (concurrency) |
-| 5 | `CapLedger.commit/release` | Committing twice raises; commit then release raises; `committed + reserved` unchanged by a rejected second call. | unit |
-| 6 | Determination reasons | Every `DENY` has ≥1 code from the closed set; a code outside the set fails type check. | unit |
-| 7 | Re-read rule | Freeze the payee between evaluate and precondition check → precondition returns deny/`payee_frozen` and no settlement order exists. (scenario 3) | integration |
-| 8 | `Approval` binding | Signature over intent A replayed for intent B (different amount) → `ApprovalRejected`, no dispatch. (scenario 5 negative) | integration |
-| 9 | `Approval` single-use | Second `consume()` → raises; only one settlement event observed. | unit |
-| 10 | Approvals expire | Past `expires_at` → `ApprovalExpired`, `PaymentRefused(approval_invalid)`. | unit |
-| 11 | Precondition fail-closed | Mandate unreachable → `POST /v1/precondition/check` returns non-200 and Rigorix does not run the command. | integration |
-| 12 | Refusal has no side effect | After any `PaymentRefused`, `reserved` and `committed` for the day are unchanged and no `settlement_orders` row exists. | integration |
-| 13 | Ledger consistency | `committed` equals the sum of on-chain settled amounts for the day after a full scenario run. | integration |
-| 14 | No LLM | `src/authority/` imports no model/LLM client (import-graph test). | automated |
-| 15 | Layer purity | `src/authority/domain/` imports no FastAPI/SQLAlchemy/httpx. | automated |
+| 1 | Whitelist | An upstream payload with an extra field (`internal_note`) does not appear in any console response. | unit |
+| 2 | Exact fields | The inbox renders `payee_address` and `bank_digest` byte-identically to Authority's intent (no truncation, no re-checksumming). | integration |
+| 3 | Passthrough | `POST /signature` forwards the signature unmodified; a recorded request body equals the received one. | integration |
+| 4 | Read-only | No console endpoint can create an intent, attempt or settlement order; a scope test proves the owner token cannot reach those. | integration (auth matrix) |
+| 5 | Payer copy | Payer endpoints contain none of: USDC, gas, chain, wallet, nullifier, determination (grep on fixtures). | automated |
+| 6 | Simulated payout | Every payer bill with a settlement carries `payout_simulated: true` and the demo label. | integration |
+| 7 | Refusal reason | A refused payment appears for the owner with a human-readable reason derived from the reason codes. (scenarios 2/3/4) | integration |
+| 8 | Verify toggle | Evidence view shows `verified` for an untouched envelope and `tampered` after one byte is flipped. (scenario 7) | integration |
+| 9 | No domain layer | `src/console/domain/` does not exist; its appearance fails the adapter-purity check. | automated |
+| 10 | Mobile | Both surfaces usable at 390×844 with no horizontal scroll; owner approval takes ≤3 taps from the notification. (NFR-011) | manual |
 
 ## Full Implementation Sequence (for reference)
 
-- 1. Shared kernel: `Money`, `AggregateRoot`, `DomainEvent`, EIP-712 spec file (`shared/eip712.py`).
-- 2. `PaymentIntent` + `Determination` with A-1…A-8 (no I/O; pure tests).
-- 3. `CapLedger` + `Reservation` with A-9…A-12, plus the conditional-UPDATE repository and a
-- 4. `Approval` + `OwnerSignature` verification A-13…A-15, including expiry and single-use.
-- 5. `MandateView` / `AttemptViewPort` adapters (read-through, no cache) + contract tests.
-- 6. `EvaluateAuthority`, `ReserveCapacity` (catalog order), then `EscalateForSignature`,
-- 7. `interfaces/precondition.check` fail-closed behaviour + Rigorix integration test.
-- 8. Wire Settlement outcome events into `ReconcileReservation`.
-- 9. Budget guard (`BUDGET_EXHAUSTED`) per ADR-006.
+- 1. OpenAPI schema for the eight console endpoints (hour 6, unblocks the React team).
+- 2. ACL whitelists + plain-language mapping table with unit tests.
+- 3. `ProjectPayerBills` (read-only, no dependencies on signing) — the safest first surface.
+- 4. `ProjectApprovalInbox` with exact intent fields and `typed_data_hash`.
+- 5. Signature passthrough endpoint (no transformation) + rejection copy.
+- 6. `ProjectEvidence` + verification proxy with the verified/tampered toggle.
+- 7. Empty/loading/error states; mobile viewport pass.
 
 
 

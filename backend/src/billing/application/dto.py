@@ -18,12 +18,16 @@ from dataclasses import dataclass, field
 from datetime import date
 
 __all__ = [
+    "ApplyDeterminationCommand",
+    "ApplyDeterminationResult",
     "AttemptView",
     "InvoiceView",
     "ProposePaymentCommand",
     "ProposePaymentResult",
     "RecordInvoiceCommand",
     "RecordInvoiceResult",
+    "SettleInvoiceCommand",
+    "SettleInvoiceResult",
 ]
 
 
@@ -79,4 +83,46 @@ class ProposePaymentCommand:
 @dataclass(frozen=True, slots=True)
 class ProposePaymentResult:
     attempt: AttemptView
+    events: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class SettleInvoiceCommand:
+    """Inbound `SettlementConfirmed` → close the invoice (ADR-003, module doc sequence 7).
+
+    `event_id` is the publisher's delivery identity: at-least-once delivery means the same settlement
+    can arrive twice, and the subscriber must make the replay a no-op. The state check (a settled
+    invoice refuses a second settlement) is the dedupe; the field is carried so a durable
+    `(event_id, handler)` table can be added without changing the command.
+    """
+
+    invoice_id: str
+    tx_hash: str
+    event_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SettleInvoiceResult:
+    invoice: InvoiceView
+    duplicate: bool = False
+    events: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ApplyDeterminationCommand:
+    """Inbound Authority determination applied to one attempt (B-7).
+
+    Billing does not decide `determination`; it records what Authority decided. An allow/escalate
+    verdict dispatches; anything else refuses and frees the invoice.
+    """
+
+    attempt_id: str
+    determination: str
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ApplyDeterminationResult:
+    attempt: AttemptView
+    invoice: InvoiceView | None = None
     events: tuple[str, ...] = ()

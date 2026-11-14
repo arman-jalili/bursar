@@ -2,10 +2,10 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented
 **Depends:** Authority (determinations/refusals), Settlement (receipts/reverts + anchor), Billing (invoice/proposal events), Mandate (payee status events)
 **Used by:** Console
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-14
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
 
 ## Description
@@ -40,6 +40,27 @@ payments still move (and the gap is visible, envellopped as a missing-witness wa
 | [ADR-005](../decisions/ADR-005-authentication-authorization.md) | The HMAC key is operator-held; it is never in the agent workspace or in an envelope payload. |
 | [ADR-006](../decisions/ADR-006-cost-tracking-usage-metering.md) | Anchoring mode (`per_envelope | batched | demo_only`) is recorded on each envelope. |
 | [ADR-007](../decisions/ADR-007-compliance-engine-architecture.md) | `anchor(bytes32)` on `PaymentRouter` is the on-chain half of tamper evidence. |
+
+## Contract Freeze
+
+Phase A freezes the signatures, the invariant ids, the refusal vocabulary, the event payloads, the
+ports and the HTTP shape. The canonical artifact is
+[`docs/contracts/evidence-contract-freeze.md`](../../docs/contracts/evidence-contract-freeze.md).
+Phase B (implemented 2026-11-14) fills those bodies: `EnvelopeHash`/`EvidenceEnvelope` (canonical bytes + HMAC), append-only SQLAlchemy stores with migration `003_evidence`, `SealEvidence`/`VerifyEvidence`/`WitnessReport`, the local `AnchorGateway`/`AnchorPolicy`, the console-facing HTTP surface and the event subscriber. The frozen signatures are unchanged.
+
+| Id | Invariant | Defending suite |
+|---|---|---|
+| **E-1** | Canonical encoding is byte-deterministic across runs and key orderings. | `canonical-bytes/`, `value-objects/` |
+| **E-2** | Every delivered event yields exactly one envelope with a valid HMAC. | `hmac-sealing/`, `evidenceenvelope/` |
+| **E-3** | A refusal is sealed as `PaymentRefused` with its reason codes — not a lesser record. | `refusal-sealed/` |
+| **E-4** | The same `event_id` delivered three times produces one envelope. | `idempotency/`, `persistence-contract/` |
+| **E-5** | Envelopes are append-only; a correction is a new envelope linked by `previous_hash`. | `append-only/`, `persistence-contract/` |
+| **E-6** | An untouched envelope verifies as `VERIFIED` with its anchor tx. | `verify-ok/` |
+| **E-7** | One changed payload byte raises `HMAC_MISMATCH` naming the field; the anchor is unchanged. | `one-flipped-byte/` |
+| **E-8** | An envelope pointed at a different anchor hash raises `ANCHOR_MISMATCH`. | `anchor-mismatch/` |
+| **E-9** | The HMAC key appears in no payload, canonical bytes, log line or DB column. | `key-isolation/` |
+| **E-10** | Stopping Evidence does not block dispatch; the gap is detectable afterwards. | `witness-only/`, `ports/` |
+| **E-11** | `src/evidence/domain/` imports no FastAPI, SQLAlchemy or web3. | `layer-purity/` |
 
 ## Diagrams
 
@@ -221,10 +242,11 @@ class EvidenceEnvelope:
         return EnvelopeHash.compute(self.canonical_bytes(), self.hmac)
 ```
 
-**Invariants:** E-1 every attempt yields ≥1 envelope, **including refusals**; E-2 envelopes are
-append-only (corrections are new envelopes referencing `previous_hash`); E-3 the HMAC key never
-appears in an envelope or the agent workspace; E-4 a refusal is the same shape as a settlement —
-not a lesser record.
+**Invariants:** E-2 every attempt yields ≥1 envelope, **including refusals**; E-5 envelopes are
+append-only (corrections are new envelopes referencing `previous_hash`); E-9 the HMAC key never
+appears in an envelope or the agent workspace; E-3 a refusal is the same shape as a settlement —
+not a lesser record. The full frozen list is E-1 … E-11 in
+[`docs/contracts/evidence-contract-freeze.md`](../../docs/contracts/evidence-contract-freeze.md#1).
 
 ### Value Objects
 
@@ -295,9 +317,17 @@ Below the catalog: `ListEnvelopes`, `GetEnvelope`, `ReanchorBatch` (operational)
 | Module | What it provides |
 |---|---|
 | **Authority** | `AuthorityDetermined`, `PaymentAllowed`, `PaymentRefused`, `Approval*` — including refusals (open-host publisher). |
-| **Settlement** | `SettlementConfirmed`, `SettlementReverted`, `DuplicateSettlementBlocked`, and the anchor write itself (partnership). |
 | **Billing** | `InvoiceRecorded`, `PaymentProposed`, `ProposalRejected`. |
 | **Mandate** | `PayeeQuarantined`, `PayeeFrozen`, `PayeeReapproved`. |
+
+### Runtime Partners (Phase B adapters)
+
+These are consumed through frozen ports, so Evidence's Phase-A contract does not depend on their
+contracts being frozen. The adapters land with the Phase-B persistence work.
+
+| Partner | What it provides | Port |
+|---|---|---|
+| **Settlement** | `SettlementConfirmed`, `SettlementReverted`, `DuplicateSettlementBlocked`, and the anchor write itself (partnership). | `AnchorGateway` → `POST /v1/anchors` |
 
 ### Used By
 

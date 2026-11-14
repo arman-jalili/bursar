@@ -1,4 +1,4 @@
-"""002_authority — intents, determinations, the cap ledger, reservations, approvals, outbox.
+"""004_authority — intents, determinations, the cap ledger, reservations, approvals, outbox.
 
 Canonical: .pi/architecture/decisions/ADR-002-data-storage-strategy.md
 Reference: .pi/architecture/modules/authority.md#components
@@ -14,8 +14,8 @@ Storage-level guarantees, each tied to an invariant:
   the same capacity twice.
 * Amounts are `INTEGER` micro-USDC (ADR-002). No floats anywhere in the ledger.
 
-Revision ID: 002_authority
-Revises: 001_mandate
+Revision ID: 004_authority
+Revises: a52cc03d1e5a
 """
 
 from __future__ import annotations
@@ -25,8 +25,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "002_authority"
-down_revision: str | None = "001_mandate"
+revision: str = "004_authority"
+down_revision: str | None = "a52cc03d1e5a"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

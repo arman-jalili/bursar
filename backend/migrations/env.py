@@ -32,9 +32,17 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 #: Metadata for every built context, used by `--autogenerate` and by `compare_metadata`.
+from src.billing.infrastructure.models import Base as BillingBase  # noqa: E402
+from src.evidence.infrastructure.models import Base as EvidenceBase  # noqa: E402
 from src.mandate.infrastructure.models import Base as MandateBase  # noqa: E402
+from src.settlement.infrastructure.models import Base as SettlementBase  # noqa: E402
 
-target_metadata = [MandateBase.metadata]
+target_metadata = [
+    MandateBase.metadata,
+    BillingBase.metadata,
+    SettlementBase.metadata,
+    EvidenceBase.metadata,
+]
 
 
 def _selected_database() -> str:

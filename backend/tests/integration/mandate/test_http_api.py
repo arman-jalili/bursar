@@ -243,7 +243,11 @@ class TestReadinessReflectsReality:
     def test_readyz_reports_mandate_as_wired(self, client: TestClient) -> None:
         body = client.get("/readyz").json()
         assert "Mandate" in body["build"]["wired_contexts"]
-        assert "Billing" in body["build"]["pending_contexts"]
+        assert "Billing" in body["build"]["wired_contexts"]
+        # Settlement and Console ship in the same deployable now; only Authority lives elsewhere.
+        assert "Settlement" in body["build"]["wired_contexts"]
+        assert "Console" in body["build"]["wired_contexts"]
+        assert body["build"]["pending_contexts"] == []
 
     def test_openapi_documents_the_mandate_contract(self, client: TestClient) -> None:
         schema = client.get("/openapi.json").json()

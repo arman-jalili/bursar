@@ -2,10 +2,10 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented
 **Depends:** Mandate (payee id + verified digest baseline)
 **Used by:** Authority, Evidence, Console
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-14
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
 
 ## Description
@@ -25,10 +25,10 @@ ever reach Authority.
 
 | Layer | Responsibility |
 |-------|--------------|
-| **Domain** | `Invoice`, `PaymentAttempt`, `InvoiceHash`, `BilledAmount`, `AttemptStatus` (as captured), repository interfaces | `src/billing/domain/` |
-| **Application** | `RecordInvoice`, `ProposePayment` | `src/billing/application/` |
-| **Infrastructure** | SQLAlchemy repositories, invoice-hash computation, fixture loader | `src/billing/infrastructure/` |
-| **Interfaces** | REST handlers, Mandate digest-review call, event publishers | `src/billing/interfaces/` |
+| **Domain** | `Invoice`, `PaymentAttempt`, `InvoiceHash`, `BilledAmount`, `AttemptStatus`, repository ports | `src/billing/domain/` |
+| **Application** | `RecordInvoice`, `ProposePayment`, read models | `src/billing/application/` |
+| **Infrastructure** | SQLAlchemy rows/mappers/repositories, outbox writer | `src/billing/infrastructure/` |
+| **Interfaces** | REST router + schemas, Mandate digest-review port adapter point | `src/billing/interfaces/` |
 
 ## Contract Freeze
 
@@ -37,12 +37,15 @@ ever reach Authority.
 That file is the authoritative frozen surface for this context: the seven invariant ids (B-1…B-7) with
 the illegal state each prevents, every signature (`Invoice`, `PaymentAttempt`, `InvoiceHash`,
 `BilledAmount`, `InvoiceStatus`, `AttemptStatus`, the two repository ports, `RecordInvoice`,
-`ProposePayment`), the refusal vocabulary, and the ordered list of behaviour Phase B must implement.
+`ProposePayment`), the seven event payload schemas (`src/billing/domain/events.py`), the two domain
+ports (`src/billing/domain/ports.py`), the refusal vocabulary with its HTTP statuses, and the ordered
+list of behaviour Phase B must implement.
 
-Status: frozen for implementation. `src/billing/` contains signatures only — every body raises
-`NotImplementedError("B-n — see module doc")` — and the 10 suites under `tests/unit/billing/` are red
-by design, each naming the invariant it defends. Verify with
-`bash .pi/scripts/freeze.sh verify --module billing`.
+Status: implemented against the frozen surface (Phase B). The signatures, refusal vocabulary, event
+payloads and endpoint shapes are unchanged from the freeze; the bodies now enforce B-1…B-7. The storage
+mirrors (`UNIQUE(invoice_hash)`, the partial unique index on the active attempt) live in
+`migrations/versions/002_billing.py`, and the module is wired into `console-api` via
+`src/billing/interfaces/http/`. Verify with `bash .pi/scripts/freeze.sh verify --module billing`.
 
 ## Related ADRs
 
@@ -313,9 +316,11 @@ Below the catalog: `ListInvoices`, `GetAttempt`, `LoadFixtures` (demo seeding).
 | POST | `/v1/attempts` | `interfaces/api.propose` | `{invoice_id}` only | attempt or 422 `PROPOSAL_REJECTED` | `billing:propose` (**agent**) |
 | GET | `/v1/attempts/{id}` | `interfaces/api.get_attempt` | — | attempt + status | `console:read` |
 
-`POST /v1/attempts` accepts **only** `invoice_id`. Every other field in the documented schema
-is rejected with `PROPOSAL_REJECTED` rather than ignored — the difference between "we filter"
-and "we do not accept" is the whole ACL argument.
+`POST /v1/attempts` accepts `invoice_id` and an optional `proposed_amount_micro_usdc` — and nothing
+else. Every other field in the documented schema is rejected with `PROPOSAL_REJECTED` (HTTP 422)
+rather than ignored — the difference between "we filter" and "we do not accept" is the whole ACL
+argument. The amount is optional only so B-6 is reachable over the wire; when present it must equal
+the invoice amount (`AMOUNT_MISMATCH`, HTTP 409).
 
 ## Ubiquitous Language
 

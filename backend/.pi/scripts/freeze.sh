@@ -582,6 +582,16 @@ if cmd == "next":
     print("no eligible module: every module is frozen/implemented or blocked by an unfrozen dependency")
     raise SystemExit(1)
 
+# A spawned agent runs with GUARDIAN_LOCAL_ONLY=1 (set by epic-fanout). Freeze
+# state is a human decision: an agent that unfreezes its own module to "amend the
+# contract" silently destroys the guarantee the phase separation exists for.
+# Refuse both mutating operations in that context.
+if cmd in ("record", "unfreeze") and os.environ.get("GUARDIAN_LOCAL_ONLY") == "1":
+    print(f"refusing to {cmd}: freeze state is recorded by a human, not by a spawned agent.", file=sys.stderr)
+    print("  An agent that needs a contract change must stop and ask; the human then", file=sys.stderr)
+    print("  unfreezes, reviews, merges and records.", file=sys.stderr)
+    raise SystemExit(2)
+
 if cmd == "unfreeze":
     if not module:
         print("usage: freeze.sh unfreeze --module <m> --reason \"why\"", file=sys.stderr)

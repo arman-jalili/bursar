@@ -219,7 +219,11 @@ class EpicManager {
 		let hasRemote = false;
 		let remoteRepo = "";
 
-		if (repoTool === "glab" ? commandExists("glab") : commandExists("gh")) {
+		// localOnly must skip the forge entirely. Before this guard, repoTool was
+		// forced to "local" but the ternary below still fell through to `gh`, so
+		// GUARDIAN_LOCAL_ONLY=1 created remote issues anyway — which is how a
+		// Phase B run duplicated an epic's issue set on GitHub.
+		if (!localOnly && (repoTool === "glab" ? commandExists("glab") : commandExists("gh"))) {
 			const authCheck = runScript(
 				this.cwd,
 				repoTool === "glab" ? "glab auth status 2>/dev/null" : "gh auth status 2>/dev/null",
@@ -923,20 +927,42 @@ export default function architectExtension(pi: ExtensionAPI) {
 					ctx.ui.notify(`Could not start a freeze for "${target}" — check .pi/architecture/modules/.`, "error");
 					return;
 				}
-				ctx.ui.notify(
-					[
-						`FREEZE PHASE — ${target}`,
-						"",
-						"Work ONLY the contract-freeze issue. Do not implement.",
-						"Deliver: contracts (docs/contracts/…), frozen signatures, and behaviour",
-						"tests that FAIL for the right reason (NotImplementedError, not ImportError).",
-						"",
-						"Then, after you merge the contract-freeze PR:",
-						`  /architect --freeze --record --module "${target}" --commit <merge-sha>`,
-						"",
-						"Until it records and verifies, Phase B refuses this module.",
-					].join("\n"),
-					"info",
+				const banner = [
+					`FREEZE PHASE — ${target}`,
+					"",
+					"Work ONLY the contract-freeze issue. Do not implement.",
+					"Deliver: contracts (docs/contracts/…), frozen signatures, and behaviour",
+					"tests that FAIL for the right reason (NotImplementedError, not ImportError).",
+					"",
+					"Then, after you merge the contract-freeze PR:",
+					`  /architect --freeze --record --module "${target}" --commit <merge-sha>`,
+					"",
+					"Until it records and verifies, Phase B refuses this module.",
+				].join("\n");
+				ctx.ui.notify(banner, "info");
+
+				// Start the work. Printing the banner and returning works for a human
+				// who reads it, but a headless run then does nothing at all (the
+				// runner reports "handled, no run started" and exits).
+				pi.sendMessage(
+					{
+						content: [
+							`You are in the FREEZE PHASE for the "${target}" module.`,
+							"",
+							"Do this now, in order:",
+							`1. Work ONLY .pi/issues/issue-contract-freeze.md. Do not implement behaviour.`,
+							`2. Write backend/docs/contracts/${target}-contract-freeze.md: one row per invariant (rule / illegal state prevented / defending suite), the frozen signatures, the refusal vocabulary, the ordered Phase-B work list, and an explicit out-of-scope table. Reference it from .pi/architecture/modules/${target}.md in a "## Contract Freeze" section.`,
+							`3. Create src/${target}/**: frozen signatures only — dataclasses, enums, protocols and repository ports. Every body raises NotImplementedError("<AC-id> — see module doc"). No logic; an id/newtype factory returning a uuid is the only exception.`,
+							`4. Replace any generated test scaffolding in tests/unit/${target}/** with behaviour tests. Each test docstring names the AC it defends. Each asserts a rule (e.g. pytest.raises(SomeRefusal)). No assert False, no assert True, no isinstance/dataclass assertions. They must fail now with NotImplementedError.`,
+							`5. Add an empty __init__.py to each test package directory you create.`,
+							`6. Run: bash .pi/scripts/freeze.sh verify --module ${target} — every check must be [ok] (no placeholders, red state red_ok, type check clean).`,
+							"7. Commit on a branch, push, and open ONE PR. Do not merge it yourself and do not record the freeze (that is the human's decision).",
+							"",
+							"Stop when the PR is open and verification passes.",
+						].join("\n"),
+						display: true,
+					},
+					{ deliverAs: "followUp", triggerTurn: true },
 				);
 				return;
 			}
@@ -1051,7 +1077,29 @@ export default function architectExtension(pi: ExtensionAPI) {
 					return;
 				}
 
-				const items = (state.issues || []).map((i) => i.id);
+				// Phase B for an already-frozen module: the contract-freeze item is
+				// done and merged, so starting the pipeline at it makes the agent
+				// redo work that no longer exists (an epic sat at 0/17 on it).
+				let phaseBFrozen = false;
+				try {
+					const st = runScript(ctx.cwd, `bash .pi/scripts/freeze.sh status --module "${slice.module}"`);
+					phaseBFrozen = /state:\s*frozen/i.test(String(st.stdout ?? "")) || /state:\s*implemented/i.test(String(st.stdout ?? ""));
+				} catch {
+					// no freeze script — treat as not frozen
+				}
+
+				let items = (state.issues || []).map((i) => i.id);
+				if (phaseBFrozen && items[0] === "issue-contract-freeze") {
+					items = items.slice(1);
+					const freezeIssue = (state.issues || []).find((i) => i.id === "issue-contract-freeze");
+					if (freezeIssue) freezeIssue.status = "implemented";
+					try {
+						saveEpicState(ctx.cwd, state);
+					} catch {
+						// non-fatal
+					}
+					ctx.ui.notify("Phase B: contract freeze already merged — pipeline starts at the first implementation item.", "info");
+				}
 				if (items.length === 0) {
 					ctx.ui.notify("Failed to generate issues.", "error");
 					return;
