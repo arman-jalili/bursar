@@ -36,7 +36,7 @@ ensure() {
 read_epic() {
 	local mod="$1"
 	python3 - "$REG" "$mod" <<'PY' 2>/dev/null || echo "{}"
-import json,sys
+import json,os,sys
 path,mod=sys.argv[1],sys.argv[2]
 try:
     d=json.load(open(path))
@@ -126,7 +126,7 @@ PY
 		MOD="${1:-}"
 		ensure
 		python3 - "$REG" "$cmd" "$MOD" <<'PY'
-import json,sys
+import json,os,sys
 path,mode,mod=sys.argv[1],sys.argv[2],sys.argv[3]
 d=json.load(open(path))
 epics=d.get("epics",{})
@@ -135,7 +135,14 @@ if mode=="get":
 else:
     if not epics: print("(no epics registered)")
     for m,e in sorted(epics.items()):
-        print(f"{m:32} {e.get('status','?'):12} frozen={'yes' if e.get('contractFrozen') else 'no ':3} branch={e.get('branch','?')} worktree={e.get('worktree','?')}")
+        status = e.get('status') or '?'
+        pid = e.get('pid')
+        if status == 'running' and pid:
+            try:
+                os.kill(int(pid), 0)
+            except Exception:
+                status = 'stale'  # recorded as running, process is gone
+        print(f"{m:32} {status:12} frozen={'yes' if e.get('contractFrozen') else 'no ':3} branch={e.get('branch','?')} worktree={e.get('worktree','?')}")
 PY
 		;;
 	*)

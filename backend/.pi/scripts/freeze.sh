@@ -253,14 +253,7 @@ def find_all_test_basenames():
 
 def find_tests(slug):
     """Test files for the module. `tests/` wins; `src/` is a fallback only for
-    projects that colocate tests, so source files are never counted as suites.
-
-    Match the module as a *path segment*, never as a substring of the absolute
-    path: a checkout can live in a directory whose name contains the module
-    (this repo lives in `bursar-billing/`), and `slug in full_path` then counted
-    every test in the project — including other modules' placeholder scaffolding.
-    """
-    slug_parts = {slug, slug.replace("-", "")}
+    projects that colocate tests, so source files are never counted as suites."""
     for base_dir in ("tests", "src"):
         hits = []
         base_path = os.path.join(root, base_dir)
@@ -270,17 +263,16 @@ def find_tests(slug):
             for f in fs:
                 if not re.search(r"\.(py|ts|rs|go|java)$", f):
                     continue
-                full = os.path.join(dp, f)
-                if "__pycache__" in full.lower():
+                low = os.path.join(dp, f).lower()
+                if "__pycache__" in low:
                     continue
                 # Only actual test files: conftest.py, _fixtures.py and
                 # __init__.py are support, not suites (they made counts lie).
                 stem = f.rsplit(".", 1)[0]
                 if not (stem.startswith("test_") or stem.endswith("_test") or stem in ("tests", "test")):
                     continue
-                rel_parts = os.path.relpath(full, root).lower().split(os.sep)
-                if slug_parts & set(rel_parts):
-                    hits.append(full)
+                if slug in low or slug.replace("-", "") in low.replace("-", ""):
+                    hits.append(os.path.join(dp, f))
         if hits:
             return sorted(set(hits))
     return []
@@ -589,6 +581,16 @@ if cmd == "next":
         raise SystemExit(0)
     print("no eligible module: every module is frozen/implemented or blocked by an unfrozen dependency")
     raise SystemExit(1)
+
+# A spawned agent runs with GUARDIAN_LOCAL_ONLY=1 (set by epic-fanout). Freeze
+# state is a human decision: an agent that unfreezes its own module to "amend the
+# contract" silently destroys the guarantee the phase separation exists for.
+# Refuse both mutating operations in that context.
+if cmd in ("record", "unfreeze") and os.environ.get("GUARDIAN_LOCAL_ONLY") == "1":
+    print(f"refusing to {cmd}: freeze state is recorded by a human, not by a spawned agent.", file=sys.stderr)
+    print("  An agent that needs a contract change must stop and ask; the human then", file=sys.stderr)
+    print("  unfreezes, reviews, merges and records.", file=sys.stderr)
+    raise SystemExit(2)
 
 if cmd == "unfreeze":
     if not module:

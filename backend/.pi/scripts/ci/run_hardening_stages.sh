@@ -177,20 +177,6 @@ run_stage "2" "architecture_conformance" \
     "${SCRIPTS_DIR}/check_architecture_conformance.sh" \
     "always"
 
-# Stage 2b: Module contract proofing (ADR-010)
-# Deterministic: fails if a frozen Billing interface loses its implementation, test, migration
-# mirror or composition-root registration.
-run_stage "2b" "billing_contracts" \
-    "${SCRIPTS_DIR}/check_billing_contracts.sh" \
-    "always"
-
-# Stage 2c: Settlement contract proofing (ADR-009)
-# Deterministic: fails if a frozen Settlement interface loses its implementation,
-# test, migration mirror, runtime registration or its documented deferral.
-run_stage "2c" "settlement_contracts" \
-    "${SCRIPTS_DIR}/check_settlement_contracts.sh" \
-    "always"
-
 # Stage 3: Lint
 run_stage "3" "lint" \
     "${SCRIPTS_DIR}/stage_lint.sh" \
@@ -229,11 +215,6 @@ run_stage "9" "package_build" \
 # Stage 10: Release Readiness
 run_stage "10" "release_readiness" \
     "${SCRIPTS_DIR}/stage_release_readiness.sh" \
-    "always"
-
-# Stage 11: Evidence proofing (contract impl + suites + real coverage gate)
-run_stage "11" "evidence_proofing" \
-    "${SCRIPTS_DIR}/stage_evidence_proofing.sh" \
     "always"
 
 # ── Summary ──

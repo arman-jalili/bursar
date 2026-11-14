@@ -18,14 +18,13 @@
 set -uo pipefail
 
 # Resolve the project root: the nearest ancestor of this script that looks like
-# a project (has .git, package.json, or .pi). The `.pi` marker matters in a
-# worktree/monorepo layout where the app lives in a subdirectory: git's toplevel
-# is not the project root, but `.pi/scripts` always sits below it.
+# a project (has .git or package.json). Works whether the script is invoked from
+# the canonical tree (templates/pi/scripts) or the shipped copy (.pi/scripts).
 resolve_root() {
 	local d
 	d="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 	while [ "$d" != "/" ]; do
-		if [ -e "$d/.git" ] || [ -e "$d/package.json" ] || [ -d "$d/.pi" ]; then
+		if [ -e "$d/.git" ] || [ -e "$d/package.json" ]; then
 			echo "$d"
 			return
 		fi

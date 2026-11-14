@@ -57,6 +57,10 @@ function emit(line) {
 }
 
 const args = ["--mode", "rpc"];
+// Headless agents never use UI MCP servers, and a dead/unreachable server costs
+// a 60s connect timeout on every start (which also defeated the "did work
+// start?" detection). Opt out unless the caller explicitly wants MCP.
+if (process.env.GUARDIAN_RUNNER_MCP !== "1") args.push("--no-mcp");
 // A dedicated session per runner keeps parallel agents isolated; --no-session
 // keeps the repo clean. Prefer a session when one is named.
 if (opts.session) args.push("--session-id", opts.session);
@@ -152,7 +156,13 @@ function handleLine(line) {
 	}
 	// A low-level run started: the command is doing real work, so wait for the
 	// settle event instead of using the grace timer.
-	if (msg.type === "agent_start") {
+	if (
+		msg.type === "agent_start" ||
+		msg.type === "turn_start" ||
+		msg.type === "message_start" ||
+		msg.type === "message_update" ||
+		msg.type === "tool_execution_start"
+	) {
 		sawRun = true;
 		cancelGrace();
 	}
@@ -166,7 +176,10 @@ function handleLine(line) {
 // no run activity appears within the grace window, treat the command as done.
 // pi docs (rpc.md#prompt): with disposition "handled", don't wait for
 // agent_settled unless the extension itself starts work.
-const GRACE_MS = Number(process.env.GUARDIAN_RUNNER_GRACE_MS || 5000);
+// How long to wait for a handled command to actually start work. The extension
+// may do real work only after MCP servers finish initialising, which can take a
+// minute; a 5s window killed freeze/epic sessions right after their banner.
+const GRACE_MS = Number(process.env.GUARDIAN_RUNNER_GRACE_MS || 150000);
 let graceTimer = null;
 let sawRun = false;
 
