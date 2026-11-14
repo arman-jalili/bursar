@@ -1,0 +1,15 @@
+# Build context for backend/Dockerfile.rigorix (the repository root).
+# The backend services build with `context: ./backend`, so this file does not affect them.
+.git
+.github
+frontend/node_modules
+frontend/dist
+.rigorix-runtime
+.playwright-mcp
+explorer
+docs
+backend/data
+backend/.venv
+**/__pycache__
+**/.pytest_cache
+*.log

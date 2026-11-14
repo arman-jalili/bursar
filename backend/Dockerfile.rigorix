@@ -1,15 +1,19 @@
 # rigorix-server + the Bursar broadcaster, in one governed execution host.
 #
-# Build context is the parent directory so both repositories are visible:
-#   docker build -f backend/Dockerfile.rigorix -t bursar-rigorix ../..
+# rigorix-server is installed from crates.io at a pinned version — no source checkout, no sibling
+# repository, no workspace build. The runtime stage is the same Python runtime as
+# backend/Dockerfile: Rigorix's run_command step executes `payments.broadcast`, and that executable
+# must exist inside the declared boundary.
 #
-# The second stage is the same Python runtime as backend/Dockerfile: Rigorix's run_command step
-# executes `payments.broadcast`, and that executable must exist inside the declared boundary.
+#   docker build -f backend/Dockerfile.rigorix -t bursar-rigorix:dev .
+#   ./scripts/build-rigorix-image.sh          # same, with tag/platform/version knobs
 FROM rust:1.96-bookworm AS rigorix-build
 
-WORKDIR /src/rigorix-oss
-COPY rigorix-oss/ ./
-RUN cargo build --release -p rigorix-server
+# Pinned for reproducibility. Bump when the host is upgraded; preconditions and the signed
+# `precondition_findings` evidence are present from 1.14.x.
+ARG RIGORIX_VERSION=1.14.3
+
+RUN cargo install rigorix-server --version "$RIGORIX_VERSION" --locked --root /opt/rigorix
 
 FROM python:3.12-slim AS runtime
 
@@ -22,18 +26,18 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY proximata/bursar/backend/pyproject.toml proximata/bursar/backend/uv.lock proximata/bursar/backend/README.md ./
-COPY proximata/bursar/backend/src ./src
-COPY proximata/bursar/backend/migrations ./migrations
-COPY proximata/bursar/backend/alembic.ini ./
-COPY proximata/bursar/backend/contracts ./contracts
+COPY backend/pyproject.toml backend/uv.lock backend/README.md ./
+COPY backend/src ./src
+COPY backend/migrations ./migrations
+COPY backend/alembic.ini ./
+COPY backend/contracts ./contracts
 RUN pip install --no-cache-dir uv && uv pip install --system .
 
-COPY --from=rigorix-build /src/rigorix-oss/target/release/rigorix-server /usr/local/bin/rigorix-server
+COPY --from=rigorix-build /opt/rigorix/bin/rigorix-server /usr/local/bin/rigorix-server
 # A bind-mounted runtime root hides anything baked into /workspace/.rigorix, so keep the default
 # config beside the image and let the entrypoint seed the volume when it is empty.
-COPY proximata/bursar/backend/docker/rigorix/rigorix.toml /opt/rigorix/rigorix.toml
-COPY proximata/bursar/backend/docker/rigorix/entrypoint.sh /usr/local/bin/rigorix-entrypoint.sh
+COPY backend/docker/rigorix/rigorix.toml /opt/rigorix/rigorix.toml
+COPY backend/docker/rigorix/entrypoint.sh /usr/local/bin/rigorix-entrypoint.sh
 RUN chmod +x /usr/local/bin/rigorix-entrypoint.sh
 
 WORKDIR /workspace

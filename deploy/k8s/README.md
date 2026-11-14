@@ -30,9 +30,9 @@ Build them on the VPS (native amd64 is simplest):
 # backend (scripts + compiled contracts are inside the image)
 docker build -t bursar-backend:dev backend
 
-# rigorix execution host — do NOT run `docker build ../..`: the parent checkout holds
-# rigorix-oss/target (tens of GB). The script assembles a clean context.
-RIGORIX_OSS=/path/to/rigorix-oss ./scripts/build-rigorix-image.sh
+# rigorix execution host — the Dockerfile installs rigorix-server from crates.io at a pinned
+# version. Build it on the VPS for a native amd64 image.
+./scripts/build-rigorix-image.sh
 
 # frontend: the API and explorer URLs are baked at build time
 PUBLIC_CONSOLE_URL=https://api.bursar.example.com \

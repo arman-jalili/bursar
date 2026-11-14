@@ -105,8 +105,9 @@ contains `rigorix-server` **and** the `payments.broadcast` command the governed 
 server, run it as a container rather than a host process:
 
 ```bash
-# build a clean context (never `docker build ../..`: rigorix-oss/target is tens of GB)
-RIGORIX_OSS=/path/to/rigorix-oss ./scripts/build-rigorix-image.sh
+# The Dockerfile installs rigorix-server from crates.io at a pinned version — no source checkout
+# and no giant build context.
+./scripts/build-rigorix-image.sh
 
 # the console reaches Rigorix by service name, not host.docker.internal
 BURSAR_RIGORIX_BASE_URL=http://rigorix:3001 \

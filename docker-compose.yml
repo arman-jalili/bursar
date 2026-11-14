@@ -116,8 +116,8 @@ services:
       retries: 40
 
   # rigorix-server + the Bursar broadcaster inside one declared container boundary.
-  # Built by scripts/build-rigorix-image.sh (it assembles a clean context; the parent checkout is
-  # tens of GB and must not be sent to the daemon).
+  # Built by scripts/build-rigorix-image.sh: the image installs rigorix-server from crates.io at a
+  # pinned version, so no source checkout is needed.
   #   BURSAR_RIGORIX_BASE_URL=http://rigorix:3001 docker compose --profile container-rigorix up -d
   rigorix:
     profiles: ["container-rigorix"]
