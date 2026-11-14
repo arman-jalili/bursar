@@ -1,0 +1,141 @@
+# Bursar — the real demo stack.
+#
+#   docker compose up --build
+#
+# anvil (chain) -> contracts (one-shot deploy) -> migrate -> authority + console (+ rigorix) -> frontend
+name: bursar
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:stable
+    # The image configures the bind address through ANVIL_IP_ADDR; --host alone was ignored.
+    environment:
+      ANVIL_IP_ADDR: 0.0.0.0
+    command: anvil --host 0.0.0.0 --chain-id 31337 --block-time 1
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://127.0.0.1:8545"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  contracts:
+    build:
+      context: ./backend
+    image: bursar-backend:dev
+    command: ["python", "scripts/deploy_contracts.py"]
+    env_file: .env.demo
+    volumes:
+      - shared:/shared
+    depends_on:
+      anvil:
+        condition: service_healthy
+    restart: "no"
+
+  migrate:
+    image: bursar-backend:dev
+    build:
+      context: ./backend
+    command:
+      - sh
+      - -c
+      - "alembic -x db=console upgrade head && alembic -x db=authority upgrade head"
+    env_file: .env.demo
+    volumes:
+      - data:/app/data
+    depends_on:
+      contracts:
+        condition: service_completed_successfully
+    restart: "no"
+
+  authority:
+    image: bursar-backend:dev
+    build:
+      context: ./backend
+    command:
+      - sh
+      - -c
+      - "set -a; . /shared/chain.env 2>/dev/null || true; set +a; exec uvicorn src.apps.authority_service.app:app --host 0.0.0.0 --port 8001"
+    env_file: .env.demo
+    ports:
+      - "8001:8001"
+    volumes:
+      - data:/app/data
+      - shared:/shared:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  console:
+    image: bursar-backend:dev
+    build:
+      context: ./backend
+    command:
+      - sh
+      - -c
+      - "set -a; . /shared/chain.env 2>/dev/null || true; set +a; exec uvicorn src.apps.console_api.app:app --host 0.0.0.0 --port 8000"
+    env_file: .env.demo
+    ports:
+      - "8000:8000"
+    volumes:
+      - data:/app/data
+      - shared:/shared:ro
+    depends_on:
+      authority:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # rigorix-server + the Bursar broadcaster inside one declared container boundary.
+  # Build context is the parent of this repository because rigorix-oss sits beside bursar.
+  rigorix:
+    profiles: ["container-rigorix"]
+    image: bursar-rigorix:dev
+    build:
+      context: ../..
+      dockerfile: proximata/bursar/backend/Dockerfile.rigorix
+    env_file: .env.demo
+    environment:
+      RIGORIX_SERVER_BIND: 0.0.0.0:3001
+      RIGORIX_SANDBOX: container
+      RIGORIX_HMAC_KEY: bursar-demo-operator-held-evidence-key-4c1f9a
+      RIGORIX_REPO_ROOT: /workspace
+    ports:
+      - "3001:3001"
+    volumes:
+      - rigorix:/workspace/.rigorix
+    depends_on:
+      anvil:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3001/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_CONSOLE_API_URL: http://localhost:8000
+        VITE_OWNER_TOKEN: demo-owner-token
+    image: bursar-frontend:dev
+    ports:
+      - "5173:80"
+    depends_on:
+      console:
+        condition: service_healthy
+
+volumes:
+  data:
+  shared:
+  rigorix:
