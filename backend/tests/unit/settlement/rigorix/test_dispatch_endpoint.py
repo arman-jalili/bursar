@@ -18,6 +18,7 @@ No handler here opens a socket: the fakes are plain objects, and the app's lifes
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
@@ -93,11 +94,19 @@ class FakeExecutor:
         self.refusal = refusal
         self.orders: list[SettlementOrder] = []
         self.seen: list[tuple[str | None, str, str]] = []
+        #: Reads the row through a connection the request never touched. Set by the durability test:
+        #: what the object says is not the claim, what the *database* says is.
+        self.probe: object | None = None
+        #: One entry per governed call, in order. The *first* is the one SC-3 is about: an ordering bug
+        #: that broadcasts early would record an empty read here and a populated one afterwards.
+        self.observations: list[list[tuple[object, ...]]] = []
 
     async def execute(self, order: SettlementOrder) -> CommandAck:
         self.orders.append(order)
         raw = str(order.command_params()["raw_transaction"])
         self.seen.append((order.tx_hash, order.status.value, raw))
+        if self.probe is not None:
+            self.observations.append(list(self.probe()))  # type: ignore[operator]
         if self.refusal:
             raise SettlementRefusal(ErrorCode.CONFLICT, self.refusal)
         return CommandAck(
@@ -143,6 +152,7 @@ class Harness:
     gate: FakeGate
     executor: FakeExecutor
     chain: FakeChain
+    db_path: Path
     network: ChainNetwork = field(default_factory=an_anvil_network)
 
 
@@ -171,6 +181,7 @@ def build_harness(
         factory = build_session_factory(engine)
         application.state.session_factory = factory
         services = build_services(factory)
+        tmp_path / "dispatch.db"
         services["dispatch"] = DispatchPaymentService(
             factory,
             intents=intents,
@@ -189,7 +200,14 @@ def build_harness(
     install_error_handlers(app)
     app.include_router(build_router())
     with TestClient(app) as client:
-        yield Harness(client=client, gate=gate, executor=executor, chain=chain, network=network)
+        yield Harness(
+            client=client,
+            gate=gate,
+            executor=executor,
+            chain=chain,
+            db_path=tmp_path / "dispatch.db",
+            network=network,
+        )
 
 
 @pytest.fixture
@@ -236,6 +254,33 @@ class TestSuccessfulDispatch:
         assert harness.executor.seen == [
             (a_hash(str(order.id)), "signed", signed_bytes(str(order.id)))
         ]
+
+    def test_the_hash_is_durable_in_the_database_before_the_broadcast(self, harness: Harness) -> None:
+        """SC-3 depends on a commit, not on an object's field.
+
+        The object shows the hash as soon as `mark_signed` runs, so an ordering test that only reads the
+        object would still pass if `execute` ran inside the still-open transaction. This one opens its
+        own SQLite connection at the moment the governed step runs: if the row is visible there, the
+        transaction committed; if it is not, the "write-ahead" hash was never durable and the claim is
+        false.
+        """
+        def read_from_another_connection() -> list[tuple[object, ...]]:
+            connection = sqlite3.connect(harness.db_path)
+            try:
+                return connection.execute(
+                    "SELECT tx_hash, status FROM settlement_orders"
+                ).fetchall()
+            finally:
+                connection.close()
+
+        harness.executor.probe = read_from_another_connection
+
+        response = harness.client.post(f"/v1/intents/{INTENT_ID}/dispatch", headers=OWNER)
+
+        assert response.status_code == 201, response.text
+        order = harness.chain.prepared[0]
+        assert harness.executor.observations, "the governed step never ran"
+        assert harness.executor.observations[0] == [(a_hash(str(order.id)), "signed")]
 
     def test_all_three_ports_are_reached(self, harness: Harness) -> None:
         """SC-1 (gate), SC-2 (executor gets the order), SC-5 (on-chain nullifier read)."""
