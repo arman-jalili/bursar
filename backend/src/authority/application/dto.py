@@ -123,6 +123,19 @@ class SubmitOwnerSignatureResult:
 
 
 @dataclass(frozen=True, slots=True)
+class RejectApprovalCommand:
+    approval_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class RejectApprovalResult:
+    approval_id: str
+    intent_id: str
+    rejected: bool = True
+    events: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
 class ReconcileReservationCommand:
     reservation_id: str
     outcome: str  # "confirmed" | "reverted"

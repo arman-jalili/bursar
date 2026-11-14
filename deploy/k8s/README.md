@@ -78,9 +78,10 @@ Ordering is handled by the objects themselves:
 
 - `contracts` Job waits for Anvil, deploys the contracts and writes `/shared/chain.env`.
 - authority and console have an initContainer that waits for that file.
-- the console and rigorix initContainers seed the precondition check and the initial
+- the console and rigorix initContainers seed the three precondition checks
+  (`check-approval.py`, `check-payee.py`, `check-capacity.py`), `gate.json` and the initial
   `authority.json` onto the shared volume; the console then owns `authority.json` (the payee
-  freeze/reactivate switch).
+  freeze/reactivate switch). `gate.json` points the checks at `http://authority:8001`.
 - both APIs run Alembic at boot, so no separate migrate Job is needed.
 
 ## What is different from compose
@@ -89,7 +90,7 @@ Ordering is handled by the objects themselves:
 |---|---|
 | `BURSAR_RIGORIX_BASE_URL=http://host.docker.internal:3001` (host-run) or `http://rigorix:3001` (profile) | Always `http://rigorix:3001` — Service DNS. `host.docker.internal` does not exist in a pod. |
 | audit tree bind-mounted from the host repo | `bursar-audit` PVC, mounted at `/workspace/.rigorix` (Rigorix) and `/rigorix-audit` (console) |
-| precondition check under `/tmp/bursar-preconditions` on the host | the check is a ConfigMap; it and `authority.json` are seeded onto the `bursar-preconditions` PVC |
+| precondition checks under `/tmp/bursar-preconditions` on the host | the three checks, `gate.json` and the initial `authority.json` are a ConfigMap, seeded onto the `bursar-preconditions` PVC |
 | `.rigorix-runtime` named volume/bind | `bursar-audit` PVC + the `preconditions.toml` ConfigMap item |
 | Anvil chain is ephemeral (recreated by the contracts one-shot) | same: the Anvil pod uses an emptyDir. If it restarts, delete the `contracts` Job and re-create it (the chain will be empty). |
 

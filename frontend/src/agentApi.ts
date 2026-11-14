@@ -137,9 +137,18 @@ export interface TrailItem {
   envelope: Record<string, unknown>;
 }
 
-/** The chained governed executions, oldest first, each with its signed envelope. */
-export function getTrail(): Promise<{ items: TrailItem[] }> {
-  return request<{ items: TrailItem[] }>("/v1/agent/trail", {}, 20_000);
+export interface TrailRecord {
+  event: string;
+  intent_id: string;
+  occurred_at: string;
+}
+
+/**
+ * The chained governed executions, oldest first, each with its signed envelope, plus the
+ * Authority's approval decisions (requested / signed / declined), which precede any execution.
+ */
+export function getTrail(): Promise<{ items: TrailItem[]; records: TrailRecord[] }> {
+  return request<{ items: TrailItem[]; records: TrailRecord[] }>("/v1/agent/trail", {}, 20_000);
 }
 
 /** Delete the governed-run envelopes (demo control: start a fresh trail). */
@@ -147,10 +156,18 @@ export function clearTrail(): Promise<{ cleared: number }> {
   return request<{ cleared: number }>("/v1/agent/trail/clear", { method: "POST" }, 20_000);
 }
 
-export function setWorld(cap: number, threshold?: number): Promise<AgentState> {
+/**
+ * Stage a scenario. `reset: false` (page mount) changes only the cap/threshold and never deletes
+ * approvals or today's holds; `reset: true` is the explicit "apply & reset" control.
+ */
+export function setWorld(cap: number, threshold?: number, reset = true): Promise<AgentState> {
   return request<AgentState>("/v1/agent/world", {
     method: "POST",
-    body: JSON.stringify({ cap, ...(threshold === undefined ? {} : { threshold }) }),
+    body: JSON.stringify({
+      cap,
+      ...(threshold === undefined ? {} : { threshold }),
+      reset,
+    }),
   });
 }
 
@@ -187,10 +204,18 @@ export interface ApprovalGrant {
 }
 
 /** Submit the owner's signature for the intent's open request. Capacity is reserved on success. */
-export function approveIntent(intentId: string, signatureHex: string): Promise<ApprovalGrant> {
+export function approveIntent(
+  intentId: string,
+  signatureHex: string,
+  approvalId?: string,
+): Promise<ApprovalGrant> {
   return request<ApprovalGrant>("/v1/agent/approve", {
     method: "POST",
-    body: JSON.stringify({ intent_id: intentId, signature_hex: signatureHex }),
+    body: JSON.stringify({
+      intent_id: intentId,
+      signature_hex: signatureHex,
+      ...(approvalId ? { approval_id: approvalId } : {}),
+    }),
   });
 }
 
@@ -217,5 +242,24 @@ export function releaseIntent(intentId: string): Promise<ReleaseResponse> {
   return request<ReleaseResponse>("/v1/agent/release", {
     method: "POST",
     body: JSON.stringify({ intent_id: intentId }),
+  });
+}
+
+export interface RejectResponse {
+  approval_id: string;
+  intent_id: string;
+  rejected: boolean;
+  events: string[];
+  capacity: Capacity;
+}
+
+/** Decline the open request: the approval is closed and nothing is sent. */
+export function rejectIntent(intentId: string, approvalId?: string): Promise<RejectResponse> {
+  return request<RejectResponse>("/v1/agent/reject", {
+    method: "POST",
+    body: JSON.stringify({
+      intent_id: intentId,
+      ...(approvalId ? { approval_id: approvalId } : {}),
+    }),
   });
 }

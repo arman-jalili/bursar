@@ -16,7 +16,7 @@
   body{
     background:var(--paper); color:var(--ink);
     font-family:"Instrument Sans",system-ui,sans-serif;
-    font-size:14px; line-height:1.45;
+    font-size:15px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
   }
   button{font:inherit; cursor:pointer}

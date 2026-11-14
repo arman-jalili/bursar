@@ -56,11 +56,23 @@ class RecordingSender:
 
 class TestCommandSurface:
     def test_it_takes_the_signed_bytes_and_nothing_else(self) -> None:
-        """SC-2: one option. No order id, no network, no payee — nothing to re-derive a payment from."""
+        """SC-2: no order id, no payee — nothing to re-derive a payment from.
+
+        `--rpc-url` is the deployment endpoint rendered by settlement code, not a payment field;
+        without it the configured `BURSAR_RPC_URL` applies.
+        """
         args = parse_args(["--raw-tx", RAW])
 
         assert args.raw_tx == RAW
-        assert vars(args) == {"raw_tx": RAW}
+        assert args.rpc_url is None
+        assert vars(args) == {"raw_tx": RAW, "rpc_url": None}
+
+    def test_the_deployment_endpoint_can_be_rendered_into_the_command(self) -> None:
+        """The governed step does not inherit the environment, so the endpoint may ride the argv."""
+        args = parse_args(["--rpc-url", "http://anvil:8545", "--raw-tx", RAW])
+
+        assert args.rpc_url == "http://anvil:8545"
+        assert args.raw_tx == RAW
 
     def test_an_order_looking_argument_is_rejected(self) -> None:
         """There is no path by which a caller can point this command at an order or a network."""

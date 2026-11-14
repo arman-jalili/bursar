@@ -18,6 +18,8 @@ from src.authority.application.dto import (
     EvaluateAuthorityResult,
     ReconcileReservationCommand,
     ReconcileReservationResult,
+    RejectApprovalCommand,
+    RejectApprovalResult,
     ReserveCapacityCommand,
     ReserveCapacityResult,
     SubmitOwnerSignatureCommand,
@@ -28,6 +30,7 @@ __all__ = [
     "EscalateForSignature",
     "EvaluateAuthority",
     "ReconcileReservation",
+    "RejectApproval",
     "ReserveCapacity",
     "SubmitOwnerSignature",
 ]
@@ -86,6 +89,21 @@ class SubmitOwnerSignature(ABC):
             ApprovalExpired: the window closed (A-14).
         """
         raise NotImplementedError("A-13 — see module doc")
+
+
+class RejectApproval(ABC):
+    """The owner declines a pending signature request (FR-015, A-14)."""
+
+    @abstractmethod
+    async def execute(self, command: RejectApprovalCommand) -> RejectApprovalResult:
+        """Close the request without a signature; nothing is dispatched.
+
+        Raises:
+            NotFoundError: no approval with that id.
+            ApprovalSingleUse: already consumed (signed or declined).
+            ApprovalBindingMismatch: already signed — a granted approval cannot be undone.
+        """
+        raise NotImplementedError("A-14 — see module doc")
 
 
 class ReconcileReservation(ABC):

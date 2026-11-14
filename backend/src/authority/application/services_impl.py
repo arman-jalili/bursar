@@ -34,6 +34,8 @@ from src.authority.application.dto import (
     IntentView,
     ReconcileReservationCommand,
     ReconcileReservationResult,
+    RejectApprovalCommand,
+    RejectApprovalResult,
     ReserveCapacityCommand,
     ReserveCapacityResult,
     SubmitOwnerSignatureCommand,
@@ -43,6 +45,7 @@ from src.authority.application.services import (
     EscalateForSignature,
     EvaluateAuthority,
     ReconcileReservation,
+    RejectApproval,
     ReserveCapacity,
     SubmitOwnerSignature,
 )
@@ -57,6 +60,7 @@ from src.authority.domain.errors import (
 )
 from src.authority.domain.events import (
     ApprovalGranted,
+    ApprovalRejected,
     ApprovalRequested,
     AuthorityDetermined,
     CapacityCommitted,
@@ -71,7 +75,7 @@ from src.authority.domain.payment_intent import PaymentIntent
 from src.authority.domain.policies import StatutoryDeterminationPolicy
 from src.authority.domain.ports import AttemptViewPort, InvoiceView
 from src.authority.domain.services import ApprovalBinder, DeterminationPolicy
-from src.authority.domain.values import DeterminationVerdict, Money
+from src.authority.domain.values import DenialReason, DeterminationVerdict, Money
 from src.authority.infrastructure.adapters import (
     SqlMandateView,
     SqlOwnerDirectory,
@@ -153,12 +157,17 @@ class AuthorityService:
         binder: ApprovalBinder | None = None,
         policy: DeterminationPolicy | None = None,
         clock: Callable[[], datetime] | None = None,
+        gate_mode: bool = False,
     ) -> None:
         self._factory = session_factory
         self._attempts: AttemptViewPort = attempts or UnavailableAttemptViewPort()
         self._binder: ApprovalBinder = binder or EcdsaApprovalBinder()
         self._policy: DeterminationPolicy = policy or StatutoryDeterminationPolicy()
         self._clock = clock or (lambda: datetime.now(UTC))
+        # Demo mode: the capacity and payee-authority decisions belong to Rigorix's gate, not to
+        # this service. What remains here is the intent, the approval request, and the facts the
+        # gate checks (approval status, the cap ledger it claims against).
+        self._gate_mode = gate_mode
 
     def _mandate(self, session: AsyncSession) -> SqlMandateView:
         return SqlMandateView(session)
@@ -203,13 +212,58 @@ class AuthorityService:
         day = now.date().isoformat()
         ledger_repo = SqlCapLedgerRepository(session, constitution.cap)
         ledger = await ledger_repo.ledger_for(day)
-        determination = self._policy.decide(
+        decision = self._policy.decide(
             intent=intent,
             constitution=constitution,
             payee=payee,
             ledger=ledger,
             read_at=now,
         )
+        if not self._gate_mode:
+            determination = decision
+        else:
+            # Rigorix owns capacity and the operator's payee authority at the moment of sending,
+            # and no reservation happens here: the capacity precondition claims it inside the
+            # governed run. Two consequences shape the verdict:
+            #
+            # * `CAP_EXCEEDED` must NOT refuse here. A payment that does not fit has to reach the
+            #   gate so Rigorix can refuse it and sign that refusal; and no signature can create
+            #   headroom, so it must not escalate either. It is therefore allowed to be dispatched —
+            #   the gate stops it unconditionally.
+            # * A signature is only worth asking for when the payment could actually pass: it fits
+            #   the headroom now and nothing else (digest, duplicate, frozen payee) already refuses.
+            #   Asking the owner to approve an impossible payment is a dead end.
+            binding_refusals = tuple(
+                code for code in decision.reason_codes if code is not DenialReason.CAP_EXCEEDED
+            )
+            if binding_refusals:
+                determination = Determination.deny(
+                    intent_id=intent.id,
+                    reasons=binding_refusals,
+                    constitution_version=constitution.version,
+                    payee_status_read=payee.status,
+                    read_at=now,
+                    ledger_snapshot=decision.ledger_snapshot,
+                )
+            elif (
+                intent.requires_owner_signature
+                and intent.amount.micro_usdc <= ledger.headroom.micro_usdc
+            ):
+                determination = Determination.escalate(
+                    intent_id=intent.id,
+                    constitution_version=constitution.version,
+                    payee_status_read=payee.status,
+                    read_at=now,
+                    ledger_snapshot=decision.ledger_snapshot,
+                )
+            else:
+                determination = Determination.allow(
+                    intent_id=intent.id,
+                    constitution_version=constitution.version,
+                    payee_status_read=payee.status,
+                    read_at=now,
+                    ledger_snapshot=decision.ledger_snapshot,
+                )
         await SqlDeterminationRepository(session).append(determination)
 
         events: list[DomainEvent] = [
@@ -249,7 +303,7 @@ class AuthorityService:
                     refused_at_iso=now.isoformat(),
                 )
             )
-        elif determination.verdict is DeterminationVerdict.ALLOW:
+        elif determination.verdict is DeterminationVerdict.ALLOW and not self._gate_mode:
             reservation = Reservation.hold(intent.id, intent.amount, day, now + RESERVATION_WINDOW)
             if not await ledger_repo.try_reserve_atomic(day, intent.amount, reservation):
                 raise CapExceeded(
@@ -277,7 +331,7 @@ class AuthorityService:
                     reserved_micro_usdc=after.reserved.micro_usdc,
                 )
             )
-        else:
+        elif determination.verdict is DeterminationVerdict.ESCALATE:
             approval = Approval.request(intent, expires_at=now + APPROVAL_WINDOW)
             await SqlApprovalRepository(session, now).add(approval)
             events.append(
@@ -453,51 +507,95 @@ class SubmitOwnerSignatureService(AuthorityService, SubmitOwnerSignature):
             approval.consume(now=now)
             await approvals.save(approval)
 
-            # A-8: only now may capacity be reserved and `PaymentAllowed` be published.
-            day = now.date().isoformat()
-            constitution = await self._mandate(session).constitution_for_payee(intent.payee_id)
-            ledger_repo = SqlCapLedgerRepository(session, constitution.cap)
-            ledger = await ledger_repo.ledger_for(day)
-            reservation = Reservation.hold(
-                intent.id, intent.amount, day, now + RESERVATION_WINDOW
+            granted = ApprovalGranted(
+                aggregate_id=approval.id,
+                correlation_id=intent.id,
+                approval_id=approval.id,
+                intent_id=intent.id,
+                signer=signer.value,
             )
-            if not await ledger_repo.try_reserve_atomic(day, intent.amount, reservation):
-                raise CapExceeded(
-                    intent.amount.micro_usdc, ledger.headroom.micro_usdc, intent_id=intent.id
+            if self._gate_mode:
+                # The signature is the fact the gate needs; the capacity claim happens inside the
+                # governed run, not here.
+                await OutboxWriter(session).append((granted,))
+                events: tuple[str, ...] = ("ApprovalGranted",)
+            else:
+                # A-8: only now may capacity be reserved and `PaymentAllowed` be published.
+                day = now.date().isoformat()
+                constitution = await self._mandate(session).constitution_for_payee(intent.payee_id)
+                ledger_repo = SqlCapLedgerRepository(session, constitution.cap)
+                ledger = await ledger_repo.ledger_for(day)
+                reservation = Reservation.hold(
+                    intent.id, intent.amount, day, now + RESERVATION_WINDOW
                 )
-            after = await ledger_repo.ledger_for(day)
-            await OutboxWriter(session).append(
-                (
-                    ApprovalGranted(
-                        aggregate_id=approval.id,
-                        correlation_id=intent.id,
-                        approval_id=approval.id,
-                        intent_id=intent.id,
-                        signer=signer.value,
-                    ),
-                    PaymentAllowed(
-                        aggregate_id=intent.id,
-                        correlation_id=intent.id,
-                        intent_id=intent.id,
-                        amount_micro_usdc=intent.amount.micro_usdc,
-                        reservation_id=reservation.id,
-                    ),
-                    CapacityReserved(
-                        aggregate_id=day,
-                        correlation_id=intent.id,
-                        day=day,
-                        reservation_id=reservation.id,
-                        intent_id=intent.id,
-                        amount_micro_usdc=intent.amount.micro_usdc,
-                        committed_micro_usdc=after.committed.micro_usdc,
-                        reserved_micro_usdc=after.reserved.micro_usdc,
-                    ),
+                if not await ledger_repo.try_reserve_atomic(day, intent.amount, reservation):
+                    raise CapExceeded(
+                        intent.amount.micro_usdc, ledger.headroom.micro_usdc, intent_id=intent.id
+                    )
+                after = await ledger_repo.ledger_for(day)
+                await OutboxWriter(session).append(
+                    (
+                        granted,
+                        PaymentAllowed(
+                            aggregate_id=intent.id,
+                            correlation_id=intent.id,
+                            intent_id=intent.id,
+                            amount_micro_usdc=intent.amount.micro_usdc,
+                            reservation_id=reservation.id,
+                        ),
+                        CapacityReserved(
+                            aggregate_id=day,
+                            correlation_id=intent.id,
+                            day=day,
+                            reservation_id=reservation.id,
+                            intent_id=intent.id,
+                            amount_micro_usdc=intent.amount.micro_usdc,
+                            committed_micro_usdc=after.committed.micro_usdc,
+                            reserved_micro_usdc=after.reserved.micro_usdc,
+                        ),
+                    )
                 )
-            )
+                events = ("ApprovalGranted", "PaymentAllowed", "CapacityReserved")
         return SubmitOwnerSignatureResult(
             approval_id=approval.id,
             granted=True,
-            events=("ApprovalGranted", "PaymentAllowed", "CapacityReserved"),
+            events=events,
+        )
+
+
+class RejectApprovalService(AuthorityService, RejectApproval):
+    """The owner declines: close the request, audit the refusal, dispatch nothing (A-14).
+
+    Rejection is the mirror of signing and gets the same treatment: one transaction, one outbox
+    append. The row is consumed without a signature, so the gate's approval check can never read it
+    as granted, and a later release attempt is refused by Rigorix as a failed precondition rather
+    than silently paying.
+    """
+
+    async def execute(self, command: RejectApprovalCommand) -> RejectApprovalResult:
+        async with session_scope(self._factory) as session:
+            now = self._clock()
+            approvals = SqlApprovalRepository(session, now)
+            approval = await approvals.find_by_id(ApprovalId(command.approval_id))
+            if approval is None:
+                raise NotFoundError("approval not found", approval_id=command.approval_id)
+            approval.reject(now=now)
+            await approvals.save(approval)
+            await OutboxWriter(session).append(
+                (
+                    ApprovalRejected(
+                        aggregate_id=approval.id,
+                        correlation_id=approval.intent_id,
+                        approval_id=approval.id,
+                        intent_id=approval.intent_id,
+                        reason="owner_rejected",
+                    ),
+                )
+            )
+        return RejectApprovalResult(
+            approval_id=approval.id,
+            intent_id=approval.intent_id,
+            events=("ApprovalRejected",),
         )
 
 

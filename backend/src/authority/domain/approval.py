@@ -115,6 +115,24 @@ class Approval:
             raise ApprovalBindingMismatch("signature", approval_id=self.id)
         self.consumed_at = now
 
+    def reject(self, *, now: datetime) -> None:
+        """Close an unsigned request because the owner declined this exact intent.
+
+        `consumed_at` is the one-way termination mark for a request: signed or declined, it can
+        never be used again (A-14). A declined row carries no signature, so it never reads as
+        granted — the gate's approval check will refuse it if a dispatch is somehow attempted.
+
+        Raises:
+            ApprovalSingleUse: already consumed (signed, or already declined).
+            ApprovalBindingMismatch: the request was already signed; a granted approval cannot be
+                rejected after the fact, because the signature is the owner's act.
+        """
+        if self.consumed_at is not None:
+            raise ApprovalSingleUse(self.id)
+        if self.signature is not None:
+            raise ApprovalBindingMismatch("signature", approval_id=self.id)
+        self.consumed_at = now
+
     @property
     def is_usable(self) -> bool:
         """True when a verified signature is present and unconsumed — the dispatch precondition.

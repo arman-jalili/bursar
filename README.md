@@ -12,16 +12,18 @@ can verify in the browser.
 Proximata Hackathon '26 · track *Bringing Crypto to Everyday Life*.
 
 This repository is **not a click-through mock**: the approval card signs a real EIP-712-shaped
-digest, Authority verifies it and reserves capacity, Settlement signs a real transaction,
-Rigorix's governed `run_command` broadcasts it, and `PaymentRouter.sol` moves USDC exactly once.
+digest, Authority verifies it, Settlement signs a real transaction, Rigorix's governed `run_command`
+broadcasts it, and `PaymentRouter.sol` moves USDC exactly once. Capacity is not claimed by the
+proposal path: the gate's own check claims it inside the governed run, immediately before the send.
 
 The page is about the gate, in two capabilities:
 
 - **Capacity** — ask the agent to pay. With a €30 cap, €20 runs through and the next €11 is refused
-  before anything is signed.
+  at the moment of sending: signed, never sent, with the cap finding on the audit envelope.
 - **Precondition** — an approval is a request, not a durable grant. The owner signs a €20 payment on
   a €30 cap with a €15 approval line; the operator then freezes that payee; the release is refused at
-  **dispatch time** by Rigorix's own precondition, with a signed finding and no transaction.
+  **dispatch time** by Rigorix's own precondition, with a signed finding and no transaction. The owner
+  can also decline the request, which is recorded without signing anything.
 
 ---
 
@@ -31,7 +33,7 @@ The page is about the gate, in two capabilities:
 |---|---|---|
 | Chain | Anvil `:8545` | `TestUsdc` + `PaymentRouter` deployed by `scripts/deploy_contracts.py`; the operator is funded and approved. |
 | Lock 1 | `rigorix-server` `:3001` (OSS, **unmodified**) | The governed `run_command` step (`payments.broadcast`) and the HMAC-signed audit envelope. |
-| Lock 2 | `authority-service` `:8001` | Re-reads the constitution and payee eligibility, decides allow/deny/escalate, reserves capacity. |
+| Lock 2 | `authority-service` `:8001` | Re-reads the constitution and payee eligibility, decides allow/deny/escalate, and answers the gate's approval/capacity/audit reads. Capacity is claimed by the gate, not by the proposal. |
 | Settlement | `console-api` `:8000` (Settlement context) | Reads the verdict live, signs locally, persists the hash **before** broadcast, asks Rigorix to send it. |
 | Lock 3 | `PaymentRouter.sol` | Nullifier once-only, EIP-712 owner signature, amount/address frozen on the signed intent, `Anchored` event. |
 | Owner surface | `console-api` `:8000` `/v1/console/*` | Live approvals, bills, constitution, payees, evidence verdicts; one write — the signature passthrough. |
@@ -69,7 +71,9 @@ page. The explorer is read-only and does not change how the gate behaves; see
 `explorer/blockscout/README.md` for the VPS host/port and reset notes.
 
 The pages set their own world on load: capacity = €30 with every payment inside the cap allowed;
-precondition = €30 cap and a €15 approval line. A page refresh starts a fresh evidence chain.
+precondition = €30 cap and a €15 approval line. Loading a page stages the cap/approval line without
+deleting an approval or a hold made by the other page; **apply & reset** is the explicit reset. A
+page refresh starts a fresh evidence chain.
 
 The optional seed (`docker compose run --rm … python scripts/seed_demo.py`) still populates the
 classic €500-cap world through the public APIs for the frozen console read models.
@@ -126,13 +130,20 @@ PVCs instead of host bind mounts, and the precondition check in a ConfigMap.
 
 ### Dispatch-time precondition
 
-`scripts/setup-preconditions.sh` installs an operator-owned check in `/tmp/bursar-preconditions/`
-and an `authority.json` keyed by payee address (`active` / `frozen`). Rigorix runs that check after
-any approval and immediately before `payments.broadcast`; a non-zero exit refuses the step. The
-refusal still produces a signed audit envelope with `precondition_findings[]` (`outcome`, `exit_code`,
-`check_digest`, `authority_digest`, `check_writable`). The console only reads and writes that status
-file as the operator's switch (`GET/POST /v1/agent/authority`); the check and the authority live
-outside this repository, which is the point.
+`scripts/setup-preconditions.sh` installs three operator-owned checks in
+`/tmp/bursar-preconditions/`, run by Rigorix immediately before `payments.broadcast`:
+
+1. **approval-valid** — above the line, does the intent carry the owner's verified signature?
+2. **payee-authorized** — is the payee still `active` in the operator's `authority.json`?
+3. **capacity-available** — does the amount still fit today's cap, and may it claim the units?
+
+All three fail closed and run in that order, so an approval refusal cannot reserve capacity and a
+payee refusal claims nothing. A non-zero exit refuses the step; the refusal still produces a signed
+audit envelope with `precondition_findings[]` (`outcome`, `exit_code`, `check_digest`,
+`authority_digest`, `check_writable`). The console only reads and writes the payee status file as the
+operator's switch (`GET/POST /v1/agent/authority`); the checks and the authority live outside this
+repository, which is the point. A declined approval is recorded as `ApprovalRejected` in Authority's
+outbox and appears under the trail's approval records — no signature, no envelope, no send.
 
 The optional seed creates one household with a €500 daily cap and a €100 signature line, and produces
 real determinations:

@@ -202,7 +202,10 @@ class RigorixCommandAdapter:
                     # address, generated together with the command (SC-2).
                     "parameters": {
                         "command": command,
+                        # The facts the dispatch-time checks read, all frozen on the order (SC-2).
                         "payee_address": str(params["payee_address"]),
+                        "intent_id": str(params["intent_id"]),
+                        "amount_micro_usdc": str(params["amount_usdc"]),
                     },
                     "requires_approval": False,
                     "description": (

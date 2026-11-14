@@ -103,6 +103,51 @@ class SignatureResponse(BaseModel):
     events: tuple[str, ...] = ()
 
 
+class RejectResponse(BaseModel):
+    """The owner declined the request; nothing was signed and nothing was dispatched."""
+
+    rejected: bool
+    approval_id: str
+    intent_id: str
+    events: tuple[str, ...] = ()
+
+
+class AuditRecord(BaseModel):
+    """One approval decision as recorded in Authority's transactional outbox."""
+
+    event: str
+    intent_id: str
+    occurred_at: str
+
+
+class AuditResponse(BaseModel):
+    records: list[AuditRecord] = []
+
+
+class GateCapacityRequest(_StrictRequest):
+    """The capacity precondition asks: does this payment still fit, and may it hold the units?"""
+
+    intent_id: str
+    amount_micro_usdc: int = Field(gt=0)
+
+
+class GateCapacityResponse(BaseModel):
+    intent_id: str
+    allowed: bool
+    cap_micro_usdc: int
+    committed_micro_usdc: int
+    reserved_micro_usdc: int
+    headroom_micro_usdc: int
+
+
+class GateApprovalResponse(BaseModel):
+    """Whether the gate must find the owner's signature for this intent, and whether it does."""
+
+    intent_id: str
+    required: bool
+    granted: bool
+
+
 class SettlementOutcomeRequest(_StrictRequest):
     outcome: Literal["confirmed", "reverted"]
     tx_hash: str = ""

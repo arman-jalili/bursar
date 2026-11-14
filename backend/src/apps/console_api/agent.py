@@ -95,6 +95,10 @@ class WorldRequest(BaseModel):
     #: When set, payments above this still fit the cap but need the owner's signature. The
     #: precondition demo uses it so an approval exists before the dispatch-time check runs.
     threshold: float | None = None
+    #: `False` stages a scenario without touching state: page mounts use it so opening one
+    #: capability page can never delete the other page's approval or the day's holds. Only the
+    #: explicit "apply & reset" control passes `True`.
+    reset: bool = True
 
 
 class AuthorityRequest(BaseModel):
@@ -105,10 +109,18 @@ class AuthorityRequest(BaseModel):
 class ApproveRequest(BaseModel):
     intent_id: str
     signature_hex: str
+    #: The request the UI is acting on, as shown to the owner. Supplying it removes the need to
+    #: re-discover the row by intent, which the shared SQLite file cannot always do promptly.
+    approval_id: str | None = None
 
 
 class ReleaseRequest(BaseModel):
     intent_id: str
+
+
+class RejectRequest(BaseModel):
+    intent_id: str
+    approval_id: str | None = None
 
 
 def _micro(amount: float) -> int:
@@ -117,6 +129,51 @@ def _micro(amount: float) -> int:
 
 def _usdc(micro: int | None) -> str:
     return f"{(micro or 0) / 1_000_000:.2f}"
+
+
+#: Household language for the authority's closed refusal codes. A code is a cause, not a message
+#: (`authority/domain/values.py`): the console translates it, the evidence keeps the code.
+_REFUSAL_SENTENCES: dict[str, str] = {
+    "cap_exceeded": "That would take you over today's spending limit.",
+    "payee_frozen": "This payee is frozen, so no payment can be made to them right now.",
+    "payee_quarantined": (
+        "This payee's bank details do not match the record, so the payment was stopped."
+    ),
+    "digest_mismatch": (
+        "The bill's bank details do not match the payee record, so the payment was stopped."
+    ),
+    "duplicate_invoice": "This bill has already been paid, so a second payment was refused.",
+    "approval_invalid": "Your approval is no longer valid for this payment.",
+    "budget_exhausted": "Today's spending budget is used up.",
+    "amount_mismatch": "The amount on the bill does not match the request.",
+}
+
+
+def _refusal_sentence(codes: list[str], *, amount: float | None, headroom: int) -> str:
+    code = codes[0] if codes else ""
+    if code == "cap_exceeded" and amount is not None:
+        return (
+            "That would take you over today's spending limit: "
+            f"€{_usdc(_micro(amount))} requested and €{_usdc(headroom)} still free."
+        )
+    return _REFUSAL_SENTENCES.get(code, "Your rules refused this payment.")
+
+
+def _finding_sentence(
+    findings: list[dict[str, Any]], *, amount: float | None, headroom: int
+) -> str:
+    """One household sentence for the first failed dispatch-time check."""
+    ids = {str(finding.get("precondition_id") or "") for finding in findings}
+    if "capacity-available" in ids:
+        return (
+            "Rigorix stopped this payment: it would take you over today's spending limit. "
+            f"€{_usdc(_micro(amount))} requested and €{_usdc(headroom)} still free."
+        )
+    if "payee-authorized" in ids:
+        return "Rigorix stopped this payment: this payee is frozen."
+    if "approval-valid" in ids:
+        return "Rigorix stopped this payment: the owner's approval is required."
+    return "Rigorix stopped the payment before it was sent."
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -145,23 +202,30 @@ def _session(request: Request):
     return request.app.state.session_factory
 
 
-async def _ledger(session) -> dict[str, int]:
+async def _ledger() -> dict[str, int]:
+    """Today's cap state, read from Authority — the ledger's owner — over its API.
+
+    Authority and the console share one SQLite file in separate containers. Reading that file from
+    here can observe a snapshot older than the reservation the gate just claimed, which would show
+    free money that is already held. The HTTP read crosses the context boundary at the owner
+    (SC-1) and is the freshest fact the console can have.
+    """
     today = datetime.now(UTC).date().isoformat()
-    row = await session.get(CapLedgerRow, today)
-    in_force = await session.scalar(
-        select(ConstitutionVersionRow)
-        .where(ConstitutionVersionRow.status == "in_force")
-        .order_by(ConstitutionVersionRow.number.desc())
-        .limit(1)
-    )
-    cap = row.cap_micro_usdc if row else (in_force.cap_micro_usdc if in_force else 0)
-    committed = row.committed_micro_usdc if row else 0
-    reserved = row.reserved_micro_usdc if row else 0
+    try:
+        view = await _get(f"{AUTHORITY}/v1/ledger/{today}", OWNER_TOKEN)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 404:
+            raise
+        # No ledger row exists yet: nothing is held today. The cap is the in-force constitution's,
+        # published by Mandate, not a number this read can invent.
+        constitution = await _get(f"{SELF}/v1/constitution", OWNER_TOKEN)
+        cap = _micro(float(constitution["cap_usdc"]))
+        return {"cap": cap, "committed": 0, "reserved": 0, "headroom": cap}
     return {
-        "cap": cap,
-        "committed": committed,
-        "reserved": reserved,
-        "headroom": max(0, cap - committed - reserved),
+        "cap": int(view["cap_micro_usdc"]),
+        "committed": int(view["committed_micro_usdc"]),
+        "reserved": int(view["reserved_micro_usdc"]),
+        "headroom": int(view["headroom_micro_usdc"]),
     }
 
 
@@ -411,7 +475,7 @@ async def _state(request: Request) -> dict[str, Any]:
     household = await _bootstrap(request)
     factory = _session(request)
     async with factory() as session:
-        ledger = await _ledger(session)
+        ledger = await _ledger()
         rows = await _map_payees(session)
         in_force = await session.scalar(
             select(ConstitutionVersionRow)
@@ -446,11 +510,32 @@ async def state(request: Request) -> dict[str, Any]:
 
 @router.post("/world", dependencies=[Depends(require_scope("console:read"))])
 async def world(body: WorldRequest, request: Request) -> dict[str, Any]:
-    """Set the cap and clear today's ledger — the reproducible world for the capacity example."""
+    """Set the cap and approval line — the reproducible world for both capability pages.
+
+    `reset=True` (the explicit control) also clears today's holds and every approval request;
+    `reset=False` (page mount) only makes the scenario true and never destroys work in progress.
+    """
     household = await _bootstrap(request)
     cap = max(1.0, min(10_000.0, float(body.cap)))
     threshold = cap if body.threshold is None else max(0.0, min(cap, float(body.threshold)))
-    # A real constitution version, then a clean ledger for today.
+    factory = _session(request)
+    if not body.reset:
+        # Page-mount staging: make the scenario true without destroying work in progress. A page
+        # must never delete the other page's approval or the day's holds just by being opened.
+        async with factory() as session:
+            in_force = await session.scalar(
+                select(ConstitutionVersionRow)
+                .where(ConstitutionVersionRow.status == "in_force")
+                .order_by(ConstitutionVersionRow.number.desc())
+                .limit(1)
+            )
+        if (
+            in_force is not None
+            and in_force.cap_micro_usdc == _micro(cap)
+            and in_force.threshold_micro_usdc == _micro(threshold)
+        ):
+            return await _state(request)
+    # A real constitution version, then (only on an explicit reset) a clean ledger for today.
     await _post(
         f"{SELF}/v1/households/{household.id}/constitution/versions",
         OWNER_TOKEN,
@@ -461,13 +546,13 @@ async def world(body: WorldRequest, request: Request) -> dict[str, Any]:
             "owner_proof": "signed:world",
         },
     )
-    today = datetime.now(UTC).date().isoformat()
-    factory = _session(request)
-    async with factory() as session:
-        await session.execute(delete(ReservationRow).where(ReservationRow.day == today))
-        await session.execute(delete(CapLedgerRow).where(CapLedgerRow.day == today))
-        await session.execute(delete(ApprovalRow))
-        await session.commit()
+    if body.reset:
+        today = datetime.now(UTC).date().isoformat()
+        async with factory() as session:
+            await session.execute(delete(ReservationRow).where(ReservationRow.day == today))
+            await session.execute(delete(CapLedgerRow).where(CapLedgerRow.day == today))
+            await session.execute(delete(ApprovalRow))
+            await session.commit()
     return await _state(request)
 
 
@@ -477,7 +562,7 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
     factory = _session(request)
     async with factory() as session:
         rows = await _map_payees(session)
-        before = await _ledger(session)
+        before = await _ledger()
     message = body.message.strip()
     if not message:
         return _trace(
@@ -506,8 +591,11 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
         {
             "name": "parse",
             "ok": payee is not None and amount is not None,
-            "detail": f"{source}: "
-            + (f"{payee.name if payee else '?'} · {_usdc(_micro(amount)) if amount else '?'}" if payee else "no payee"),
+            "detail": (
+                f"{payee.name} · €{_usdc(_micro(amount))}"
+                if payee is not None and amount is not None
+                else "No payee or amount was recognised"
+            ),
         }
     ]
     if payee is None or amount is None or amount <= 0:
@@ -523,9 +611,10 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
             reason_codes=[],
             steps=steps,
             reply=(
-                "I could not find a payee in that. The payees here are "
+                "I couldn't tell who to pay or how much. Try something like “pay energy 20”. "
+                "The payees here are "
                 + ", ".join(row.name for row in rows.values())
-                + ". Include an amount, like “pay energy 20”."
+                + "."
             ),
         )
 
@@ -547,10 +636,10 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
         return _trace(
             message=message, parsed=parsed, source=source, payee=payee, amount=amount,
             before=before, after=before, verdict="error", reason_codes=[], steps=steps,
-            reply=f"The invoice could not be recorded: {invoice_body}",
+            reply="I couldn't record this bill, so nothing was sent.",
         )
     invoice_id = invoice_body["invoice"]["invoice_id"]
-    steps.append({"name": "invoice", "ok": True, "detail": invoice_id})
+    steps.append({"name": "invoice", "ok": True, "detail": "Bill recorded"})
 
     _, attempt_body = await _post(
         f"{SELF}/v1/attempts",
@@ -562,21 +651,20 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
         return _trace(
             message=message, parsed=parsed, source=source, payee=payee, amount=amount,
             before=before, after=before, verdict="error", reason_codes=[], steps=steps,
-            reply=f"The proposal was refused: {attempt_body}",
+            reply="I couldn't create the payment proposal, so nothing was sent.",
         )
-    steps.append({"name": "propose", "ok": True, "detail": attempt_id})
+    steps.append({"name": "propose", "ok": True, "detail": "Payment proposed"})
 
     eval_status, eval_body = await _post(
         f"{AUTHORITY}/v1/attempts/{attempt_id}/evaluate", AGENT_TOKEN
     )
-    async with factory() as session:
-        after = await _ledger(session)
+    after = await _ledger()
 
     if eval_status >= 500:
         return _trace(
             message=message, parsed=parsed, source=source, payee=payee, amount=amount,
             before=before, after=after, verdict="error", reason_codes=[], steps=steps,
-            reply=f"Authority could not decide: {eval_body}",
+            reply="Your rules couldn't be checked, so nothing was sent.",
         )
 
     verdict = str(eval_body.get("verdict", "deny"))
@@ -594,23 +682,32 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
             {
                 "name": "capacity",
                 "ok": False,
-                "detail": f"{', '.join(reason_codes) or 'refused'} — {_usdc(before['headroom'])} free before",
+                "detail": f"€{_usdc(_micro(amount))} requested · €{_usdc(before['headroom'])} free",
             }
         )
-        steps.append({"name": "rigorix", "ok": False, "detail": "not asked to run"})
+        steps.append(
+            {"name": "rigorix", "ok": False, "detail": "Not reached — nothing was sent"}
+        )
         reason = reason_codes[0] if reason_codes else "refused"
         return _trace(
             message=message, parsed=parsed, source=source, payee=payee, amount=amount,
             before=before, after=after, verdict="deny", reason_codes=reason_codes,
             steps=steps, determination_id=determination_id, intent_id=intent_id,
-            reply=f"Refused. {reason}. Nothing ran and nothing moved.",
+            reply=(
+                f"{_refusal_sentence(reason_codes, amount=amount, headroom=before['headroom'])} "
+                "Nothing was signed and nothing was sent."
+            ),
         )
 
     if verdict == "escalate":
         steps.append(
-            {"name": "capacity", "ok": True, "detail": "inside the cap; the owner's signature is required"}
+            {
+                "name": "capacity",
+                "ok": True,
+                "detail": "Fits the limit · your approval is required",
+            }
         )
-        steps.append({"name": "rigorix", "ok": False, "detail": "waiting for the owner"})
+        steps.append({"name": "rigorix", "ok": False, "detail": "Waiting for your approval"})
         approval: dict[str, Any] | None = None
         async with factory() as session:
             row = await session.scalar(
@@ -630,12 +727,12 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
             before=before, after=after, verdict="escalate", reason_codes=reason_codes,
             steps=steps, determination_id=determination_id, intent_id=intent_id,
             approval=approval,
-            reply="This one needs your signature before it can move. No money left the account.",
+            reply=(
+                "You need to approve this payment before it can move. "
+                "No money has left the account."
+            ),
         )
 
-    steps.append(
-        {"name": "capacity", "ok": True, "detail": f"{_usdc(_micro(amount))} ≤ {_usdc(before['headroom'])} free"}
-    )
     dispatch_status, dispatch_body = await _post(
         f"{SELF}/v1/intents/{intent_id}/dispatch", OWNER_TOKEN
     )
@@ -646,10 +743,7 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
         {
             "name": "rigorix",
             "ok": dispatched,
-            "detail": (
-                f"governed step {dispatch_body.get('status')}" if dispatched
-                else f"refused: {(error or {}).get('message', 'unknown')}"
-            ),
+            "detail": "Sent through Rigorix" if dispatched else "Stopped before sending",
         }
     )
     tx_hash = dispatch_body.get("tx_hash") if dispatched else None
@@ -664,16 +758,32 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
         # The governed step refused before dispatch, but it still wrote a signed envelope: the
         # precondition finding is the evidence for the refusal.
         findings = _findings(execution_id)
+    if not dispatched:
+        # Signing happens before the governed broadcast (SC-3), so a refused run may still have
+        # signed bytes and a hash. Read them from the order: the hash is evidence of what would
+        # have been sent, never a transaction that exists on chain.
+        async with factory() as session:
+            order = await session.scalar(
+                select(SettlementOrderRow)
+                .where(SettlementOrderRow.intent_id == intent_id)
+                .limit(1)
+            )
+        if order is not None:
+            order_id = order.id
+            release_status = order.status
+            tx_hash = order.tx_hash
     if dispatched and tx_hash:
-        steps.append({"name": "chain", "ok": True, "detail": str(tx_hash)})
-    elif findings:
+        steps.append({"name": "chain", "ok": True, "detail": "Confirmed on the blockchain"})
+    elif not dispatched:
         steps.append(
             {
                 "name": "chain",
                 "ok": False,
-                "detail": "no transaction broadcast — the precondition refused first",
+                "detail": "Signed, never sent" if tx_hash else "No transaction was created",
             }
         )
+    # The ledger moved only if the gate's capacity check claimed the amount: read it after the run.
+    after = await _ledger()
     return _trace(
         message=message, parsed=parsed, source=source, payee=payee, amount=amount,
         before=before, after=after, verdict="allow" if dispatched else "dispatch_failed",
@@ -682,9 +792,12 @@ async def run(body: RunRequest, request: Request) -> dict[str, Any]:
         execution_id=execution_id, audit_uri=audit_uri,
         tx_hash=tx_hash, status=release_status, findings=findings,
         reply=(
-            f"Allowed. {_usdc(_micro(amount))} to {payee.name} ran through Rigorix."
+            f"€{_usdc(_micro(amount))} to {payee.name} was paid and is on the blockchain."
             if dispatched
-            else "Capacity allowed it, but the governed step did not run."
+            else (
+                f"{_finding_sentence(findings, amount=amount, headroom=after['headroom'])} "
+                "Nothing was broadcast."
+            )
         ),
     )
 
@@ -782,12 +895,15 @@ async def approve(body: ApproveRequest, request: Request) -> dict[str, Any]:
     """
     factory = _session(request)
     async with factory() as session:
-        row = await session.scalar(
-            select(ApprovalRow)
-            .where(ApprovalRow.intent_id == body.intent_id)
-            .order_by(ApprovalRow.expires_at.desc())
-            .limit(1)
-        )
+        if body.approval_id:
+            row = await session.get(ApprovalRow, body.approval_id)
+        else:
+            row = await session.scalar(
+                select(ApprovalRow)
+                .where(ApprovalRow.intent_id == body.intent_id)
+                .order_by(ApprovalRow.expires_at.desc())
+                .limit(1)
+            )
     if row is None:
         raise HTTPException(status_code=404, detail="no signature request for this intent")
     status, payload = await _post(
@@ -802,11 +918,49 @@ async def approve(body: ApproveRequest, request: Request) -> dict[str, Any]:
             str((error or {}).get("message") or "Authority refused the signature."),
             details={"approval_id": row.id},
         )
-    async with factory() as session:
-        ledger = await _ledger(session)
+    ledger = await _ledger()
     return {
         "approval_id": row.id,
         "granted": bool(payload.get("granted")),
+        "events": payload.get("events", []),
+        "capacity": {key: _usdc(value) for key, value in ledger.items()},
+    }
+
+
+@router.post("/reject", dependencies=[Depends(require_scope("console:read"))])
+async def reject(body: RejectRequest, request: Request) -> dict[str, Any]:
+    """The owner declines the open signature request for this intent.
+
+    Authority closes the request and writes `ApprovalRejected`; nothing is signed, nothing is
+    dispatched, and the ledger does not move. A later release attempt would fail the gate's
+    approval precondition rather than pay.
+    """
+    factory = _session(request)
+    async with factory() as session:
+        if body.approval_id:
+            row = await session.get(ApprovalRow, body.approval_id)
+        else:
+            row = await session.scalar(
+                select(ApprovalRow)
+                .where(ApprovalRow.intent_id == body.intent_id, ApprovalRow.consumed_at.is_(None))
+                .order_by(ApprovalRow.expires_at.desc())
+                .limit(1)
+            )
+    if row is None:
+        raise HTTPException(status_code=404, detail="no open signature request for this intent")
+    status, payload = await _post(f"{AUTHORITY}/v1/approvals/{row.id}/reject", OWNER_TOKEN)
+    if status >= 400:
+        error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+        raise RefusalError(
+            ErrorCode.CONFLICT,
+            str((error or {}).get("message") or "Authority refused the rejection."),
+            details={"approval_id": row.id},
+        )
+    ledger = await _ledger()
+    return {
+        "approval_id": row.id,
+        "intent_id": body.intent_id,
+        "rejected": True,
         "events": payload.get("events", []),
         "capacity": {key: _usdc(value) for key, value in ledger.items()},
     }
@@ -820,11 +974,9 @@ async def release(body: ReleaseRequest, request: Request) -> dict[str, Any]:
     but the operator's authority is checked again immediately before the broadcast.
     """
     factory = _session(request)
-    async with factory() as session:
-        before = await _ledger(session)
+    before = await _ledger()
     status, payload = await _post(f"{SELF}/v1/intents/{body.intent_id}/dispatch", OWNER_TOKEN)
-    async with factory() as session:
-        after = await _ledger(session)
+    after = await _ledger()
 
     dispatched = status < 400
     error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
@@ -850,30 +1002,44 @@ async def release(body: ReleaseRequest, request: Request) -> dict[str, Any]:
         if execution_id:
             findings = _findings(execution_id)
 
+    # The approval step is a fact, not decoration: a rejected or unsigned request must not be
+    # reported as a verified signature.
+    async with factory() as session:
+        approval = await session.scalar(
+            select(ApprovalRow)
+            .where(ApprovalRow.intent_id == body.intent_id)
+            .order_by(ApprovalRow.expires_at.desc())
+            .limit(1)
+        )
+    approved = bool(approval is not None and approval.signature_hex)
     steps: list[dict[str, Any]] = [
         {
             "name": "approval",
-            "ok": True,
-            "detail": "owner signature verified · capacity reserved",
+            "ok": approved,
+            "detail": (
+                "Your signature was verified"
+                if approved
+                else "No valid approval — this payment cannot be sent"
+            ),
         },
     ]
     if dispatched:
-        steps.append({"name": "rigorix", "ok": True, "detail": "governed step submitted"})
+        steps.append({"name": "rigorix", "ok": True, "detail": "Sent through Rigorix"})
         if tx_hash:
-            steps.append({"name": "chain", "ok": True, "detail": str(tx_hash)})
+            steps.append({"name": "chain", "ok": True, "detail": "Confirmed on the blockchain"})
     else:
         steps.append(
             {
                 "name": "rigorix",
                 "ok": False,
-                "detail": f"refused: {(error or {}).get('message', 'unknown')}",
+                "detail": "Stopped before sending",
             }
         )
         steps.append(
             {
                 "name": "chain",
                 "ok": False,
-                "detail": "no transaction broadcast — the precondition refused first",
+                "detail": "Signed, never sent" if tx_hash else "No transaction was created",
             }
         )
 
@@ -897,7 +1063,17 @@ async def release(body: ReleaseRequest, request: Request) -> dict[str, Any]:
             None
             if dispatched
             else {
-                "message": str((error or {}).get("message") or "the governed step refused"),
+                "message": (
+                    "The operator's condition no longer passed at the moment of sending. "
+                    "Nothing was broadcast."
+                    if findings
+                    else (
+                        "This payment was not approved, so nothing was sent."
+                        if not approved
+                        else "Rigorix stopped the payment before it was sent. "
+                        "Nothing was broadcast."
+                    )
+                ),
                 "broadcast": False,
                 "findings": findings,
             }
@@ -926,6 +1102,10 @@ async def trail() -> dict[str, Any]:
 
     One producer writes one chain: every envelope carries its `sequence` and the `prev_hash` of the
     one before it. The page verifies both the HMAC and those links in the browser.
+
+    Approval decisions (requested, granted, rejected) happen before any execution, so they have no
+    Rigorix envelope; they are returned separately from Authority's outbox so the trail can show
+    that every decision on the way to (or away from) a payment is recorded.
     """
     from pathlib import Path
 
@@ -950,7 +1130,11 @@ async def trail() -> dict[str, Any]:
                 }
             )
     items.sort(key=lambda item: str(item.get("timestamp") or ""))
-    return {"items": items[-30:]}
+    # Read the decisions from their owner over HTTP: the shared SQLite file can lag a write made
+    # by the Authority container, and a rejection must be visible the moment it is made.
+    audit = await _get(f"{AUTHORITY}/v1/audit/approvals", OWNER_TOKEN)
+    records = audit.get("records") if isinstance(audit.get("records"), list) else []
+    return {"items": items[-30:], "records": records}
 
 
 @router.post("/trail/clear", dependencies=[Depends(require_scope("console:read"))])

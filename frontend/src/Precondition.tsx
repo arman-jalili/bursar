@@ -10,6 +10,7 @@ import {
   approveIntent,
   getAgentState,
   getAuthority,
+  rejectIntent,
   releaseIntent,
   runAgent,
   setAuthority as changeAuthority,
@@ -18,10 +19,19 @@ import {
   type AgentTrace,
   type ApprovalGrant,
   type AuthorityState,
-  type PreconditionFinding,
+  type RejectResponse,
   type ReleaseResponse,
 } from "./agentApi";
-import { CapacityBar, GateCard, Trail, VerifyPanel, money, short } from "./Gate";
+import {
+  CapacityBar,
+  FindingRows,
+  GateCard,
+  Trail,
+  VerifyPanel,
+  money,
+  short,
+  stepLabel,
+} from "./Gate";
 import { EXPLORER_URL, tokenUrl, txUrl } from "./explorer";
 import { DEMO_OWNER_KEY } from "./api";
 
@@ -39,28 +49,6 @@ function stageOf(authority: AuthorityState | null, name: string) {
   return authority?.payees.find((payee) => payee.name === name)?.status ?? "unknown";
 }
 
-function FindingRows({ findings }: { findings: PreconditionFinding[] }) {
-  return (
-    <div className="gate-findings">
-      {findings.map((finding) => (
-        <div key={finding.precondition_id} className={`gate-finding ${finding.outcome}`}>
-          <div className="gate-finding-head">
-            <span className="gate-finding-id">{finding.precondition_id}</span>
-            <span className="gate-finding-outcome">{finding.outcome}</span>
-            <span className="gate-finding-exit">exit {finding.exit_code ?? "—"}</span>
-          </div>
-          <p className="gate-finding-summary">{finding.summary}</p>
-          <div className="gate-finding-meta">
-            <span>check {short(finding.check_digest)}</span>
-            <span>authority {short(finding.authority_digest)}</span>
-            <span>checked {new Date(finding.checked_at).toLocaleTimeString("de-AT")}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function RefusalResult({ result }: { result: ReleaseResponse }) {
   const { gate, refusal } = result;
   const findings = refusal?.findings.length ? refusal.findings : gate.findings;
@@ -68,22 +56,23 @@ function RefusalResult({ result }: { result: ReleaseResponse }) {
   return (
     <article className="gate-card deny gate-release">
       <header className="gate-card-head">
-        <span className="gate-verdict deny">STOPPED AT DISPATCH</span>
-        <span className="gate-amount">no payment</span>
-        <span className="gate-payee">approval revoked by the operator</span>
+        <span className="gate-verdict deny">STOPPED BY RIGORIX</span>
+        <span className="gate-amount">no payment was sent</span>
+        <span className="gate-payee">the operator&rsquo;s check refused</span>
       </header>
       <p className="gate-reply">
-        The owner approved. Capacity was reserved. Then Rigorix asked the operator's authority again
-        — right before the broadcast — and the payee was frozen. The step never ran.
+        You approved. But at the moment of sending, Rigorix re-read the owner&rsquo;s approval, the
+        operator&rsquo;s payee authority and the cap — and one of them refused. Nothing was
+        broadcast, and the refusal is signed evidence.
       </p>
 
-      <FindingRows findings={findings.length ? findings : []} />
+      <FindingRows findings={findings} />
 
       <ol className="gate-steps">
         {gate.steps.map((step) => (
           <li key={step.name} className={step.ok ? "ok" : "no"}>
             <span className="gate-step-mark">{step.ok ? "✓" : "✕"}</span>
-            <span className="gate-step-name">{step.name}</span>
+            <span className="gate-step-name">{stepLabel(step.name)}</span>
             <span className="gate-step-detail">{step.detail}</span>
           </li>
         ))}
@@ -122,19 +111,19 @@ function SuccessResult({ result }: { result: ReleaseResponse }) {
   return (
     <article className="gate-card allow gate-release">
       <header className="gate-card-head">
-        <span className="gate-verdict allow">RELEASED</span>
-        <span className="gate-amount">broadcast</span>
-        <span className="gate-payee">the precondition passed</span>
+        <span className="gate-verdict allow">PAID</span>
+        <span className="gate-amount">sent</span>
+        <span className="gate-payee">the operator&rsquo;s check passed</span>
       </header>
       <p className="gate-reply">
-        The owner approved, and at dispatch time the payee was still active. Rigorix ran the governed
-        step and the transaction was broadcast.
+        You approved, and at the moment of sending the operator&rsquo;s condition still passed.
+        Rigorix sent the payment and the transaction is on the blockchain.
       </p>
       <ol className="gate-steps">
         {result.gate.steps.map((step) => (
           <li key={step.name} className={step.ok ? "ok" : "no"}>
             <span className="gate-step-mark">{step.ok ? "✓" : "✕"}</span>
-            <span className="gate-step-name">{step.name}</span>
+            <span className="gate-step-name">{stepLabel(step.name)}</span>
             <span className="gate-step-detail">{step.detail}</span>
           </li>
         ))}
@@ -166,9 +155,12 @@ function ApprovalCard({
   onFinished: () => void;
 }) {
   const approval = trace.gate.approval;
-  const [stage, setStage] = useState<"idle" | "signing" | "dispatching" | "done">("idle");
+  const [stage, setStage] = useState<"idle" | "signing" | "dispatching" | "rejecting" | "done">(
+    "idle",
+  );
   const [grant, setGrant] = useState<ApprovalGrant | null>(null);
   const [result, setResult] = useState<ReleaseResponse | null>(null);
+  const [rejected, setRejected] = useState<RejectResponse | null>(null);
   const [error, setError] = useState("");
   const status = trace.parse.payee ? stageOf(authority, trace.parse.payee) : "unknown";
 
@@ -181,7 +173,11 @@ function ApprovalCard({
       const { Wallet } = await import("ethers");
       const wallet = new Wallet(DEMO_OWNER_KEY);
       const signature = wallet.signingKey.sign(approval.typed_data_hash).serialized;
-      const granted = await approveIntent(trace.gate.intent_id, signature);
+      const granted = await approveIntent(
+        trace.gate.intent_id,
+        signature,
+        approval.approval_id,
+      );
       setGrant(granted);
       setStage("dispatching");
       const released = await releaseIntent(trace.gate.intent_id);
@@ -194,40 +190,81 @@ function ApprovalCard({
     }
   };
 
+  // Declining is as real as signing: Authority closes the request, records `ApprovalRejected`,
+  // and the payment can never be dispatched from this approval.
+  const decline = async () => {
+    setError("");
+    setStage("rejecting");
+    try {
+      const declined = await rejectIntent(trace.gate.intent_id, approval.approval_id);
+      setRejected(declined);
+      setStage("done");
+      onFinished();
+    } catch (err) {
+      setError((err as Error).message.slice(0, 200));
+      setStage("idle");
+    }
+  };
+
   return (
     <div className="gate-approval">
       <div className="gate-approval-head">
-        <span className="gate-approval-tag">signature request</span>
+        <span className="gate-approval-tag">your approval</span>
         <span className="gate-approval-digest" title={approval.typed_data_hash}>
-          digest {short(approval.typed_data_hash)}
+          reference {short(approval.typed_data_hash)}
         </span>
       </div>
       <p className="gate-approval-copy">
-        {money(trace.parse.amount)} to {trace.parse.payee ?? "this payee"} is above the approval
-        threshold. The owner signs; the operator authority is checked again at dispatch.
+        {money(trace.parse.amount)} to {trace.parse.payee ?? "this payee"} is above your approval
+        line. You sign once; Rigorix re-checks your approval, the payee and the cap at the moment of
+        sending.
       </p>
       <div className="gate-approval-row">
-        <button
-          className="gate-approve-btn"
-          onClick={() => void run()}
-          disabled={stage === "signing" || stage === "dispatching"}
-        >
-          {stage === "signing"
-            ? "signing…"
-            : stage === "dispatching"
-              ? "releasing through Rigorix…"
-              : result
-                ? "approve & release again"
-                : "approve & release"}
-        </button>
+        {!result && !rejected ? (
+          <>
+            <button
+              className="gate-approve-btn"
+              onClick={() => void run()}
+              disabled={stage === "signing" || stage === "dispatching" || stage === "rejecting"}
+            >
+              {stage === "signing"
+                ? "signing…"
+                : stage === "dispatching"
+                  ? "sending through Rigorix…"
+                  : "Sign & send"}
+            </button>
+            <button
+              className="gate-reject-btn"
+              onClick={() => void decline()}
+              disabled={stage === "signing" || stage === "dispatching" || stage === "rejecting"}
+            >
+              {stage === "rejecting" ? "declining…" : "Reject"}
+            </button>
+          </>
+        ) : null}
         <span className={`gate-authority-pill ${status}`}>
-          payee is {status} at dispatch
+          {status === "frozen"
+            ? "payee frozen — the check will refuse"
+            : status === "active"
+              ? "payee active — the check will pass"
+              : "payee status unknown"}
         </span>
       </div>
       {grant ? (
         <div className="gate-approval-grant">
-          signature verified · capacity reserved {money(grant.capacity.reserved)} of{" "}
-          {money(grant.capacity.cap)}
+          Your signature was verified · {money(grant.capacity.reserved)} reserved from your{" "}
+          {money(grant.capacity.cap)} limit
+        </div>
+      ) : null}
+      {rejected ? (
+        <div className="gate-approval-rejected">
+          <strong>You declined this payment.</strong> Nothing was signed and nothing was sent.
+          The Authority recorded your decision as{" "}
+          {rejected.events.length ? rejected.events.join(" · ") : "ApprovalRejected"}, and this
+          approval can no longer be used.
+          <span className="gate-approval-record">
+            approval {short(rejected.approval_id)} · intent {short(rejected.intent_id)}
+          </span>
         </div>
       ) : null}
       {error ? <div className="gate-verify-bad">{error}</div> : null}
@@ -268,7 +305,7 @@ export function Precondition() {
       if (!staged.current) {
         staged.current = true;
         try {
-          const next = await setWorld(SCENARIO_CAP, SCENARIO_THRESHOLD);
+          const next = await setWorld(SCENARIO_CAP, SCENARIO_THRESHOLD, false);
           setState(next);
           setCap(next.capacity.cap);
         } catch {
@@ -317,7 +354,11 @@ export function Precondition() {
     setBusy(true);
     setNotice(null);
     try {
-      const next = await setWorld(capValue, Number.isFinite(thresholdValue) ? thresholdValue : capValue);
+      const next = await setWorld(
+        capValue,
+        Number.isFinite(thresholdValue) ? thresholdValue : capValue,
+        true,
+      );
       setState(next);
       setMessages((all) => [
         ...all,
@@ -384,8 +425,13 @@ export function Precondition() {
           <span className="gate-live">
             <i className="dot" /> live
           </span>
-          <span className="gate-chain">anvil ·{" "}
-            {authority?.payees.filter((payee) => payee.status === "frozen").length ?? 0} frozen</span>
+          <span className="gate-chain">
+            {authority?.payees.filter((payee) => payee.status === "frozen").length ?? 0} payee
+            {(authority?.payees.filter((payee) => payee.status === "frozen").length ?? 0) === 1
+              ? ""
+              : "s"}{" "}
+            frozen
+          </span>
         </div>
       </header>
 
@@ -394,7 +440,7 @@ export function Precondition() {
           <div>
             <div className="eyebrow">
               <span className="line" />
-              An approval is not a durable grant
+              Approval is not authority
             </div>
             <h1>
               Approve. <em>Then watch it be re-checked.</em>
@@ -413,8 +459,9 @@ export function Precondition() {
             </div>
             <div className="gate-hero-number">{money(capacity?.headroom)}</div>
             <div className="gate-hero-sub">
-              of {money(capacity?.cap)} · committed {money(capacity?.committed)} · reserved{" "}
-              {money(capacity?.reserved)}
+              <span>of {money(capacity?.cap)}</span>
+              <span>committed {money(capacity?.committed)}</span>
+              <span>reserved {money(capacity?.reserved)}</span>
             </div>
             {capacity ? <CapacityBar capacity={capacity} /> : <div className="gate-bar" />}
           </div>
@@ -427,9 +474,9 @@ export function Precondition() {
                 <div className="gate-empty">
                   <p className="gate-empty-title">Ask for something above €{threshold}.</p>
                   <p className="gate-empty-copy">
-                    The agent writes a real proposal, capacity fits, but the amount is above the
-                    approval threshold — so the owner is asked to sign. Then freeze the payee and
-                    release.
+                    It records a real bill that fits your limit but is above your approval line, so
+                    you are asked to sign. Freeze the payee afterwards, then sign and send: Rigorix
+                    reads the condition again at the moment of sending.
                   </p>
                   <div className="gate-chips">
                     {["pay the energy bill 20", "pay the energy bill 12"].map((example) => (
@@ -578,8 +625,9 @@ export function Precondition() {
             </div>
 
             <div className="gate-note">
-              A refusal at dispatch is signed evidence, not an error. The order stays signed; the
-              transaction is never broadcast.
+              You approve once. At the moment of sending, Rigorix checks your approval, the
+              operator&rsquo;s payee authority and the cap. A refusal stops the broadcast and is
+              signed; nothing is sent.
             </div>
 
             <div className="gate-llm">

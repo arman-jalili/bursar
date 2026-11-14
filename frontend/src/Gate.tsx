@@ -9,6 +9,7 @@ import {
   type AgentState,
   type AgentTrace,
   type Capacity,
+  type PreconditionFinding,
   type TrailItem,
 } from "./agentApi";
 import { EXPLORER_URL, tokenUrl, txUrl } from "./explorer";
@@ -36,18 +37,107 @@ export function short(hash: string | null | undefined): string {
 function verdictLabel(verdict: string): { label: string; cls: string } {
   switch (verdict) {
     case "allow":
-      return { label: "ALLOWED", cls: "allow" };
+      return { label: "PAID", cls: "allow" };
     case "deny":
       return { label: "REFUSED", cls: "deny" };
     case "escalate":
-      return { label: "NEEDS YOU", cls: "escalate" };
+      return { label: "NEEDS YOUR APPROVAL", cls: "escalate" };
     case "dispatch_failed":
-      return { label: "BROADCAST FAILED", cls: "deny" };
+      return { label: "NOT SENT", cls: "deny" };
     case "refused_at_dispatch":
-      return { label: "STOPPED AT DISPATCH", cls: "deny" };
+      return { label: "STOPPED BY RIGORIX", cls: "deny" };
     default:
       return { label: "NOT RUN", cls: "neutral" };
   }
+}
+
+/** The step names are the API's; this is the household language the card shows. */
+const STEP_LABELS: Record<string, string> = {
+  parse: "Understood",
+  invoice: "Bill",
+  propose: "Proposal",
+  capacity: "Spending limit",
+  rigorix: "Rigorix",
+  chain: "Blockchain",
+  approval: "Your signature",
+};
+
+export function stepLabel(name: string): string {
+  return STEP_LABELS[name] ?? name;
+}
+
+const FINDING_TITLES: Record<string, string> = {
+  "capacity-available": "The spending limit",
+  "payee-authorized": "The operator's payee check",
+  "approval-valid": "Your approval",
+};
+
+function findingSentence(
+  id: string,
+  amount: string | null | undefined,
+  headroom: string | undefined,
+): string {
+  if (id === "capacity-available") {
+    return amount && headroom
+      ? `This payment (${money(amount)}) would take you over your daily limit; ${money(headroom)} is still free.`
+      : "This payment would take you over your daily limit.";
+  }
+  if (id === "payee-authorized") {
+    return "This payee is frozen, so the payment was stopped.";
+  }
+  if (id === "approval-valid") {
+    return "The owner's approval is required for this amount.";
+  }
+  return "Rigorix refused this step.";
+}
+
+/** The check that refused, in household language, with the rule and digests kept as evidence. */
+export function FindingRows({
+  findings,
+  amount,
+  headroom,
+}: {
+  findings: PreconditionFinding[];
+  amount?: string | null;
+  headroom?: string;
+}) {
+  // Only a check that refused is a finding the reader must act on. The checks that passed before
+  // it are still evidence, but rendering them as refusals would say the opposite of what happened.
+  const refused = findings.filter((finding) => finding.outcome !== "passed");
+  const passed = findings.filter((finding) => finding.outcome === "passed");
+  if (refused.length === 0) return null;
+  return (
+    <div className="gate-findings">
+      {refused.map((finding) => (
+        <div key={finding.precondition_id} className={`gate-finding ${finding.outcome}`}>
+          <div className="gate-finding-head">
+            <span className="gate-finding-title">
+              {FINDING_TITLES[finding.precondition_id] ?? "Rigorix check"}
+            </span>
+            <span className="gate-finding-outcome">refused</span>
+          </div>
+          <p className="gate-finding-summary">
+            {findingSentence(finding.precondition_id, amount, headroom)}
+          </p>
+          <div className="gate-finding-meta">
+            <span>rule {finding.precondition_id}</span>
+            <span>exit {finding.exit_code ?? "—"}</span>
+            <span>check {short(finding.check_digest)}</span>
+            <span>authority {short(finding.authority_digest)}</span>
+            <span>checked {new Date(finding.checked_at).toLocaleTimeString("de-AT")}</span>
+          </div>
+        </div>
+      ))}
+      {passed.length > 0 ? (
+        <p className="gate-finding-passed">
+          Passed before it:{" "}
+          {passed
+            .map((finding) => FINDING_TITLES[finding.precondition_id] ?? finding.precondition_id)
+            .join(" · ")}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function CapacityBar({ capacity }: { capacity: Capacity }) {
@@ -176,6 +266,9 @@ export function GateCard({ trace }: { trace: AgentTrace }) {
   const verdict = verdictLabel(gate.verdict);
   const after = gate.capacity.after;
   const source = parse.source === "llm" ? "llm" : "local parser";
+  // A signed order carries a hash even when the governed step refused to broadcast it. The hash
+  // proves what would have been sent; it is not a transaction on chain, so it is never a link.
+  const sent = gate.steps.some((step) => step.name === "chain" && step.ok);
 
   return (
     <article className={`gate-card ${verdict.cls}`}>
@@ -203,55 +296,44 @@ export function GateCard({ trace }: { trace: AgentTrace }) {
 
       <ol className="gate-steps">
         {gate.steps
-          .filter((step) => ["parse", "capacity", "rigorix", "chain"].includes(step.name))
+          .filter((step) =>
+            ["parse", "invoice", "propose", "rigorix", "chain"].includes(step.name),
+          )
           .map((step) => (
           <li key={step.name} className={step.ok ? "ok" : "no"}>
             <span className="gate-step-mark">{step.ok ? "✓" : "✕"}</span>
-            <span className="gate-step-name">{step.name}</span>
+            <span className="gate-step-name">{stepLabel(step.name)}</span>
             <span className="gate-step-detail">{step.detail}</span>
           </li>
         ))}
       </ol>
 
-      {gate.reason_codes.length > 0 ? (
-        <div className="gate-reasons">
-          {gate.reason_codes.map((code) => (
-            <span key={code} className="gate-reason">
-              {code}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {gate.findings.map((finding) => (
-        <div key={finding.precondition_id} className={`gate-finding ${finding.outcome}`}>
-          <span className="gate-finding-id">{finding.precondition_id}</span>
-          <span className="gate-finding-outcome">{finding.outcome}</span>
-          <span className="gate-finding-detail">
-            exit {finding.exit_code ?? "—"} · {finding.summary}
-          </span>
-        </div>
-      ))}
+      <FindingRows findings={gate.findings} amount={parse.amount} headroom={after.headroom} />
 
       {gate.execution_id ? <VerifyPanel executionId={gate.execution_id} /> : null}
 
       <footer className="gate-card-foot">
-        {gate.determination_id ? <span>determination {short(gate.determination_id)}</span> : null}
-        {gate.tx_hash ? (
+        {gate.determination_id ? <span>decision record {short(gate.determination_id)}</span> : null}
+        {gate.tx_hash && sent ? (
           <a
             className="gate-tx-link"
             href={txUrl(gate.tx_hash) ?? undefined}
             target="_blank"
             rel="noreferrer"
           >
-            tx {short(gate.tx_hash)} on chain ↗
+            transaction {short(gate.tx_hash)} ↗
           </a>
         ) : null}
+        {gate.tx_hash && !sent ? (
+          <span>
+            signed transaction {short(gate.tx_hash)}, never sent — no money moved
+          </span>
+        ) : null}
         {!gate.tx_hash && gate.verdict === "deny" ? (
-          <span>no transaction exists — nothing was signed</span>
+          <span>No transaction was created — nothing was signed or sent.</span>
         ) : null}
         {!gate.tx_hash && gate.verdict === "dispatch_failed" ? (
-          <span>signed, never broadcast — no money moved</span>
+          <span>Nothing was signed or sent.</span>
         ) : null}
       </footer>
     </article>
@@ -445,7 +527,7 @@ export function Gate() {
       if (!staged.current) {
         staged.current = true;
         try {
-          const next = await setWorld(30, 30);
+          const next = await setWorld(30, 30, false);
           setState(next);
           setCap(next.capacity.cap);
         } catch {
@@ -503,7 +585,7 @@ export function Gate() {
     setBusy(true);
     setNotice(null);
     try {
-      const next = await setWorld(value);
+      const next = await setWorld(value, undefined, true);
       setState(next);
       setMessages((all) => [
         ...all,
@@ -562,7 +644,7 @@ export function Gate() {
           <span className="gate-live">
             <i className="dot" /> live
           </span>
-          <span className="gate-chain">anvil · two capabilities</span>
+          <span className="gate-chain">two capabilities</span>
         </div>
       </header>
 
@@ -577,9 +659,9 @@ export function Gate() {
               Ask. <em>Watch the gate.</em>
             </h1>
             <p className="gate-lede">
-              A sentence becomes a real payment proposal. The cap is checked before anything moves;
-              Rigorix runs the governed step only if it passes. Every number below is read back from
-              the live ledger.
+              A sentence becomes a real payment proposal. Rigorix is the only path to the money: at
+              the moment of sending it checks the cap and the payee, then executes or stops the
+              payment. Every attempt, allowed or refused, is recorded.
             </p>
           </div>
           <div className="gate-hero-capacity">
@@ -589,8 +671,9 @@ export function Gate() {
             </div>
             <div className="gate-hero-number">{money(capacity?.headroom)}</div>
             <div className="gate-hero-sub">
-              of {money(capacity?.cap)} · committed {money(capacity?.committed)} · reserved{" "}
-              {money(capacity?.reserved)}
+              <span>of {money(capacity?.cap)}</span>
+              <span>committed {money(capacity?.committed)}</span>
+              <span>reserved {money(capacity?.reserved)}</span>
             </div>
             {capacity ? <CapacityBar capacity={capacity} /> : <div className="gate-bar" />}
           </div>
@@ -603,8 +686,9 @@ export function Gate() {
                 <div className="gate-empty">
                   <p className="gate-empty-title">Tell the agent what to pay.</p>
                   <p className="gate-empty-copy">
-                    It will parse the sentence, write a real proposal, and show you the gate. Start
-                    with a capacity of 30 and two payments: 20 passes, 11 is refused.
+                    It records a real bill, then Rigorix decides at the moment of sending. With €30
+                    free, €20 goes through and the next €11 is stopped by the gate. Both attempts are
+                    signed. Try both.
                   </p>
                   <div className="gate-chips">
                     {examples.map((example) => (
@@ -712,13 +796,16 @@ export function Gate() {
               {state?.payees.map((payee) => (
                 <div key={payee.id} className="gate-payee-row">
                   <span>{payee.name}</span>
-                  <span className={`gate-payee-status ${payee.status}`}>{payee.status}</span>
+                  <span className={`gate-payee-status ${payee.status}`}>
+                    {payee.status === "eligible" ? "active" : payee.status}
+                  </span>
                 </div>
               ))}
             </div>
 
             <div className="gate-note">
-              A refusal reserves nothing. The gate is checked before Rigorix is asked to run.
+              Rigorix decides at the moment of sending. If the payment fits, it executes; if not, it
+              stops before anything is broadcast. Either way, the decision is signed.
             </div>
 
             <div className="gate-llm">

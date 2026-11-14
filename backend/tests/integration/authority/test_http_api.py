@@ -385,6 +385,78 @@ class TestSignatureBindsTheOwner:
         assert ledger["reserved_micro_usdc"] == 42_500_000
 
 
+class TestOwnerCanDecline:
+    """A-14: declining closes the request without a signature and leaves no side effect."""
+
+    def _escalated_approval(self, client: TestClient, settings: Settings) -> dict[str, str]:
+        _seed(settings, payee_status="new")
+        assert _precondition(client, amount=42_500_000).status_code == 200  # type: ignore[union-attr]
+        items = client.get("/v1/approvals?status=pending", headers=OWNER_TOKEN).json()
+        assert items, "an escalation must open a signature request (A-13)"
+        return items[0]
+
+    def test_declining_reserves_nothing_and_is_audited(
+        self, client: TestClient, settings: Settings
+    ) -> None:
+        approval = self._escalated_approval(client, settings)
+
+        response = client.post(
+            f"/v1/approvals/{approval['approval_id']}/reject", headers=OWNER_TOKEN
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["rejected"] is True
+        assert body["intent_id"] == approval["intent_id"]
+        assert body["events"] == ["ApprovalRejected"]
+
+        ledger = client.get(f"/v1/ledger/{_today()}", headers=OWNER_TOKEN).json()
+        assert ledger["reserved_micro_usdc"] == 0, "a rejection moves no capacity"
+
+        gate = client.get(
+            f"/v1/gate/approval/{approval['intent_id']}", headers=OWNER_TOKEN
+        ).json()
+        assert gate["required"] is True
+        assert gate["granted"] is False, "a declined request never reads as granted"
+
+        audit = client.get("/v1/audit/approvals", headers=OWNER_TOKEN).json()
+        assert any(
+            record["event"] == "ApprovalRejected"
+            and record["intent_id"] == approval["intent_id"]
+            for record in audit["records"]
+        ), "the decision must be in the audit read"
+
+    def test_a_declined_request_cannot_be_declined_again(
+        self, client: TestClient, settings: Settings
+    ) -> None:
+        approval = self._escalated_approval(client, settings)
+        url = f"/v1/approvals/{approval['approval_id']}/reject"
+
+        assert client.post(url, headers=OWNER_TOKEN).status_code == 200
+        replay = client.post(url, headers=OWNER_TOKEN)
+        assert replay.status_code == 409, replay.text
+        assert replay.json()["error"]["code"] == "APPROVAL_INVALID"
+
+    def test_a_signed_request_cannot_be_declined(
+        self, client: TestClient, settings: Settings
+    ) -> None:
+        approval = self._escalated_approval(client, settings)
+        signature = sign_digest(approval["typed_data_hash"], OWNER_KEY)
+        assert (
+            client.post(
+                f"/v1/approvals/{approval['approval_id']}/signature",
+                headers=OWNER_TOKEN,
+                json={"signature_hex": signature},
+            ).status_code
+            == 200
+        )
+
+        response = client.post(
+            f"/v1/approvals/{approval['approval_id']}/reject", headers=OWNER_TOKEN
+        )
+        assert response.status_code == 409, response.text
+        assert response.json()["error"]["code"] == "APPROVAL_INVALID"
+
+
 class TestSettlementReconcilesOnce:
     def _reservation_id(self, settings: Settings) -> str:
         payload = _scalar(

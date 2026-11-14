@@ -21,14 +21,18 @@ the denial is raised here, after the service's transaction commits, rather than 
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request
+from sqlalchemy import select
 
 from src.authority.application.dto import (
     DeterminationView,
     EvaluateAuthorityCommand,
     ReconcileReservationCommand,
+    RejectApprovalCommand,
+    ReserveCapacityCommand,
     SubmitOwnerSignatureCommand,
 )
 from src.authority.application.precondition import PreconditionCheck
@@ -37,19 +41,27 @@ from src.authority.application.services_impl import (
     EscalateForSignatureService,
     EvaluateAuthorityService,
     ReconcileReservationService,
+    RejectApprovalService,
     ReserveCapacityService,
     SubmitOwnerSignatureService,
 )
-from src.authority.domain.errors import AuthorityRefusal
+from src.authority.domain.errors import AuthorityRefusal, CapExceeded
 from src.authority.domain.values import DenialReason
+from src.authority.infrastructure.models import ApprovalRow, OutboxRow, ReservationRow
 from src.authority.interfaces.http.deps import require_scope
 from src.authority.interfaces.http.schemas import (
     ApprovalResponse,
+    AuditRecord,
+    AuditResponse,
     DeterminationResponse,
+    GateApprovalResponse,
+    GateCapacityRequest,
+    GateCapacityResponse,
     IntentResponse,
     LedgerResponse,
     PreconditionCheckRequest,
     PreconditionCheckResponse,
+    RejectResponse,
     SettlementOutcomeRequest,
     SettlementOutcomeResponse,
     SignatureRequest,
@@ -260,6 +272,135 @@ def build_router() -> APIRouter:
             events=result.events,
         )
 
+    @router.post(
+        "/approvals/{approval_id}/reject",
+        response_model=RejectResponse,
+        dependencies=[Depends(require_scope("authority:sign"))],
+        summary="The owner declines a pending signature request (A-14)",
+    )
+    async def reject_approval(
+        approval_id: str,
+        request: Request,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> RejectResponse:
+        service: RejectApprovalService = _services(request)["reject"]  # type: ignore[assignment]
+        result = await service.execute(RejectApprovalCommand(approval_id=approval_id))
+        return RejectResponse(
+            rejected=result.rejected,
+            approval_id=result.approval_id,
+            intent_id=result.intent_id,
+            events=result.events,
+        )
+
+    # ── the audit read ─────────────────────────────────────────────────────
+    @router.get(
+        "/audit/approvals",
+        response_model=AuditResponse,
+        dependencies=[Depends(require_scope("authority:read"))],
+        summary="The owner's approval decisions, from the transactional outbox",
+    )
+    async def audit_approvals(request: Request) -> AuditResponse:
+        """Requested / granted / rejected, newest first — including a rejection that sent nothing.
+
+        The console reads this over HTTP rather than from the shared SQLite file, so a decision
+        the owner just made is visible immediately.
+        """
+        factory = request.app.state.session_factory
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    select(
+                        OutboxRow.event_name,
+                        OutboxRow.correlation_id,
+                        OutboxRow.occurred_at,
+                    )
+                    .where(
+                        OutboxRow.event_name.in_(
+                            ("ApprovalRequested", "ApprovalGranted", "ApprovalRejected")
+                        )
+                    )
+                    .order_by(OutboxRow.occurred_at.desc())
+                    .limit(20)
+                )
+            ).all()
+        return AuditResponse(
+            records=[
+                AuditRecord(
+                    event=row.event_name,
+                    intent_id=row.correlation_id,
+                    occurred_at=row.occurred_at.isoformat(),
+                )
+                for row in rows
+            ]
+        )
+
+    # ── the gate's facts ───────────────────────────────────────────────────
+    # These two reads back the operator-authored checks Rigorix runs immediately before dispatch.
+    # They are facts, not verdicts: the reservation and the refusal are the gate's decision, and
+    # Rigorix writes both into the signed envelope.
+    @router.get(
+        "/gate/approval/{intent_id}",
+        response_model=GateApprovalResponse,
+        dependencies=[Depends(require_scope("authority:read"))],
+        summary="Does the gate need the owner's signature for this intent, and does it have it?",
+    )
+    async def gate_approval(intent_id: str, request: Request) -> GateApprovalResponse:
+        queries: AuthorityQueries = _services(request)["queries"]  # type: ignore[assignment]
+        factory = request.app.state.session_factory
+        async with factory() as session:
+            required = (
+                await session.scalar(
+                    select(ApprovalRow.id).where(ApprovalRow.intent_id == intent_id).limit(1)
+                )
+            ) is not None
+        granted = (not required) or await queries.approval_granted(intent_id)
+        return GateApprovalResponse(intent_id=intent_id, required=required, granted=granted)
+
+    @router.post(
+        "/gate/capacity",
+        response_model=GateCapacityResponse,
+        dependencies=[Depends(require_scope("authority:sign"))],
+        summary="Claim the payment's amount against the daily capacity, atomically",
+    )
+    async def gate_capacity(
+        body: GateCapacityRequest, request: Request
+    ) -> GateCapacityResponse:
+        services = _services(request)
+        queries: AuthorityQueries = services["queries"]  # type: ignore[assignment]
+        factory = request.app.state.session_factory
+        day = datetime.now(UTC).date().isoformat()
+        # A retry of the same intent is the hold it already owns, not a second hold.
+        async with factory() as session:
+            held = await session.scalar(
+                select(ReservationRow.id)
+                .where(
+                    ReservationRow.intent_id == body.intent_id,
+                    ReservationRow.status == "held",
+                )
+                .limit(1)
+            )
+        allowed = True
+        if held is None:
+            service: ReserveCapacityService = services["reserve"]  # type: ignore[assignment]
+            try:
+                await service.execute(
+                    ReserveCapacityCommand(
+                        intent_id=body.intent_id,
+                        amount_micro_usdc=body.amount_micro_usdc,
+                    )
+                )
+            except CapExceeded:
+                allowed = False
+        ledger = await queries.ledger(day)
+        return GateCapacityResponse(
+            intent_id=body.intent_id,
+            allowed=allowed,
+            cap_micro_usdc=ledger.cap_micro_usdc,
+            committed_micro_usdc=ledger.committed_micro_usdc,
+            reserved_micro_usdc=ledger.reserved_micro_usdc,
+            headroom_micro_usdc=ledger.headroom_micro_usdc,
+        )
+
     # ── settlement callback ────────────────────────────────────────────────
     @router.post(
         "/settlements/{reservation_id}/outcome",
@@ -323,12 +464,20 @@ def build_services(session_factory: object) -> dict[str, object]:
 
     shared = os.environ.get("BURSAR_BILLING_READ_MODE", "unavailable") == "shared"
     attempts = SqlAttemptViewPort(session_factory) if shared else None
+    # Demo mode: Rigorix is the only decider/executor. This service keeps the intent, the approval
+    # request and the facts the gate checks; it neither refuses on capacity nor reserves it.
+    gate_mode = os.environ.get("BURSAR_GATE_MODE", "authority").strip().lower() == "rigorix"
     return {
         "precondition": PreconditionCheck(session_factory),  # type: ignore[arg-type]
-        "evaluate": EvaluateAuthorityService(session_factory, attempts=attempts),  # type: ignore[arg-type]
+        "evaluate": EvaluateAuthorityService(  # type: ignore[arg-type]
+            session_factory, attempts=attempts, gate_mode=gate_mode
+        ),
         "reserve": ReserveCapacityService(session_factory),  # type: ignore[arg-type]
         "escalate": EscalateForSignatureService(session_factory),  # type: ignore[arg-type]
-        "signature": SubmitOwnerSignatureService(session_factory),  # type: ignore[arg-type]
+        "signature": SubmitOwnerSignatureService(  # type: ignore[arg-type]
+            session_factory, gate_mode=gate_mode
+        ),
+        "reject": RejectApprovalService(session_factory),  # type: ignore[arg-type]
         "reconcile": ReconcileReservationService(session_factory),  # type: ignore[arg-type]
         "queries": AuthorityQueries(session_factory),  # type: ignore[arg-type]
     }
