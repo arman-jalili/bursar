@@ -12,11 +12,12 @@
 
 | Surface | State | Where |
 |---|---|---|
-| Domain (aggregate, value objects, domain services) | **Implemented** — all 80 frozen contract suites green | `src/settlement/domain/` |
+| Domain (aggregate, value objects, domain services) | **Implemented** — the 80 frozen contract suites plus the 25 chain tests are green (`pytest tests/unit/settlement`) | `src/settlement/domain/` |
 | Persistence (orders, nullifiers, receipts, outbox) | **Implemented** — migration `003_settlement`, 7 SQLite integration tests | `src/settlement/infrastructure/` |
 | Read API (`GET /v1/orders`, `/v1/orders/{id}`, `/v1/orders/{id}/receipt`, `/v1/receipts?day=`, `/v1/nullifiers/{value}`) | **Live** in `console-api` | `src/settlement/interfaces/http/router.py` |
 | `DispatchPayment` / `SettleOnce` | **Not wired** — blocked on re-freeze (B-1, B-2) | `src/settlement/application/services.py` |
-| `PaymentRouter.sol` + chain adapter | **Not built** — no `web3`, empty `contracts/src` | `contracts/src/` |
+| `PaymentRouter.sol` | **Built, not deployed** — solc 0.8.24, nullifier map, EIP-712 owner check, `Anchored` event; 11 pytest tests on an in-process EVM (no `forge`/`anvil` here) | `contracts/src/PaymentRouter.sol` |
+| `Web3ChainGateway` (chain adapter) | **Built, not wired** — submit/receipt/nullifier reads, EIP-1559 signing, refusals instead of traces; 14 tests end to end against `eth-tester` | `src/settlement/infrastructure/chain/` |
 | Rigorix `run_command` adapter | **Not built** — no Rigorix SDK dependency | — |
 
 Two write endpoints exist in the frozen contract and answer `501` with the blocker named:
@@ -40,7 +41,7 @@ Dependencies:
 |---|---|---|
 | `console` SQLite file (`BURSAR_CONSOLE_DATABASE_URL`) | every endpoint | `/readyz` reports `database: error`; boot runs migrations first |
 | PostgreSQL/Redis | nothing in Settlement | not used |
-| Anvil + `PaymentRouter.sol` | dispatch/anchoring (not wired) | write endpoints answer `501`, reads unaffected |
+| Deployed `PaymentRouter.sol` + funded signer | dispatch/anchoring (not wired) | write endpoints answer `501`, reads unaffected; the contract and adapter are built but no Anvil/Sepolia deployment or funded key exists in this environment |
 | Rigorix `run_command` | dispatch (not wired) | same |
 | Authority determination read | dispatch (not wired) | same |
 
@@ -98,7 +99,7 @@ broadcast (SC-3).
 | `422 receipt_cost_missing` | a chain adapter produced a receipt without gas/fee | Fix the adapter. Do not insert a zero — `CostSummary` would under-report (SC-10) |
 | `422 unknown_network` | chain id has no `ChainNetwork` | Add the configuration deliberately; there is no default on purpose (SC-11) |
 | `501` on `/v1/intents/{id}/dispatch` | contract blocker B-1/B-2 | Requires a re-freeze (see §6); no operational workaround |
-| `501` on `/v1/anchors` | no `ChainGateway` adapter | Deploy the adapter + `PaymentRouter.sol`; see §6 |
+| `501` on `/v1/anchors` | the `ChainGateway` adapter exists but is not installed in the composition root | Deploy `PaymentRouter.sol` for the target chain and pass `Web3ChainGateway` to `AnchorHashService`; see §6 |
 | `404` on `/v1/orders/{id}/receipt` | order exists, no receipt yet | Expected while the order is `ORDERED`/`SUBMITTED` with no mined receipt |
 
 ### Recovering a stuck order (future dispatch)
@@ -137,14 +138,19 @@ agent must not amend a frozen contract to close one (ADR-009).
 |---|---|---|
 | **B-1** | `ChainGateway.submit(order) -> str` broadcasts *and* returns the hash, so SC-3's "persist the hash before broadcast" cannot be expressed | Split the port: `prepare(order) -> SignedTx` (hash known, not sent) then `send(signed) -> str`; `DispatchPayment` persists `mark_submitted(prepare.hash)` in the same transaction, then sends |
 | **B-2** | `SettlementStatus.PENDING` / `ABANDONED` exist and the state diagram transitions into them, but `SettlementOrder` has no intention method | Add `mark_pending(confirmations, required)` and `abandon(reason)` to the aggregate (unfreeze → review → re-freeze) |
-| **G-1** | No chain adapter | `web3` + `eth-account` dependency, ABI, funded Anvil/Sepolia account, `Web3RouterAdapter` implementing `ChainGateway` |
-| **G-2** | `PaymentRouter.sol` does not exist | Foundry contract: `spentNullifiers` map, EIP-712 signature check, `anchor(bytes32)` + event; deploy to Anvil, then Base Sepolia |
+| **G-1** | ~~No chain adapter~~ — **closed**: `Web3ChainGateway` implements `ChainGateway` (submit, receipt with cost and confirmations, `spentNullifiers`, anchor) and is exercised end to end against `eth-tester`. Remaining: a deployed router address and a funded signer per network | `BURSAR_PAYMENT_ROUTER_ADDRESS`, `BURSAR_USDC_ADDRESS`, `BURSAR_SETTLEMENT_PRIVATE_KEY` for the intended chain (SC-11) |
+| **G-2** | ~~`PaymentRouter.sol` does not exist~~ — **closed**: `contracts/src/PaymentRouter.sol` (solc 0.8.24, `evm_version = paris`) has the `spentNullifiers` map, the EIP-712 owner check bound to chain id + verifying contract, `anchor(bytes32)` and `Anchored`. Remaining: deploy to Anvil, then Base Sepolia | `forge create` (or the deployment script) on a machine with foundry; the address lands in `BURSAR_PAYMENT_ROUTER_ADDRESS` |
 | **G-3** | No Rigorix executor | `RigorixCommandAdapter` implementing `PaymentExecutor`, calling `run_command` with `order.command_params()` only |
 | **G-4** | No Authority HTTP surface | `AuthorityHttpAdapter` implementing `DeterminationGate` — must be a **live** read at dispatch time (SC-1), never a cached verdict |
 
 Until B-1 and B-2 are re-frozen, `DispatchPayment` and `SettleOnce` stay unimplemented and the write
 endpoints stay `501`. That is the intended state: a green demo that cannot move USDC is worse than a
 loud gap.
+
+G-1 and G-2 are closed **in code**, not in the deployment: the contract compiles and behaves (its 11
+capabilities are asserted against a real EVM), and the adapter drives it end to end, but neither has
+touched Anvil or Base Sepolia. The gap that remains is operational — a deployment and a funded key —
+and it is the honest one to keep on the list until a transaction has been mined on the target chain.
 
 ---
 
@@ -154,6 +160,8 @@ loud gap.
       `settlement_outbox` exist
 - [ ] `GET /readyz` → `database: ok`
 - [ ] `scripts` prove the contract: `bash .pi/scripts/ci/check_settlement_contracts.sh`
+- [ ] Chain suite is green without foundry: `pytest tests/unit/settlement/chain -q` (compiles with
+      `py-solc-x` 0.8.24, executes on `eth-tester`; the first run downloads the compiler once)
 - [ ] `bash .pi/scripts/freeze.sh verify --module settlement` (or `status` shows `implemented`)
 - [ ] If dispatch is enabled: `BURSAR_PAYMENT_ROUTER_ADDRESS`, `BURSAR_USDC_ADDRESS`,
       `BURSAR_SETTLEMENT_PRIVATE_KEY` set for the **intended** chain, and `BURSAR_CHAIN_ID` matches it
