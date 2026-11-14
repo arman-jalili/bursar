@@ -188,4 +188,3 @@ class UnavailableAttemptViewPort:
 
     async def load(self, attempt_id: str) -> tuple[AttemptView, InvoiceView]:
         raise upstream_unavailable("Billing", attempt_id=attempt_id)
-

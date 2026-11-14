@@ -156,9 +156,7 @@ class SqlCapLedgerRepository(CapLedgerRepository):
             await self._session.flush()
         return ledger_to_domain(row)
 
-    async def try_reserve_atomic(
-        self, day: str, amount: Money, reservation: Reservation
-    ) -> bool:
+    async def try_reserve_atomic(self, day: str, amount: Money, reservation: Reservation) -> bool:
         """One conditional UPDATE (A-9). False means "no headroom", and nothing was reserved."""
         statement = (
             update(CapLedgerRow)
@@ -169,9 +167,7 @@ class SqlCapLedgerRepository(CapLedgerRepository):
                 + amount.micro_usdc
                 <= CapLedgerRow.cap_micro_usdc,
             )
-            .values(
-                reserved_micro_usdc=CapLedgerRow.reserved_micro_usdc + amount.micro_usdc
-            )
+            .values(reserved_micro_usdc=CapLedgerRow.reserved_micro_usdc + amount.micro_usdc)
         )
         result = cast(CursorResult[Any], await self._session.execute(statement))
         if result.rowcount != 1:
@@ -195,9 +191,7 @@ class SqlCapLedgerRepository(CapLedgerRepository):
             CursorResult[Any],
             await self._session.execute(
                 update(ReservationRow)
-                .where(
-                    ReservationRow.id == str(reservation_id), ReservationRow.status == "held"
-                )
+                .where(ReservationRow.id == str(reservation_id), ReservationRow.status == "held")
                 .values(status=target, resolved_at=datetime.now(UTC))
             ),
         )
@@ -213,9 +207,7 @@ class SqlCapLedgerRepository(CapLedgerRepository):
         if target == "committed":
             values["committed_micro_usdc"] = CapLedgerRow.committed_micro_usdc + amount
         await self._session.execute(
-            update(CapLedgerRow)
-            .where(CapLedgerRow.day == reservation.day)
-            .values(**values)
+            update(CapLedgerRow).where(CapLedgerRow.day == reservation.day).values(**values)
         )
         return reservation.day
 

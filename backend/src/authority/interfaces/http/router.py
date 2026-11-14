@@ -238,9 +238,7 @@ def build_router() -> APIRouter:
     ) -> SignatureResponse:
         service: SubmitOwnerSignatureService = _services(request)["signature"]  # type: ignore[assignment]
         result = await service.execute(
-            SubmitOwnerSignatureCommand(
-                approval_id=approval_id, signature_hex=body.signature_hex
-            )
+            SubmitOwnerSignatureCommand(approval_id=approval_id, signature_hex=body.signature_hex)
         )
         return SignatureResponse(
             granted=result.granted,

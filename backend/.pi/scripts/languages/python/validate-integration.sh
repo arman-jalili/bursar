@@ -22,10 +22,15 @@ echo "  Integration Validation (Python)"
 echo "============================================"
 echo ""
 
+# Prefer the project environment: the system python may be older than requires-python,
+# and a validator that runs the wrong interpreter reports false failures.
+PYTEST_BIN="pytest"
+[ -x ".venv/bin/pytest" ] && PYTEST_BIN=".venv/bin/pytest"
+
 # ── Integration Tests ──
 echo "--- Integration Tests ---"
-if [ -d "tests/integration" ] && command -v pytest &>/dev/null; then
-    if PYTHONPATH=src pytest tests/integration -q 2>/dev/null; then
+if [ -d "tests/integration" ] && { [ -x "$PYTEST_BIN" ] || command -v pytest >/dev/null 2>&1; }; then
+    if PYTHONPATH=src "$PYTEST_BIN" tests/integration -q 2>/dev/null; then
         pass "Integration tests passed"
     else
         fail "Integration tests failed"

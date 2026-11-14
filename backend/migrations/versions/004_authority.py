@@ -47,9 +47,7 @@ def upgrade() -> None:
         sa.Column("constitution_version", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index(
-        "ix_authority_payment_intents_payee", "authority_payment_intents", ["payee_id"]
-    )
+    op.create_index("ix_authority_payment_intents_payee", "authority_payment_intents", ["payee_id"])
     op.create_index(
         "ix_authority_payment_intents_invoice", "authority_payment_intents", ["invoice_id"]
     )

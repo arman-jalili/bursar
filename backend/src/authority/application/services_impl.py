@@ -458,9 +458,7 @@ class SubmitOwnerSignatureService(AuthorityService, SubmitOwnerSignature):
             constitution = await self._mandate(session).constitution_for_payee(intent.payee_id)
             ledger_repo = SqlCapLedgerRepository(session, constitution.cap)
             ledger = await ledger_repo.ledger_for(day)
-            reservation = Reservation.hold(
-                intent.id, intent.amount, day, now + RESERVATION_WINDOW
-            )
+            reservation = Reservation.hold(intent.id, intent.amount, day, now + RESERVATION_WINDOW)
             if not await ledger_repo.try_reserve_atomic(day, intent.amount, reservation):
                 raise CapExceeded(
                     intent.amount.micro_usdc, ledger.headroom.micro_usdc, intent_id=intent.id
@@ -517,9 +515,7 @@ class ReconcileReservationService(AuthorityService, ReconcileReservation):
                 ReservationId(command.reservation_id),
                 "committed" if command.outcome == "confirmed" else "released",
             )
-            reservation = await repository.find_reservation(
-                ReservationId(command.reservation_id)
-            )
+            reservation = await repository.find_reservation(ReservationId(command.reservation_id))
             if reservation is None:  # pragma: no cover - resolve just read the same row
                 raise NotFoundError("reservation not found", reservation_id=command.reservation_id)
             ledger: CapLedger = await repository.ledger_for(day)

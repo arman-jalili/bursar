@@ -65,9 +65,7 @@ class PaymentIntentRow(Base):
     is_new_payee: Mapped[bool] = mapped_column(nullable=False, default=False)
     requires_owner_signature: Mapped[bool] = mapped_column(nullable=False, default=False)
     constitution_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         Index("ix_authority_payment_intents_payee", "payee_id"),
@@ -147,9 +145,7 @@ class ApprovalRow(Base):
     signer: Mapped[str | None] = mapped_column(String(42), nullable=True)
     signed_digest: Mapped[str | None] = mapped_column(String(66), nullable=True)
 
-    __table_args__ = (
-        Index("ix_authority_approvals_pending", "consumed_at", "expires_at"),
-    )
+    __table_args__ = (Index("ix_authority_approvals_pending", "consumed_at", "expires_at"),)
 
 
 class OutboxRow(Base):

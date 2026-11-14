@@ -229,9 +229,7 @@ class TestOnlyTwoHundredsAuthoriseDispatch:
         assert error["details"]["reason_codes"] == "payee_frozen"
 
         intent_id = error["details"]["intent_id"]
-        determination = client.get(
-            f"/v1/intents/{intent_id}/determination", headers=OWNER_TOKEN
-        )
+        determination = client.get(f"/v1/intents/{intent_id}/determination", headers=OWNER_TOKEN)
         assert determination.status_code == 200, determination.text
         assert determination.json()["verdict"] == "deny"
         assert determination.json()["reason_codes"] == ["payee_frozen"]
