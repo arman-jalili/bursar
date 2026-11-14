@@ -1,104 +1,112 @@
 {
   "prStrategy": "epic",
-  "name": "billing",
-  "trackingIssueId": "190",
+  "name": "console",
+  "trackingIssueId": null,
   "epicId": null,
   "slices": [
     {
-      "module": "billing",
+      "module": "console",
       "components": [
         {
-          "name": "Invoice",
-          "status": "invoicestatus",
-          "description": "\"\"\"Canonical: .pi/architecture/modules/billing.md#components-invoice\"\"\"",
-          "dependencies": [
-            "none"
-          ]
-        },
-        {
-          "name": "PaymentAttempt",
-          "status": "attemptstatus",
-          "description": "FORBIDDEN_PROPOSAL_KEYS = frozenset(",
-          "dependencies": [
-            "none"
-          ]
-        },
-        {
-          "name": "Persistence contract",
+          "name": "Application services (catalog)",
           "status": "planned",
-          "description": "Persistence contract component",
+          "description": "Application services (catalog) component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Ports",
+          "name": "Anti-corruption layer — field whitelists",
           "status": "planned",
-          "description": "Ports component",
+          "description": "Each screen gets an explicit whitelist so a new upstream field can never leak by accident:",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`InvoiceHash`",
+          "name": "Ports (upstream clients)",
           "status": "planned",
-          "description": "Same document → same hash; one changed character → different hash.",
+          "description": "Ports (upstream clients) component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Duplicate invoice",
+          "name": "Whitelist",
           "status": "planned",
-          "description": "Recording the same hash twice yields the original invoice + `DuplicateInvoiceDetected`, no second row.",
+          "description": "An upstream payload with an extra field (`internal_note`) does not appear in any console response.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "At most one attempt",
+          "name": "Exact fields",
           "status": "planned",
-          "description": "Two concurrent proposals for one invoice → exactly one `PaymentAttempt`; second gets `InvoiceNotPayable`.",
+          "description": "The inbox renders `payee_address` and `bank_digest` byte-identically to Authority's intent (no truncation, no re-checksumming).",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Forbidden fields",
+          "name": "Passthrough",
           "status": "planned",
-          "description": "Proposal with `payee_address`, `command`, `cap` or `threshold` → 422 `PROPOSAL_REJECTED`, zero attempts persisted.",
+          "description": "`POST /signature` forwards the signature unmodified; a recorded request body equals the received one.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Settled invoice",
+          "name": "Read-only",
           "status": "planned",
-          "description": "Proposal against a settled invoice → refused; no attempt row. (scenario 6, app layer)",
+          "description": "No console endpoint can create an intent, attempt or settlement order; a scope test proves the owner token cannot reach those.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Digest review",
+          "name": "Payer copy",
           "status": "planned",
-          "description": "An invoice whose presented digest ≠ Mandate's verified digest triggers Mandate quarantine and the attempt is refused downstream. (scenario 2)",
+          "description": "Payer endpoints contain none of: USDC, gas, chain, wallet, nullifier, determination (grep on fixtures).",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Refusal path",
+          "name": "Simulated payout",
           "status": "planned",
-          "description": "A denied determination sets the attempt `REFUSED` and the invoice back to outstanding, with no reservation committed.",
+          "description": "Every payer bill with a settlement carries `payout_simulated: true` and the demo label.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Layer purity",
+          "name": "Refusal reason",
           "status": "planned",
-          "description": "`src/billing/domain/` imports no FastAPI/SQLAlchemy/httpx.",
+          "description": "A refused payment appears for the owner with a human-readable reason derived from the reason codes. (scenarios 2/3/4)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Verify toggle",
+          "status": "planned",
+          "description": "Evidence view shows `verified` for an untouched envelope and `tampered` after one byte is flipped. (scenario 7)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "No domain layer",
+          "status": "planned",
+          "description": "`src/console/domain/` does not exist; its appearance fails the adapter-purity check.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Mobile",
+          "status": "planned",
+          "description": "Both surfaces usable at 390×844 with no horizontal scroll; owner approval takes ≤3 taps from the notification. (NFR-011)",
           "dependencies": [
             "none"
           ]
@@ -106,81 +114,105 @@
       ],
       "nextLogicalSlice": [
         {
-          "name": "Persistence contract",
+          "name": "Application services (catalog)",
           "status": "planned",
-          "description": "Persistence contract component",
+          "description": "Application services (catalog) component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Ports",
+          "name": "Anti-corruption layer — field whitelists",
           "status": "planned",
-          "description": "Ports component",
+          "description": "Each screen gets an explicit whitelist so a new upstream field can never leak by accident:",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "`InvoiceHash`",
+          "name": "Ports (upstream clients)",
           "status": "planned",
-          "description": "Same document → same hash; one changed character → different hash.",
+          "description": "Ports (upstream clients) component",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Duplicate invoice",
+          "name": "Whitelist",
           "status": "planned",
-          "description": "Recording the same hash twice yields the original invoice + `DuplicateInvoiceDetected`, no second row.",
+          "description": "An upstream payload with an extra field (`internal_note`) does not appear in any console response.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "At most one attempt",
+          "name": "Exact fields",
           "status": "planned",
-          "description": "Two concurrent proposals for one invoice → exactly one `PaymentAttempt`; second gets `InvoiceNotPayable`.",
+          "description": "The inbox renders `payee_address` and `bank_digest` byte-identically to Authority's intent (no truncation, no re-checksumming).",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Forbidden fields",
+          "name": "Passthrough",
           "status": "planned",
-          "description": "Proposal with `payee_address`, `command`, `cap` or `threshold` → 422 `PROPOSAL_REJECTED`, zero attempts persisted.",
+          "description": "`POST /signature` forwards the signature unmodified; a recorded request body equals the received one.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Settled invoice",
+          "name": "Read-only",
           "status": "planned",
-          "description": "Proposal against a settled invoice → refused; no attempt row. (scenario 6, app layer)",
+          "description": "No console endpoint can create an intent, attempt or settlement order; a scope test proves the owner token cannot reach those.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Digest review",
+          "name": "Payer copy",
           "status": "planned",
-          "description": "An invoice whose presented digest ≠ Mandate's verified digest triggers Mandate quarantine and the attempt is refused downstream. (scenario 2)",
+          "description": "Payer endpoints contain none of: USDC, gas, chain, wallet, nullifier, determination (grep on fixtures).",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Refusal path",
+          "name": "Simulated payout",
           "status": "planned",
-          "description": "A denied determination sets the attempt `REFUSED` and the invoice back to outstanding, with no reservation committed.",
+          "description": "Every payer bill with a settlement carries `payout_simulated: true` and the demo label.",
           "dependencies": [
             "none"
           ]
         },
         {
-          "name": "Layer purity",
+          "name": "Refusal reason",
           "status": "planned",
-          "description": "`src/billing/domain/` imports no FastAPI/SQLAlchemy/httpx.",
+          "description": "A refused payment appears for the owner with a human-readable reason derived from the reason codes. (scenarios 2/3/4)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Verify toggle",
+          "status": "planned",
+          "description": "Evidence view shows `verified` for an untouched envelope and `tampered` after one byte is flipped. (scenario 7)",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "No domain layer",
+          "status": "planned",
+          "description": "`src/console/domain/` does not exist; its appearance fails the adapter-purity check.",
+          "dependencies": [
+            "none"
+          ]
+        },
+        {
+          "name": "Mobile",
+          "status": "planned",
+          "description": "Both surfaces usable at 390×844 with no horizontal scroll; owner approval takes ≤3 taps from the notification. (NFR-011)",
           "dependencies": [
             "none"
           ]
@@ -192,91 +224,109 @@
     {
       "id": "issue-contract-freeze",
       "title": "Contract Freeze: Define interfaces and contracts",
-      "status": "planned",
-      "remoteIssueId": "191"
+      "status": "implemented",
+      "remoteIssueId": null
     },
     {
-      "id": "issue-persistence-contract",
-      "title": "Implement Persistence contract — billing",
+      "id": "issue-application-services-catalog-",
+      "title": "Implement Application services (catalog) — console",
       "status": "planned",
-      "remoteIssueId": "192"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-ports",
-      "title": "Implement Ports — billing",
+      "id": "issue-anti-corruption-layer-field-whitelists",
+      "title": "Implement Anti-corruption layer — field whitelists — console",
       "status": "planned",
-      "remoteIssueId": "199"
+      "remoteIssueId": null
     },
     {
-      "id": "issue--invoicehash-",
-      "title": "Implement `InvoiceHash` — billing",
+      "id": "issue-ports-upstream-clients-",
+      "title": "Implement Ports (upstream clients) — console",
       "status": "planned",
-      "remoteIssueId": "203"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-duplicate-invoice",
-      "title": "Implement Duplicate invoice — billing",
+      "id": "issue-whitelist",
+      "title": "Implement Whitelist — console",
       "status": "planned",
-      "remoteIssueId": "207"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-at-most-one-attempt",
-      "title": "Implement At most one attempt — billing",
+      "id": "issue-exact-fields",
+      "title": "Implement Exact fields — console",
       "status": "planned",
-      "remoteIssueId": "211"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-forbidden-fields",
-      "title": "Implement Forbidden fields — billing",
+      "id": "issue-passthrough",
+      "title": "Implement Passthrough — console",
       "status": "planned",
-      "remoteIssueId": "215"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-settled-invoice",
-      "title": "Implement Settled invoice — billing",
+      "id": "issue-read-only",
+      "title": "Implement Read-only — console",
       "status": "planned",
-      "remoteIssueId": "219"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-digest-review",
-      "title": "Implement Digest review — billing",
+      "id": "issue-payer-copy",
+      "title": "Implement Payer copy — console",
       "status": "planned",
-      "remoteIssueId": "223"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-refusal-path",
-      "title": "Implement Refusal path — billing",
+      "id": "issue-simulated-payout",
+      "title": "Implement Simulated payout — console",
       "status": "planned",
-      "remoteIssueId": "227"
+      "remoteIssueId": null
     },
     {
-      "id": "issue-layer-purity",
-      "title": "Implement Layer purity — billing",
+      "id": "issue-refusal-reason",
+      "title": "Implement Refusal reason — console",
       "status": "planned",
-      "remoteIssueId": "231"
+      "remoteIssueId": null
+    },
+    {
+      "id": "issue-verify-toggle",
+      "title": "Implement Verify toggle — console",
+      "status": "planned",
+      "remoteIssueId": null
+    },
+    {
+      "id": "issue-no-domain-layer",
+      "title": "Implement No domain layer — console",
+      "status": "planned",
+      "remoteIssueId": null
+    },
+    {
+      "id": "issue-mobile",
+      "title": "Implement Mobile — console",
+      "status": "planned",
+      "remoteIssueId": null
     },
     {
       "id": "issue-runtime-integration",
       "title": "Runtime Integration & Legacy Migration",
       "status": "planned",
-      "remoteIssueId": "235"
+      "remoteIssueId": null
     },
     {
       "id": "issue-proofing",
       "title": "Proofing: Validation scripts + CI integration",
       "status": "planned",
-      "remoteIssueId": "239"
+      "remoteIssueId": null
     },
     {
       "id": "issue-architecture-readiness",
       "title": "Architecture Readiness: Runbook, DR, docs, CI enforcement",
       "status": "planned",
-      "remoteIssueId": "243"
+      "remoteIssueId": null
     }
   ],
   "status": "planning",
   "currentIssueIndex": 0,
-  "createdAt": "2026-11-13T23:17:41.403Z",
+  "createdAt": "2026-11-14T00:21:41.646Z",
   "tdd": false,
   "tddTestFiles": []
 }
