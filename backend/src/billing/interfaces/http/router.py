@@ -94,6 +94,40 @@ def build_router() -> APIRouter:
         return {"items": await queries.payer_bills()}
 
     @router.get(
+        "/invoices/open",
+        response_model=InvoiceListResponse,
+        dependencies=[Depends(require_scope("billing:read"))],
+        summary="Invoices still awaiting a decision — what a proposer is allowed to see",
+    )
+    async def list_open_invoices(request: Request, limit: int = 50) -> InvoiceListResponse:
+        """The proposer's read.
+
+        `billing:read` is granted to the agent token so it can find work, but before this route
+        existed every read demanded `console:read`: the grant was a promise nothing kept. The
+        window is deliberately narrow — an invoice that already has a decision is not the
+        proposer's business, and re-proposing a refused invoice would be a way to launder a
+        refusal into a second attempt.
+        """
+        _services(request)["queries"]  # type: ignore[assignment]
+        views = await _services(request)["list_invoices"].execute(  # type: ignore[attr-defined]
+            status=None, cursor=None, limit=limit
+        )
+        # The status vocabulary lives on the server. A client that re-implements it drifts — the
+        # first version of this filter used upper-case names the rows never carry, so the proposer
+        # saw "nothing to do" while the endpoint had returned work.
+        # `in_flight` is included: an invoice that already has a live proposal is not something to
+        # propose again. The API still refuses a duplicate with 409 — this filter is the courtesy,
+        # the constraint is the guarantee.
+        closed = {"settled", "refused", "paid", "cancelled", "canceled", "in_flight"}
+        return InvoiceListResponse(
+            items=[
+                _invoice_response(view)
+                for view in views
+                if str(getattr(view, "status", "")).lower() not in closed
+            ]
+        )
+
+    @router.get(
         "/invoices",
         response_model=InvoiceListResponse,
         dependencies=[Depends(require_scope("console:read"))],

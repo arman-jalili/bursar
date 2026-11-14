@@ -158,3 +158,36 @@ class TestProposalHttp:
         )
         assert refused.status_code == 403
         assert refused.json()["error"]["code"] == "FORBIDDEN"
+
+
+class TestTheProposersRead:
+    """`/v1/invoices/open` is the one read the agent's `billing:read` grant buys.
+
+    The grant existed before the route did, which meant the proposer could propose work it had no
+    way to find. These tests pin the two properties that make the route safe to grant: it is
+    scoped, and it does not hand back invoices that already have a decision.
+    """
+
+    def test_the_agent_can_read_what_it_may_propose(self, client: TestClient) -> None:
+        invoice_id = _record(client)["invoice"]["invoice_id"]
+
+        response = client.get("/v1/invoices/open", headers=AGENT_TOKEN)
+
+        assert response.status_code == 200, response.text
+        assert invoice_id in {item["invoice_id"] for item in response.json()["items"]}
+
+    def test_the_agent_cannot_read_the_console_read_models(self, client: TestClient) -> None:
+        """The narrow route must not be a door to the ledger: `/v1/invoices` stays `console:read`."""
+        assert client.get("/v1/invoices", headers=AGENT_TOKEN).status_code == 403
+
+    def test_a_proposed_invoice_leaves_the_open_list(self, client: TestClient) -> None:
+        """`in_flight` means someone is already paying it; proposing again is the 409 we refuse."""
+        invoice_id = _record(client)["invoice"]["invoice_id"]
+        proposed = client.post("/v1/attempts", headers=AGENT_TOKEN, json={"invoice_id": invoice_id})
+        assert proposed.status_code == 201, proposed.text
+
+        open_ids = {item["invoice_id"] for item in client.get(
+            "/v1/invoices/open", headers=AGENT_TOKEN
+        ).json()["items"]}
+
+        assert invoice_id not in open_ids

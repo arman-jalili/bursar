@@ -1,8 +1,13 @@
 # Bursar
 
-**A delegated bill-paying agent with a real enforcement stack.** An owner gives an agent a mandate
-to pay a household's bills. The agent proposes; an operator-owned constitution decides; Rigorix
-enforces at the moment of payment; USDC settles on Anvil/Base; every action leaves a receipt.
+**A household account where an automation proposes payments, the owner's rules decide, and Rigorix
+enforces at the moment of payment.** USDC settles on Anvil; every payment leaves a receipt the owner
+can verify in the browser.
+
+> **On the word "agent".** This repository has no agent process today: a token exists
+> (`demo-agent-token`) and the seed script acts as the proposer. Either point a real proposer at the
+> API (see `docs/demo-ux.md` §2, option A) or read the copy as "an automation proposes". The demo
+> must not claim a component it does not ship.
 
 Proximata Hackathon '26 · track *Bringing Crypto to Everyday Life*.
 
