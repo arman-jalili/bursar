@@ -40,7 +40,7 @@ ServiceName = Literal["authority-service", "console-api"]
 #: skeleton states its gaps rather than implying completeness.
 CONTEXT_PLAN: dict[ServiceName, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "authority-service": ((), ("Authority",)),
-    "console-api": (("Mandate", "Billing"), ("Settlement", "Evidence", "Console")),
+    "console-api": (("Mandate", "Billing", "Evidence"), ("Settlement", "Console")),
 }
 
 
@@ -115,6 +115,7 @@ def build_app(service: ServiceName, settings: Settings | None = None) -> FastAPI
 
     install_error_handlers(app)
     app.include_router(metrics_router)
+    app.state.settings = cfg
     #: Filled by `install_context` before the app starts; run once the engine exists.
     app.state.startup_hooks = []
 

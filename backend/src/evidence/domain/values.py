@@ -15,6 +15,7 @@ open-ended string would make the console unable to decide which failure it is re
 from __future__ import annotations
 
 import enum
+import hashlib
 from dataclasses import dataclass
 
 from src.shared.domain.value_object import ValueObject
@@ -32,14 +33,24 @@ class EnvelopeHash(ValueObject):
 
     value: str
 
+    def __post_init__(self) -> None:
+        if not self.value:
+            raise ValueError("an envelope hash cannot be empty")
+
     @classmethod
     def compute(cls, canonical_bytes: bytes, hmac: str) -> EnvelopeHash:
         """Deterministic hash over the exact canonical bytes plus the sealed HMAC (E-1).
 
+        The HMAC is part of the input so a locally re-sealed payload (same fact, different seal) is a
+        different on-chain value. Separator byte keeps the two inputs unambiguous.
+
         Raises:
             ValueError: the canonical bytes are empty (there is no fact to hash).
         """
-        raise NotImplementedError("E-1 — see module doc")
+        if not canonical_bytes:
+            raise ValueError("cannot hash an envelope with no canonical bytes")
+        digest = hashlib.sha256(canonical_bytes + b"|" + hmac.encode("utf-8")).hexdigest()
+        return cls(digest)
 
 
 class VerificationResult(enum.StrEnum):

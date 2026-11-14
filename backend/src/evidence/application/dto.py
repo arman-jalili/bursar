@@ -13,8 +13,10 @@ Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from src.evidence.domain.values import VerificationResult
 from src.shared.domain.event import DomainEvent
@@ -30,7 +32,12 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class EnvelopeView:
-    """An envelope as the API exposes it. `full=0` may omit the payload; the id and hash never."""
+    """An envelope as the API exposes it. `full=0` may omit the payload; the id and hash never.
+
+    `payload` is `None` on list responses (the default) and populated only when the caller asks for
+    `?full=1`. The sealed bytes are unaffected: the read model is the envelope, not the other way
+    round, so omitting the payload here never changes `hmac` or `envelope_hash`.
+    """
 
     envelope_id: str
     event_type: str
@@ -45,6 +52,8 @@ class EnvelopeView:
     anchor_mode: str
     envelope_hash: str
     anchor_tx: str | None = None
+    #: Present only on `?full=1`; the list read model deliberately omits the fact's body.
+    payload: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)

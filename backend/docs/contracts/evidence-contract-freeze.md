@@ -1,7 +1,7 @@
 # Evidence — Contract Freeze (Phase A)
 
 **Module:** Evidence (supporting subdomain, service depth)
-**Status:** Frozen for implementation — 2026-11-13
+**Status:** Implemented — 2026-11-14 (frozen 2026-11-13)
 **Canonical module doc:** [`.pi/architecture/modules/evidence.md`](../../.pi/architecture/modules/evidence.md)
 **Depends on:** Authority (frozen) · Billing (frozen) · Mandate (implemented)
 **Runtime partners (Phase B adapters):** Settlement (anchor write), Authority/Billing/Mandate event feeds
@@ -16,9 +16,12 @@
 ## 1. What is frozen, and what is not
 
 Frozen: **signatures, types, the invariant ids, the refusal vocabulary, the repository/port shapes,
-the three Evidence event payloads, and the HTTP contract.** Every body in `src/evidence/` raises
-`NotImplementedError("E-n — see module doc")`; the single exception is `new_id()`, because a uuid
-factory is not behaviour and stubbing it would force every test to invent identifiers.
+the three Evidence event payloads, and the HTTP contract.** Phase B filled every body without
+changing a signature: `EnvelopeHash`/`EvidenceEnvelope` (canonical bytes + HMAC), the append-only
+SQLAlchemy stores (`003_evidence`), `SealEvidence`/`VerifyEvidence`/`WitnessReport`, the local
+anchor gateway/policy, the console-facing router and the event subscriber. The 19 behaviour suites
+and the integration suites (real schema + HTTP) are green; `check_evidence_contracts.sh` proves the
+interfaces still have implementations.
 
 Not frozen (Phase B): behaviour bodies, SQLAlchemy models, migration `005_evidence`, the HMAC signer
 adapter, the Settlement anchor client, the event subscriber wiring, the router/Pydantic schemas, and

@@ -18,18 +18,56 @@ bytes are reproducible in the domain.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, replace
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
 from typing import Any
 
 from src.evidence.domain.anchor import Anchor
+from src.evidence.domain.errors import AnchorMismatch, HmacMismatch
 from src.evidence.domain.ids import EnvelopeId, new_id
 from src.evidence.domain.ports import EnvelopeSigner
-from src.evidence.domain.values import EnvelopeHash, Verification
+from src.evidence.domain.values import EnvelopeHash, Verification, VerificationResult
 from src.shared.domain.event import DomainEvent
 
 __all__ = ["EvidenceEnvelope"]
+
+
+def _normalise(value: Any) -> Any:
+    """Recursively turn a payload into a JSON-safe, order-stable value (E-1).
+
+    Mappings become plain dicts (``sort_keys`` then fixes their order), tuples/sets become lists, and
+    dates/enums/decimals get a lossless string form. Floats are refused: the canonical contract is
+    integer micro-units, and a float's text form is the one place a re-serialisation can drift.
+    """
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, float):
+        raise ValueError("canonical encoding refuses floats; use integer micro-units")
+    if isinstance(value, Mapping):
+        return {str(k): _normalise(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_normalise(v) for v in value]
+    if isinstance(value, (set, frozenset)):
+        return [_normalise(v) for v in sorted(value, key=repr)]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Enum):
+        return _normalise(value.value)
+    if isinstance(value, Decimal):
+        return str(value)
+    raise ValueError(f"canonical encoding cannot represent {type(value).__name__}")
+
+
+def _subject(payload: Mapping[str, Any], field: str) -> str | None:
+    """A subject id from the publisher's payload; absent stays None, never an empty string."""
+    value = payload.get(field)
+    return None if value is None else str(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +107,29 @@ class EvidenceEnvelope:
             SigningUnavailable: the signer could not produce an HMAC (E-10).
             ValueError: the event payload cannot be canonically encoded (non-JSON value).
         """
-        raise NotImplementedError("E-2 — see module doc")
+        payload = dict(event.to_payload())
+        occurred_at = event.occurred_at
+        if occurred_at.tzinfo is None:
+            raise ValueError("occurred_at must be timezone-aware")
+
+        constitution_version = payload.get("constitution_version")
+        unsigned = cls(
+            id=cls.with_id(),
+            event_type=event.event_name,
+            subject_intent_id=_subject(payload, "intent_id"),
+            subject_invoice_id=_subject(payload, "invoice_id"),
+            subject_payee_id=_subject(payload, "payee_id"),
+            payload=payload,
+            constitution_version=(
+                None if constitution_version is None else str(constitution_version)
+            ),
+            actor=actor,
+            occurred_at=occurred_at,
+            hmac="",
+            previous_hash=previous_hash,
+            anchor_mode=anchor_mode,
+        )
+        return replace(unsigned, hmac=signer.sign(unsigned.canonical_bytes()))
 
     def canonical_bytes(self) -> bytes:
         """Deterministic encoding: sorted keys, no floats, explicit nulls, compact separators (E-1).
@@ -77,15 +137,34 @@ class EvidenceEnvelope:
         The bytes cover the fact and its chain link, but **not** the id or the HMAC itself: a replay
         with a fresh id must not change the sealed bytes of an identical fact.
         """
-        raise NotImplementedError("E-1 — see module doc")
+        document = {
+            "event_type": self.event_type,
+            "payload": _normalise(self.payload),
+            "subject": {
+                "intent": self.subject_intent_id,
+                "invoice": self.subject_invoice_id,
+                "payee": self.subject_payee_id,
+            },
+            "constitution_version": self.constitution_version,
+            "actor": self.actor,
+            "occurred_at": self.occurred_at.isoformat(),
+            "previous_hash": self.previous_hash,
+        }
+        return json.dumps(
+            document,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
 
     def hash(self) -> EnvelopeHash:
         """The value anchored on-chain: hash over `canonical_bytes()` plus the sealed HMAC (E-1)."""
-        raise NotImplementedError("E-1 — see module doc")
+        return EnvelopeHash.compute(self.canonical_bytes(), self.hmac)
 
     def hmac_is_valid(self, signer: EnvelopeSigner) -> bool:
         """Recompute the HMAC over the bytes as they are now and compare (E-2, E-7)."""
-        raise NotImplementedError("E-2 — see module doc")
+        return signer.verify(self.canonical_bytes(), self.hmac)
 
     def verify(self, signer: EnvelopeSigner, anchor: Anchor | None) -> Verification:
         """Re-verify this envelope against its HMAC and its anchor (E-6 … E-8).
@@ -98,7 +177,20 @@ class EvidenceEnvelope:
             HmacMismatch: the recomputed HMAC differs; `field` names the sealed field that failed.
             AnchorMismatch: the anchor belongs to a different envelope hash.
         """
-        raise NotImplementedError("E-6 — see module doc")
+        anchor_tx = anchor.anchor_tx if anchor is not None else ""
+        if not self.hmac_is_valid(signer):
+            raise HmacMismatch(failing_field="payload", anchor_tx=anchor_tx)
+        if anchor is None:
+            return Verification(result=VerificationResult.UNANCHORED)
+
+        envelope_hash = self.hash()
+        if not anchor.matches(envelope_hash):
+            raise AnchorMismatch(
+                envelope_hash=envelope_hash.value,
+                anchor_hash=anchor.envelope_hash.value,
+                anchor_tx=anchor.anchor_tx,
+            )
+        return Verification(result=VerificationResult.VERIFIED, anchor_tx=anchor.anchor_tx)
 
     def corrected(
         self,
@@ -113,7 +205,13 @@ class EvidenceEnvelope:
         The original is never rewritten. A correction that reused the id would make the chain a lie:
         the old hash would still be anchored and the row behind it would no longer produce it.
         """
-        raise NotImplementedError("E-5 — see module doc")
+        return EvidenceEnvelope.from_event(
+            event,
+            signer=signer,
+            actor=actor,
+            previous_hash=self.hash().value,
+            anchor_mode=anchor_mode,
+        )
 
     @classmethod
     def with_id(cls, envelope_id: EnvelopeId | None = None) -> EnvelopeId:
