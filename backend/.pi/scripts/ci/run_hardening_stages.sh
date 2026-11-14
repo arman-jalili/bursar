@@ -231,6 +231,11 @@ run_stage "10" "release_readiness" \
     "${SCRIPTS_DIR}/stage_release_readiness.sh" \
     "always"
 
+# Stage 11: Evidence proofing (contract impl + suites + real coverage gate)
+run_stage "11" "evidence_proofing" \
+    "${SCRIPTS_DIR}/stage_evidence_proofing.sh" \
+    "always"
+
 # ── Summary ──
 
 echo ""

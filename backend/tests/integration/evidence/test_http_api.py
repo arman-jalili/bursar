@@ -145,3 +145,21 @@ class TestEvidenceHttp:
         assert error["details"]["anchor_tx"] == ""
         original_anchor = client.get(f"/v1/evidence/{original.envelope_id}/anchor", headers=OWNER)
         assert original_anchor.json()["anchor_tx"] == original.anchor_tx
+
+
+class TestEvidenceScopes:
+    def test_missing_token_is_401(self, client: TestClient) -> None:
+        assert client.get("/v1/evidence").status_code == 401
+
+    def test_agent_token_cannot_read_evidence(self, client: TestClient) -> None:
+        agent = {"Authorization": "Bearer demo-agent-token"}
+        assert client.get("/v1/evidence", headers=agent).status_code == 403
+
+    def test_unknown_envelope_is_404(self, client: TestClient) -> None:
+        response = client.get("/v1/evidence/does-not-exist", headers=OWNER)
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "NOT_FOUND"
+
+    def test_verify_unknown_envelope_is_404(self, client: TestClient) -> None:
+        response = client.get("/v1/evidence/does-not-exist/verify", headers=CONSOLE)
+        assert response.status_code == 404

@@ -2,10 +2,10 @@
 
 ## Module Status
 
-**Status:** Planned
+**Status:** Implemented
 **Depends:** Authority (determinations/refusals), Settlement (receipts/reverts + anchor), Billing (invoice/proposal events), Mandate (payee status events)
 **Used by:** Console
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-14
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
 
 ## Description
@@ -46,7 +46,7 @@ payments still move (and the gap is visible, envellopped as a missing-witness wa
 Phase A freezes the signatures, the invariant ids, the refusal vocabulary, the event payloads, the
 ports and the HTTP shape. The canonical artifact is
 [`docs/contracts/evidence-contract-freeze.md`](../../docs/contracts/evidence-contract-freeze.md).
-Every body in `src/evidence/` raises `NotImplementedError("E-n — see module doc")` until Phase B.
+Phase B (implemented 2026-11-14) fills those bodies: `EnvelopeHash`/`EvidenceEnvelope` (canonical bytes + HMAC), append-only SQLAlchemy stores with migration `003_evidence`, `SealEvidence`/`VerifyEvidence`/`WitnessReport`, the local `AnchorGateway`/`AnchorPolicy`, the console-facing HTTP surface and the event subscriber. The frozen signatures are unchanged.
 
 | Id | Invariant | Defending suite |
 |---|---|---|

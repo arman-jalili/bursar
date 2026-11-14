@@ -123,3 +123,41 @@ class TestAppendOnlySchema:
         assert stored is not None
         assert stored.canonical_bytes() == envelope.canonical_bytes()
         assert stored.hash() == envelope.hash()
+
+
+class TestWitnessGap:
+    async def test_expected_events_are_read_from_the_publisher_outbox(
+        self, factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """E-10: the report compares the publisher's facts with what Evidence sealed."""
+        from datetime import UTC, datetime
+
+        from src.evidence.application.services import WitnessReport
+        from src.evidence.infrastructure.expected_events import SqlExpectedEvents
+
+        sealed_at = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
+        async with session_scope(factory) as session:
+            for event_id, event_name in (
+                ("evt-sealed", "PaymentAllowed"),
+                ("evt-missing", "PaymentRefused"),
+            ):
+                await session.execute(
+                    text(
+                        "INSERT INTO billing_outbox "
+                        "(event_id, event_name, aggregate_id, payload, occurred_at) "
+                        "VALUES (:id, :name, 'agg', '{}', :at)"
+                    ),
+                    {"id": event_id, "name": event_name, "at": sealed_at},
+                )
+            await SqlProcessedEventRepository(session).claim(EventId("evt-sealed"), "seal")
+
+        async with session_scope(factory) as session:
+            report = WitnessReport(
+                expected=SqlExpectedEvents(session),
+                processed=SqlProcessedEventRepository(session),
+            )
+            missing = await report.missing(
+                since=datetime(2026, 11, 13, 11, 0, tzinfo=UTC),
+                until=datetime(2026, 11, 13, 13, 0, tzinfo=UTC),
+            )
+        assert missing == ("evt-missing",)
