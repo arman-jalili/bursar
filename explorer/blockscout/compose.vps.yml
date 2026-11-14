@@ -1,6 +1,15 @@
 # Override for running on the VPS host: the chain lives in k3s, reached through
 # the Anvil NodePort on 127.0.0.1:30545 (never publicly exposed).
 services:
+  # Serves the logo the frontend's favicon generator fetches at boot. It must be reachable
+  # from inside the frontend container, and the frontend cannot fetch its own public URL
+  # (it is the process being started), so this tiny static server is the source.
+  favicon-source:
+    image: nginx:alpine
+    volumes:
+      - ../../frontend/public:/usr/share/nginx/html:ro
+    expose:
+      - "80"
   frontend:
     environment:
       # The page is served on its own origin (explorer.rigorix.eu). Blockscout's frontend
@@ -14,6 +23,20 @@ services:
       NEXT_PUBLIC_API_PORT: "443"
       # The API is proxied at the origin root by the nginx proxy service, not under a subpath.
       NEXT_PUBLIC_API_BASE_PATH: /
+      # Favicon generation is fatal in this image: without one of FAVICON_MASTER_URL or
+      # NEXT_PUBLIC_NETWORK_ICON the app throws during boot and every route renders
+      # "Oops! Something went wrong". anvil.yml only sets the logo, not the icon.
+      # Favicon generation fetches this URL with node-fetch, which does NOT support file://.
+      # It must be reachable over HTTP from the frontend container — the nginx proxy serves
+      # the baked logo the static image already carries.
+      # Fully-qualified and reachable from inside the container at boot (the validator rejects
+      # relative paths, and file:// is unsupported by node-fetch). The proxy is always up, so
+      # point at it rather than at the public hostname — the frontend is the thing being
+      # started, so its own public URL is not yet serving.
+      NEXT_PUBLIC_NETWORK_ICON: http://favicon-source/favicon.svg
+      FAVICON_MASTER_URL: http://favicon-source/favicon.svg
+    depends_on:
+      - favicon-source
   backend:
     environment:
       ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:30545/
@@ -26,6 +49,14 @@ services:
       - "172.17.0.1:4010:80"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # nginx resolves upstream names once at startup, so recreating the frontend (new container
+    # IP) leaves the proxy answering 502 until it is restarted. Depend on both so compose
+    # starts the proxy after them, and let it re-resolve per request.
+    environment:
+      - NGINX_ENTRYPOINT_QUIET_LOGS=1
+    depends_on:
+      - frontend
+      - backend
 networks:
   default:
     name: bursar-explorer
