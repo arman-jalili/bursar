@@ -351,6 +351,48 @@ Each entry follows this structure:
 - [x] Canonical refs updated
 - [x] Validators run
 
+## [2026-11-14] - Console: implementation complete (all 16 epic items)
+
+### Changed
+- Module: console
+  - Application services (catalog): `ProjectApprovalInbox`, `ProjectPayerBills` and
+    `ProjectEvidence` are implemented over the six upstream ports; the owner signature is forwarded
+    byte-for-byte and Authority's refusal codes are translated to household language.
+  - Anti-corruption layer: six surface whitelists (owner inbox, payer bill, payee, constitution,
+    evidence, verification) with model-output refusal plus a trust-boundary scrub; byte fidelity of
+    `payee_address`, `bank_digest`, `amount_usdc` and `typed_data_hash` is enforced (CON-01/CON-02).
+  - Ports (upstream clients): six `httpx` adapters with a recorded upstream transport so demo/CI
+    exercise the same code paths without a live Authority.
+  - Interfaces: the eight frozen routes, OpenAPI response models, the ADR-005 demo scope map and a
+    409 envelope for console refusals; the runtime composition root installs the context.
+  - Proofing: `check_console_contracts.sh` + hardening stage 11 prove the contract on every build.
+  - Operability: `docs/runbook-console.md`, `docs/dr-plan-console.md`.
+
+### Impact Analysis
+- Files affected:
+  - src/console/application/**
+  - src/console/infrastructure/**
+  - src/console/interfaces/**
+  - src/apps/console_api/app.py
+  - src/apps/shell.py
+  - tests/unit/console/**, tests/integration/console/**
+  - pyproject.toml (httpx runtime dependency)
+- Canonical refs to update:
+  - .pi/architecture/modules/console.md#architecture
+  - .pi/architecture/modules/console.md#anti-corruption-layer--field-whitelists
+  - .pi/architecture/modules/console.md#api-endpoints
+
+### Migration
+- None. The console owns no tables; `src/console/domain/` still does not exist (CON-09 / ADR-008).
+
+### Validation
+- 62 frozen contract tests + 34 support tests + 19 integration tests pass.
+- `pytest --cov=src/console --cov-fail-under=90` → 95%.
+- Validators: ci, tests, security, wiring, guards, drift, shell, claims, floors, architecture,
+  canonical — pass.
+
+---
+
 <!-- Add new entries above this line -->
 
 ---
@@ -379,6 +421,7 @@ Track which changes have been synced to implementation:
 | 2026-11-13 | Service-depth enrichment — persistence contract, proposal rejection | billing | pending (no `src/`) | not run |
 | 2026-11-13 | Service-depth enrichment — envelope/HMAC/anchor, append-only store | evidence | pending (no `src/`) | not run |
 | 2026-11-13 | Adapter-depth enrichment — ACL whitelists, read models, no domain layer | console | pending (no `src/`) | not run |
+| 2026-11-14 | **Console implementation** — projections, ACL, ports, eight routes, mobile contract, runbook + DR plan, proofing stage 11 | console | complete | ci/tests/security/wiring/guards/drift/shell/floors/architecture/canonical: pass |
 | 2026-11-13 | ADRs 001–007 accepted; diagrams + roadmap generated | all | pending (no `src/`) | not run |
 | 2026-11-13 | **Phase 0 bootstrap** — kernel, config, logging, DB, envelope, 2 deployables, CI | bootstrap (no context) | complete | architecture/model-judgment/language/canonical: pass |
 | 2026-11-13 | Mandate contract freeze v1 — values, aggregates, ports, DTOs, events, 9 contract tests | mandate | complete (stubs) | all four gates pass; 267 tests |

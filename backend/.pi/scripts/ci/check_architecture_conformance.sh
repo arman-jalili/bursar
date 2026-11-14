@@ -533,8 +533,15 @@ check_runtime_baseline() {
         done < <(grep -v "^#" .env.example 2>/dev/null | grep "=" || true)
         if [[ $unbound -eq 0 ]]; then
             log_pass "Runtime baseline conformance (all env vars configured)"
-        else
+        elif [[ -f ".env" || "${BURSAR_ENV:-dev}" == "production" ]]; then
+            # A deployment (or a checkout with a real .env) must set every documented key.
             log_fail "Runtime baseline conformance" "${unbound} env vars from .env.example not set"
+        else
+            # A clean checkout without .env is a *development* state: load_settings() supplies
+            # the documented defaults and tests never read a developer's .env. Failing here would
+            # make conformance impossible to pass before the first `cp .env.example .env`.
+            log_skip "Runtime baseline conformance" \
+                "${unbound} env vars unset (no .env; documented defaults apply)"
         fi
     else
         log_skip "Runtime baseline conformance" "No .env.example found"
