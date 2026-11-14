@@ -371,7 +371,7 @@ spec:
             - { name: RIGORIX_AUDIT_DIR, value: "/rigorix-audit" }
             - { name: BURSAR_PRECONDITION_DIR, value: "/tmp/bursar-preconditions" }
             # The page's public origin, for CORS (edit to the ingress host).
-            - { name: BURSAR_CORS_ORIGINS, value: "https://bursar.example.com" }
+            - { name: BURSAR_CORS_ORIGINS, value: "https://bursar.rigorix.eu" }
           ports:
             - { name: http, containerPort: 8000 }
           readinessProbe:
@@ -380,7 +380,13 @@ spec:
           volumeMounts:
             - { name: data, mountPath: /app/data }
             - { name: shared, mountPath: /shared, readOnly: true }
-            - { name: audit, mountPath: /rigorix-audit }
+            # Rigorix writes signed envelopes to <volume>/audit/ and execution state to
+            # <volume>/state/, so the console must mount that subdirectory — not the volume root,
+            # which holds no envelopes. Compose mounts
+            # ./.rigorix-runtime/.rigorix/audit -> /rigorix-audit for the same reason. Mounting the
+            # root left only /rigorix-audit/state/*.json, which the trail endpoint and the
+            # per-execution envelope route never globbed, so the UI showed no trail at all.
+            - { name: audit, mountPath: /rigorix-audit, subPath: audit }
             - { name: preconditions, mountPath: /tmp/bursar-preconditions }
       volumes:
         - name: data
