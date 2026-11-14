@@ -81,6 +81,7 @@ def a_receipt(
     gas_used: int = 51_000,
     gas_price: str = "1000000000",
     fee_micro_usdc: int = 51,
+    is_anchor: bool = False,
 ) -> ChainReceipt:
     """A chain receipt with its cost (SC-7, SC-10).
 
@@ -97,6 +98,6 @@ def a_receipt(
         gas_used=gas_used,
         gas_price=gas_price,
         fee_usdc_estimate=Money(fee_micro_usdc),
-        is_anchor=False,
+        is_anchor=is_anchor,
         revert_reason=revert_reason,
     )

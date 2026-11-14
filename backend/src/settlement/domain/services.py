@@ -19,7 +19,13 @@ repository still owns the unique constraint that makes the local lock real (SC-5
 from __future__ import annotations
 
 from src.settlement.domain.chain_receipt import ChainReceipt
-from src.settlement.domain.values import ChainNetwork, Nullifier, SettlementStatus
+from src.settlement.domain.errors import DuplicateSettlementBlocked
+from src.settlement.domain.values import (
+    ChainNetwork,
+    Nullifier,
+    ReceiptStatus,
+    SettlementStatus,
+)
 
 __all__ = ["FinalityPolicy", "NullifierPolicy"]
 
@@ -36,7 +42,7 @@ class NullifierPolicy:
         Raises:
             ValidationError: the invoice hash or scope is empty/malformed.
         """
-        raise NotImplementedError("SC-5 — see module doc")
+        return Nullifier.derive(invoice_hash, scope)
 
     def guard_unspent(self, nullifier: Nullifier, *, already_spent: bool) -> None:
         """Refuse locally when the nullifier is known spent (SC-5, scenario 6).
@@ -44,20 +50,32 @@ class NullifierPolicy:
         Raises:
             DuplicateSettlementBlocked: the marker is spent; zero transactions may follow.
         """
-        raise NotImplementedError("SC-5 — see module doc")
+        if already_spent:
+            raise DuplicateSettlementBlocked(nullifier=nullifier.value)
 
 
 class FinalityPolicy:
     """Decide when a receipt has crossed the network's finality threshold (SC-7)."""
 
     def is_final(self, receipt: ChainReceipt, network: ChainNetwork) -> bool:
-        """True only for a successful receipt at or beyond `network.confirmations_required` (SC-7)."""
-        raise NotImplementedError("SC-7 — see module doc")
+        """True only for a successful receipt at or beyond `network.confirmations_required` (SC-7).
+
+        An anchor receipt is never final-as-payment: anchoring is a chain write with its own receipt
+        (ADR-006), not a settlement conclusion.
+        """
+        if receipt.is_anchor:
+            return False
+        return receipt.is_final(network.confirmations_required)
 
     def status_for(self, receipt: ChainReceipt, network: ChainNetwork) -> SettlementStatus:
         """Map a receipt to the order status it implies.
 
         `PENDING` below the threshold (no cap commit), `CONFIRMED` at/above it, `REVERTED` for a chain
-        refusal — which is terminal and never retried (SC-6, SC-7).
+        refusal — which is terminal and never retried (SC-6, SC-7). A reverted receipt wins over depth:
+        a refusal is a conclusion regardless of how many blocks sit on top of it.
         """
-        raise NotImplementedError("SC-7 — see module doc")
+        if receipt.status is ReceiptStatus.REVERTED:
+            return SettlementStatus.REVERTED
+        if self.is_final(receipt, network):
+            return SettlementStatus.CONFIRMED
+        return SettlementStatus.PENDING
