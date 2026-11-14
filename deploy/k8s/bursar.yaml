@@ -380,7 +380,7 @@ spec:
               valueFrom:
                 secretKeyRef: { name: bursar-llm, key: BURSAR_LLM_API_KEY }
             - { name: LLM_BASE_URL, value: "https://openrouter.ai/api/v1" }
-            - { name: LLM_MODEL, value: "nvidia/nemotron-3.5-lightning:free" }
+            - { name: LLM_MODEL, value: "qwen/qwen3.7-flash" }
             - { name: LLM_FALLBACK_MODEL, value: "inclusionai/ling-3.2-flash:free" }
             # In-cluster service DNS, never host.docker.internal.
             - { name: BURSAR_RIGORIX_BASE_URL, value: "http://rigorix:3001" }
