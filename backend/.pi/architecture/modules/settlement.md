@@ -2,12 +2,40 @@
 
 ## Module Status
 
-**Status:** Planned
-**Contract:** Phase A freeze — see [`docs/contracts/settlement-contract-freeze.md`](../../docs/contracts/settlement-contract-freeze.md)
+**Status:** Implemented
+**Contract:** Frozen v1.0.0 — see [`docs/contracts/settlement-contract-freeze.md`](../../docs/contracts/settlement-contract-freeze.md)
 **Depends:** Authority (allow/approved determination), Mandate (payee address via intent)
 **Used by:** Evidence, Console
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-14
 **Source session:** 432050ea-0419-44ba-8ac4-b239242634b4
+
+### Implementation status (2026-11-14)
+
+Domain, persistence and the read API are implemented; the on-chain write path is deferred on two
+frozen-contract blockers (below). This section is the sync between the doc and the code.
+
+| Surface | State |
+|---|---|
+| Domain (`SettlementOrder`, `ChainReceipt`, `Nullifier`, `ChainNetwork`, `NullifierPolicy`, `FinalityPolicy`) | Implemented — all 80 frozen suites green |
+| Persistence (`settlement_orders/_nullifiers/_receipts/_outbox`, migration `003_settlement`) | Implemented — 7 SQLite integration tests |
+| Read API (orders, receipts, cost, nullifier status) | Wired into `console-api` (ADR-009) — 9 E2E tests |
+| `DispatchPayment`, `SettleOnce` | **Deferred** — blockers B-1/B-2, see ADR-009 |
+| `PaymentRouter.sol` + `ChainGateway`/`PaymentExecutor` adapters | **Not built** — ADR-009 gaps G-1…G-4 |
+
+Two amendments were made during implementation and are recorded here because the freeze file is not
+edited after the fact:
+
+1. `SettlementOrder` carries `bank_digest`, `is_new_payee` and `requires_owner_signature` (copied from the
+   intent). `command_params` must return the digest and the escalation bits; the module-doc stub already
+   read them from the order (`self.intent_bank_digest`), but the frozen §2.3 sketch omitted the fields.
+2. The nullifier seed is the invoice **identity** (`invoice_id`), not Billing's content hash. A content
+   hash changes when a bill is re-issued, which would mint a second nullifier for one invoice and defeat
+   scenario 6. `Nullifier.derive` documentes the derivation; the frozen test pins `order.invoice_id`.
+
+The two write-path blockers are contract changes, never an agent's decision — a human unfreezes,
+reviews and re-freezes: **B-1** `ChainGateway.submit` broadcasts and returns the hash, so SC-3's
+persist-before-broadcast cannot be expressed; **B-2** `SettlementStatus.PENDING`/`ABANDONED` exist but
+`SettlementOrder` has no intention method to enter them.
 
 ## Description
 
@@ -29,8 +57,8 @@ the refusal happens inside the transaction.
 |-------|--------------|
 | **Domain** | `SettlementOrder`, `ChainReceipt`, `Nullifier`, `PayeeAddress`, `ChainNetwork`, `SettlementStatus`, repository interfaces, `NullifierPolicy` | `src/settlement/domain/` |
 | **Application** | `DispatchPayment`, `SettleOnce`, reconciliation | `src/settlement/application/` |
-| **Infrastructure** | Rigorix `run_command` client, web3/eth-account adapter, contract ABI, receipt poller | `src/settlement/infrastructure/` |
-| **Interfaces** | REST handlers (receipts, dispatch), event subscribers (PaymentAllowed) | `src/settlement/interfaces/` |
+| **Infrastructure** | SQLAlchemy models/mappers/repositories + outbox writer (implemented); Rigorix `run_command` client, web3/eth-account adapter, contract ABI, receipt poller (deferred — ADR-009) | `src/settlement/infrastructure/` |
+| **Interfaces** | REST handlers (orders, receipts, cost, nullifier status — live); dispatch/anchors answer 501 naming the blocker; event subscribers (`PaymentAllowed`) deferred | `src/settlement/interfaces/` |
 
 ## Contract Freeze
 
@@ -59,7 +87,8 @@ Contract ids map one-to-one to the Acceptance Criteria rows:
 
 Frozen surface in `src/settlement/`: `domain/` (values, views, errors, `SettlementOrder`,
 `ChainReceipt`, services, repositories, ports, events), `application/` (six service ABCs + DTOs).
-`infrastructure/` and `interfaces/` exist as packages only — adapters and the router are Phase B.
+`infrastructure/` now holds the SQLAlchemy models/mappers/repositories and the outbox writer;
+`interfaces/http/` holds the concrete router. The chain and Rigorix adapters remain deferred (ADR-009).
 
 Three decisions in the contract amend or sharpen this document, and the contract file wins if they ever
 disagree:
@@ -71,10 +100,18 @@ disagree:
    Mandate (context map); a second address type would let one side accept a destination the other
    rejects.
 3. **`PaymentIntentView` / `DeterminationView` are frozen read models** for the factory signature below.
-   `PaymentIntentView` adds `invoice_hash` (the nullifier seed) and `household_id` (the nullifier scope),
-   which Authority's aggregate does not store; Phase B assembles the view in the application layer.
+   `PaymentIntentView` adds `invoice_hash` and `household_id`, which Authority's aggregate does not
+   store; Phase B assembles the view in the application layer. The nullifier seed is the invoice
+   **identity** (`invoice_id`, see the implementation-status note), not the content hash.
 
-Entry point for verification: `bash .pi/scripts/freeze.sh verify --module settlement`.
+Entry point for verification: `bash .pi/scripts/freeze.sh verify --module settlement` (an implemented
+module short-circuits the freeze check) and `bash .pi/scripts/ci/check_settlement_contracts.sh`
+(74 deterministic contract checks, hardening stage 2c).
+
+Runtime decision: [ADR-009](../decisions/ADR-009-runtime-wiring-multilang-judgment.md) (Accepted) — what
+is wired, why the write path is deferred, and the B-1/B-2 re-freeze list.
+Operations: [`docs/runbook-settlement.md`](../../docs/runbook-settlement.md),
+[`docs/dr-plan-settlement.md`](../../docs/dr-plan-settlement.md).
 
 ## Related ADRs
 
@@ -85,6 +122,7 @@ Entry point for verification: `bash .pi/scripts/freeze.sh verify --module settle
 | [ADR-003](../decisions/ADR-003-cross-context-communication.md) | Consumes `PaymentAllowed`/`ApprovalGranted`; publishes `SettlementConfirmed`/`SettlementReverted`. |
 | [ADR-006](../decisions/ADR-006-cost-tracking-usage-metering.md) | `ChainReceipt` carries gas/fee; `CostSummary` is derived, never a competing balance. |
 | [ADR-007](../decisions/ADR-007-compliance-engine-architecture.md) | `run_command` with a code-generated path; the contract is the final arbiter. |
+| [ADR-009](../decisions/ADR-009-runtime-wiring-multilang-judgment.md) | Runtime wiring: read surface installed in the composition root; the write path is deferred on contract blockers B-1/B-2. |
 
 ## Diagrams
 
@@ -454,15 +492,17 @@ Below the catalog: `GetReceipt`, `ListOrders`, `AnchorHash` (used by Evidence), 
 
 ## Implementation Sequence
 
-1. `ChainNetwork` (Anvil + Base Sepolia configs), `PayeeAddress`, `Nullifier` + derivation test.
-2. `SettlementOrder` with S-1…S-6 and the write-ahead hash test.
-3. `PaymentRouter.sol` (Foundry): nullifier map, EIP-712 check, anchor event; deploy to Anvil.
-4. `ChainGateway` adapter: submit, poll, parse revert reasons; receipt fixtures for tests.
-5. `NullifierRepository` with unique constraint; local duplicate test (scenario 6, app path).
-6. `DispatchPayment` wiring Rigorix `run_command` with code-generated params.
-7. `SettleOnce` + `FinalityPolicy`; on-chain duplicate test (scenario 6, bypass path).
-8. Publish `SettlementConfirmed`/`SettlementReverted` → Authority reconciliation.
-9. `AnchorHash` + `CostSummary` (ADR-006).
+Status as of 2026-11-14: 1, 2, 5 and 9 are done; 3, 4, 6, 7 and 8 are deferred (ADR-009).
+
+1. ✅ `ChainNetwork` (Anvil + Base Sepolia configs), `PayeeAddress`, `Nullifier` + derivation test.
+2. ✅ `SettlementOrder` with S-1…S-6 and the write-ahead hash test.
+3. ⏸ `PaymentRouter.sol` (Foundry): nullifier map, EIP-712 check, anchor event; deploy to Anvil — gap G-2.
+4. ⏸ `ChainGateway` adapter: submit, poll, parse revert reasons; receipt fixtures for tests — gaps G-1/B-1.
+5. ✅ `NullifierRepository` with unique constraint; local duplicate test (scenario 6, app path).
+6. ⏸ `DispatchPayment` wiring Rigorix `run_command` with code-generated params — gaps G-3/B-1.
+7. ⏸ `SettleOnce` + `FinalityPolicy` on the live path; on-chain duplicate test — gap B-2.
+8. ⏸ Publish `SettlementConfirmed`/`SettlementReverted` → Authority reconciliation — follows 6/7.
+9. ✅ `AnchorHash` + `CostSummary` (ADR-006) — service implemented; the chain write is gap G-1.
 
 ## Patterns & OOP Mapping
 

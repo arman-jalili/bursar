@@ -35,9 +35,7 @@ class _InMemoryNullifiers(NullifierRepository):
         return nullifier.value in self._spent
 
     async def spend(self, nullifier: Nullifier, order_id: OrderId) -> None:
-        NullifierPolicy().guard_unspent(
-            nullifier, already_spent=await self.is_spent(nullifier)
-        )
+        NullifierPolicy().guard_unspent(nullifier, already_spent=await self.is_spent(nullifier))
         self._spent[nullifier.value] = order_id
 
 

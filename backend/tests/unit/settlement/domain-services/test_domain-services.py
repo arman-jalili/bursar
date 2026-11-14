@@ -46,7 +46,9 @@ class TestFinalityPolicy:
 
     def test_a_reverted_receipt_maps_to_reverted(self) -> None:
         """SC-7 / SC-6: a chain refusal is a refusal status, never PENDING-forever."""
-        receipt = a_receipt(confirmations=3, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent")
+        receipt = a_receipt(
+            confirmations=3, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent"
+        )
 
         assert (
             FinalityPolicy().status_for(receipt, an_anvil_network(confirmations_required=1))

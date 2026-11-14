@@ -23,11 +23,32 @@ is how an Anvil run ends up signing a Sepolia transaction.
 from __future__ import annotations
 
 import enum
+import re
 from dataclasses import dataclass
 
+from eth_hash.auto import keccak
+
+from src.settlement.domain.errors import UnknownNetwork
+from src.shared.domain.errors import ValidationError
 from src.shared.domain.value_object import ValueObject
 
 __all__ = ["ChainNetwork", "Nullifier", "ReceiptStatus", "SettlementStatus"]
+
+#: A checksummed EVM address, as Mandate validates it (conformist read, not a second definition).
+_EVM_ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
+#: The exact shape `PaymentRouter.spentNullifiers` stores: 32 bytes, `0x`-prefixed, lower-case.
+_BYTES32 = re.compile(r"^0x[0-9a-f]{64}$")
+
+#: Anvil's first two deterministic deploys (router, mock USDC). Local only.
+_ANVIL_CHAIN_ID = 31_337
+_ANVIL_ROUTER = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+_ANVIL_USDC = "0x0165878A594ca255338adfa4d48449f69242Eb8F"
+
+#: Base Sepolia. The router address is replaced with the deployment output; USDC is Circle's.
+#: `test_network_config` exists because a leak between these two pairs is Lock 3 gone (SC-11).
+_BASE_SEPOLIA_CHAIN_ID = 84_532
+_BASE_SEPOLIA_ROUTER = "0x7A1b9d3f8E2c4a5B6d0E1f23A4b5C6d7E8f90A1b"
+_BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,18 +66,47 @@ class Nullifier(ValueObject):
 
     value: str
 
+    def __post_init__(self) -> None:
+        """Refuse anything that is not the on-chain key shape (SC-5, SC-6).
+
+        Validating here rather than at the call site is the value-object contract: a `Nullifier` that
+        exists is one the contract map can address. A malformed marker would compare unequal to the
+        spent one on-chain — the duplicate would pay.
+        """
+        if not _BYTES32.match(self.value):
+            raise ValidationError(
+                "a nullifier is a 0x-prefixed 32-byte hex value",
+                nullifier=self.value,
+            )
+
     @classmethod
     def derive(cls, invoice_hash: str, scope: str) -> Nullifier:
-        """Derive the nullifier from the invoice hash and the household scope (SC-5).
+        """Derive the nullifier from the bill's stable identity and the household scope (SC-5).
+
+        `keccak256(invoiceIdentity || scope)` — the EVM's keccak, not `hashlib.sha3_256`. The chain
+        recomputes this value; a different function would be a silent duplicate payment or a false
+        refusal, which is why the derivation lives in one place and is tested for determinism.
+
+        The seed is encoded as UTF-8 bytes. The parameter keeps the frozen name `invoice_hash` and
+        accepts either a 64-hex digest or Billing's opaque invoice id; the callers use the id, because
+        the nullifier must key on the identity Billing guarantees for the life of the bill. A
+        **content** hash changes when the document is re-issued (a corrected PDF), which would mint a
+        second nullifier for the same invoice and defeat scenario 6 — the identity does not.
 
         Raises:
-            ValidationError: the invoice hash or scope is empty/malformed.
+            ValidationError: the seed or the scope is blank.
         """
-        raise NotImplementedError("SC-5 — see module doc")
+        if not invoice_hash or not invoice_hash.strip():
+            raise ValidationError("the nullifier seed must not be blank", invoice_hash=invoice_hash)
+        if not scope or not scope.strip():
+            raise ValidationError("the nullifier scope must not be blank", scope=scope)
+
+        digest = keccak(invoice_hash.encode("utf-8") + scope.encode("utf-8"))
+        return cls("0x" + digest.hex())
 
     def same_as(self, other: Nullifier) -> bool:
         """True when both values are the same marker — the local duplicate test (SC-5)."""
-        raise NotImplementedError("SC-5 — see module doc")
+        return self.value == other.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,15 +124,54 @@ class ChainNetwork(ValueObject):
     usdc_address: str
     confirmations_required: int
 
+    def __post_init__(self) -> None:
+        """Refuse a half-configuration (SC-11).
+
+        A `ChainNetwork` that exists is one an adapter can be built from: a chain id, two EVM
+        addresses on that chain, and a positive finality depth. Nothing here is optional, because
+        every omission would be filled with a default — and a default address is the leak SC-11 names.
+        """
+        if (
+            isinstance(self.chain_id, bool)
+            or not isinstance(self.chain_id, int)
+            or self.chain_id <= 0
+        ):
+            raise ValidationError(
+                "a chain id must be a positive integer", chain_id=str(self.chain_id)
+            )
+        if not _EVM_ADDRESS.match(self.router_address):
+            raise ValidationError("not an EVM router address", router=self.router_address)
+        if not _EVM_ADDRESS.match(self.usdc_address):
+            raise ValidationError("not an EVM USDC address", usdc=self.usdc_address)
+        if self.confirmations_required < 1:
+            raise ValidationError(
+                "a network needs at least one confirmation to be final",
+                confirmations=str(self.confirmations_required),
+            )
+
     @classmethod
     def anvil(cls) -> ChainNetwork:
         """Local Anvil configuration (SC-11). Its addresses are not Sepolia's, ever."""
-        raise NotImplementedError("SC-11 — see module doc")
+        return cls(
+            chain_id=_ANVIL_CHAIN_ID,
+            router_address=_ANVIL_ROUTER,
+            usdc_address=_ANVIL_USDC,
+            confirmations_required=1,
+        )
 
     @classmethod
     def base_sepolia(cls) -> ChainNetwork:
-        """Base Sepolia configuration (SC-11). Its addresses are not Anvil's, ever."""
-        raise NotImplementedError("SC-11 — see module doc")
+        """Base Sepolia configuration (SC-11). Its addresses are not Anvil's, ever.
+
+        Two confirmations is the demo-day proposal from the module doc's open questions; the value is
+        not pinned by the contract — what is pinned is that it travels with the addresses (SC-7).
+        """
+        return cls(
+            chain_id=_BASE_SEPOLIA_CHAIN_ID,
+            router_address=_BASE_SEPOLIA_ROUTER,
+            usdc_address=_BASE_SEPOLIA_USDC,
+            confirmations_required=2,
+        )
 
     @classmethod
     def for_chain(cls, chain_id: int) -> ChainNetwork:
@@ -92,7 +181,10 @@ class ChainNetwork(ValueObject):
             UnknownNetwork: the chain id has no configuration — refusing is the point, because a
                 default network is a hardcoded address waiting to leak (SC-11).
         """
-        raise NotImplementedError("SC-11 — see module doc")
+        for known in (cls.anvil(), cls.base_sepolia()):
+            if known.chain_id == chain_id:
+                return known
+        raise UnknownNetwork(chain_id)
 
 
 class SettlementStatus(enum.StrEnum):

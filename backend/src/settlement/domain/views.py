@@ -77,4 +77,6 @@ class DeterminationView:
         A `deny` is never a permission, and an `escalate` without the approval is not one either —
         which is exactly the state the escalation path must not be able to skip.
         """
-        raise NotImplementedError("SC-1 — see module doc")
+        if self.verdict is DeterminationVerdict.ALLOW:
+            return True
+        return self.verdict is DeterminationVerdict.ESCALATE and self.approval_granted

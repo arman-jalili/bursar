@@ -27,10 +27,28 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from src.authority.domain.ids import IntentId
-from src.mandate.domain.values import PayeeAddress
+from src.mandate.domain.values import BankDigest, PayeeAddress
 from src.settlement.domain.chain_receipt import ChainReceipt
-from src.settlement.domain.ids import OrderId
-from src.settlement.domain.values import ChainNetwork, Nullifier, SettlementStatus
+from src.settlement.domain.errors import (
+    AmountIntegrityViolation,
+    DispatchWithoutAuthority,
+    IllegalTransition,
+    OrderAlreadyConcluded,
+    SecondTransactionRefused,
+    SettlementNotFinal,
+)
+from src.settlement.domain.events import (
+    SettlementConfirmed,
+    SettlementReverted,
+    SettlementSubmitted,
+)
+from src.settlement.domain.ids import OrderId, new_id
+from src.settlement.domain.values import (
+    ChainNetwork,
+    Nullifier,
+    ReceiptStatus,
+    SettlementStatus,
+)
 from src.settlement.domain.views import DeterminationView, PaymentIntentView
 from src.shared.domain.aggregate import AggregateRoot
 from src.shared.domain.money import Money
@@ -58,7 +76,16 @@ class SettlementOrder(AggregateRoot):
     nullifier: Nullifier
     network: ChainNetwork
     status: SettlementStatus
+    #: Mandate's verified digest, copied from the intent. `command_params` reads it here, so the
+    #: dispatched digest can never be an invoice-supplied one (SC-2). The contract file's §2.3 sketch
+    #: shows the aggregate without it, but the module doc's `command_params` body reads it from the
+    #: order (`self.intent_bank_digest`) — the field is what makes that body honest, and it is the
+    #: only way `test_params_carry_the_intent_digest_not_an_invoice_supplied_one` can hold.
+    bank_digest: BankDigest
     tx_hash: str | None = None
+    #: Escalation facts carried from the intent so the framework's precondition sees them (SC-2).
+    is_new_payee: bool = False
+    requires_owner_signature: bool = False
 
     #: The fixed dispatch path. A ClassVar, so no caller can supply one (SC-2 / module AC #2).
     command_ref: ClassVar[str] = PAYMENT_COMMAND
@@ -76,7 +103,32 @@ class SettlementOrder(AggregateRoot):
             DispatchWithoutAuthority: the determination's verdict does not permit dispatch (SC-1). No
                 order object exists afterwards — refusal has no side effect.
         """
-        raise NotImplementedError("SC-1 — see module doc")
+        if not determination.permits_dispatch():
+            raise DispatchWithoutAuthority(
+                verdict=determination.verdict.value,
+                intent_id=str(determination.intent_id),
+            )
+        if determination.intent_id != intent.intent_id:
+            # A verdict for another intent is not a permission for this one. Same refusal, different
+            # reason: SC-1 says the authority must be *for this payment*.
+            raise DispatchWithoutAuthority(
+                verdict="intent_mismatch", intent_id=str(intent.intent_id)
+            )
+
+        return cls(
+            id=OrderId(new_id()),
+            intent_id=intent.intent_id,
+            invoice_id=intent.invoice_id,
+            # S-2: copied from the intent and immutable afterwards — never re-read at submit time.
+            payee_address=intent.payee_address,
+            amount=intent.amount,
+            nullifier=Nullifier.derive(intent.invoice_id, intent.household_id),
+            network=network,
+            status=SettlementStatus.ORDERED,
+            bank_digest=intent.bank_digest,
+            is_new_payee=intent.is_new_payee,
+            requires_owner_signature=intent.requires_owner_signature,
+        )
 
     def command_params(self) -> dict[str, object]:
         """Structured params for `run_command`, generated here and never accepted from a caller (SC-2).
@@ -85,7 +137,21 @@ class SettlementOrder(AggregateRoot):
         (SC-9); the address and digest are the ones copied from the intent (SC-2). There is deliberately
         no parameter list: there is nothing a caller could be trusted to pass.
         """
-        raise NotImplementedError("SC-2 — see module doc")
+        return {
+            "command": self.command_ref,
+            "intent_id": str(self.intent_id),
+            "invoice_id": self.invoice_id,
+            "payee": self.payee_address.value,
+            "payee_address": self.payee_address.value,
+            # The frozen amount, not an argument: SC-9 is checked at `mark_submitted`, and there is
+            # no path by which a caller could substitute a different number here.
+            "amount_usdc": self.amount.micro_usdc,
+            "bank_digest": self.bank_digest.hash,
+            "is_new_payee": self.is_new_payee,
+            "requires_owner_signature": self.requires_owner_signature,
+            "nullifier": self.nullifier.value,
+            "chain_id": self.network.chain_id,
+        }
 
     def mark_submitted(self, tx_hash: str, signed_amount: Money) -> None:
         """Record the tx hash **before** broadcast, and prove the amount is the signed one (SC-3, SC-9).
@@ -97,7 +163,42 @@ class SettlementOrder(AggregateRoot):
                 new hash means a new nonce and a second payment (SC-3).
             AmountIntegrityViolation: `signed_amount` differs from the order's frozen amount (SC-9).
         """
-        raise NotImplementedError("SC-3 — see module doc")
+        if signed_amount != self.amount:
+            # Checked first: an unsound amount is the one refusal that must never be skipped, whatever
+            # the order's lifecycle state.
+            raise AmountIntegrityViolation(
+                signed_micro_usdc=str(self.amount.micro_usdc),
+                submitted_micro_usdc=str(signed_amount.micro_usdc),
+            )
+
+        concluded = (
+            SettlementStatus.CONFIRMED,
+            SettlementStatus.REVERTED,
+            SettlementStatus.ABANDONED,
+        )
+        if self.status in concluded:
+            raise IllegalTransition(self.status.value, SettlementStatus.SUBMITTED.value)
+
+        if self.tx_hash is not None:
+            if self.tx_hash != tx_hash:
+                raise SecondTransactionRefused(order_id=str(self.id), existing_tx_hash=self.tx_hash)
+            # The same hash again is a re-poll after a restart, not a second transaction (SC-3).
+            return
+
+        if self.status is not SettlementStatus.ORDERED:
+            raise IllegalTransition(self.status.value, SettlementStatus.SUBMITTED.value)
+
+        # Write-ahead ordering: the hash exists on the order before the caller broadcasts.
+        self.tx_hash = tx_hash
+        self.status = SettlementStatus.SUBMITTED
+        self.record(
+            SettlementSubmitted(
+                aggregate_id=str(self.id),
+                correlation_id=str(self.intent_id),
+                order_id=str(self.id),
+                tx_hash=tx_hash,
+            )
+        )
 
     def conclude(self, receipt: ChainReceipt) -> None:
         """Move to `CONFIRMED` or `REVERTED`, once (SC-4, SC-6, SC-7).
@@ -110,4 +211,54 @@ class SettlementOrder(AggregateRoot):
                 may happen yet (SC-7).
             IllegalTransition: the order never reached the chain, so it has no receipt to conclude (SC-3).
         """
-        raise NotImplementedError("SC-4 — see module doc")
+        if self.status in (
+            SettlementStatus.CONFIRMED,
+            SettlementStatus.REVERTED,
+            SettlementStatus.ABANDONED,
+        ):
+            raise OrderAlreadyConcluded(order_id=str(self.id), status=self.status.value)
+
+        if self.tx_hash is None or self.status is SettlementStatus.ORDERED:
+            # No hash means nothing was ever sent; there is no chain fact to conclude (SC-3).
+            raise IllegalTransition(self.status.value, SettlementStatus.CONFIRMED.value)
+
+        if receipt.order_id != self.id:
+            # A receipt for another order would conclude this one with a foreign fact.
+            raise IllegalTransition(self.status.value, SettlementStatus.CONFIRMED.value)
+
+        if receipt.status is ReceiptStatus.REVERTED:
+            # A refusal is a conclusion, never a retry (SC-6, SC-8). Depth is irrelevant to it.
+            self.status = SettlementStatus.REVERTED
+            self.record(
+                SettlementReverted(
+                    aggregate_id=str(self.id),
+                    correlation_id=str(self.intent_id),
+                    order_id=str(self.id),
+                    intent_id=str(self.intent_id),
+                    tx_hash=receipt.tx_hash,
+                    revert_reason=receipt.revert_reason,
+                )
+            )
+            return
+
+        if receipt.is_anchor or not receipt.is_final(self.network.confirmations_required):
+            # Below the network's threshold there is no cap commit, so there is no conclusion (SC-7).
+            raise SettlementNotFinal(
+                order_id=str(self.id),
+                confirmations=receipt.confirmations,
+                required=self.network.confirmations_required,
+            )
+
+        self.status = SettlementStatus.CONFIRMED
+        self.record(
+            SettlementConfirmed(
+                aggregate_id=str(self.id),
+                correlation_id=str(self.intent_id),
+                order_id=str(self.id),
+                intent_id=str(self.intent_id),
+                tx_hash=receipt.tx_hash,
+                block_number=receipt.block_number,
+                confirmations=receipt.confirmations,
+                amount_micro_usdc=self.amount.micro_usdc,
+            )
+        )

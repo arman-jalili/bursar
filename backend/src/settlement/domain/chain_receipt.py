@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.settlement.domain.errors import ReceiptCostMissing
 from src.settlement.domain.ids import OrderId, ReceiptId
 from src.settlement.domain.values import ReceiptStatus
 from src.shared.domain.money import Money
@@ -57,16 +58,32 @@ class ChainReceipt:
             ReceiptCostMissing: any cost field is absent, negative or unparseable. A missing cost is a
                 refusal, not a zero: `CostSummary` must never under-report what the chain charged.
         """
-        raise NotImplementedError("SC-10 — see module doc")
+        if (
+            isinstance(self.gas_used, bool)
+            or not isinstance(self.gas_used, int)
+            or self.gas_used < 0
+        ):
+            raise ReceiptCostMissing("gas_used")
+        if not isinstance(self.gas_price, str) or not self.gas_price.strip():
+            raise ReceiptCostMissing("gas_price")
+        try:
+            if int(self.gas_price, 10) < 0:
+                raise ReceiptCostMissing("gas_price")
+        except ValueError as exc:
+            raise ReceiptCostMissing("gas_price") from exc
+        if not isinstance(self.fee_usdc_estimate, Money) or self.fee_usdc_estimate.micro_usdc < 0:
+            raise ReceiptCostMissing("fee_usdc_estimate")
+        if self.confirmations < 0:
+            raise ReceiptCostMissing("confirmations")
 
     def is_final(self, confirmations_required: int) -> bool:
         """True when the transaction is successful and has the network's required confirmations (SC-7).
 
         A reverted transaction is never final-as-success: it is concluded as a refusal by the caller.
         """
-        raise NotImplementedError("SC-7 — see module doc")
+        return self.confirmed and self.confirmations >= confirmations_required
 
     @property
     def confirmed(self) -> bool:
         """True when the chain accepted the transaction (status `SUCCESS`), regardless of depth (SC-7)."""
-        raise NotImplementedError("SC-7 — see module doc")
+        return self.status is ReceiptStatus.SUCCESS

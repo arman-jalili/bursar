@@ -184,6 +184,13 @@ run_stage "2b" "billing_contracts" \
     "${SCRIPTS_DIR}/check_billing_contracts.sh" \
     "always"
 
+# Stage 2c: Settlement contract proofing (ADR-009)
+# Deterministic: fails if a frozen Settlement interface loses its implementation,
+# test, migration mirror, runtime registration or its documented deferral.
+run_stage "2c" "settlement_contracts" \
+    "${SCRIPTS_DIR}/check_settlement_contracts.sh" \
+    "always"
+
 # Stage 3: Lint
 run_stage "3" "lint" \
     "${SCRIPTS_DIR}/stage_lint.sh" \

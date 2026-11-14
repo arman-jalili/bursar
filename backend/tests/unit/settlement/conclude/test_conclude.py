@@ -39,7 +39,9 @@ class TestConcludeOnce:
         order.mark_submitted("0x" + "aa" * 32, signed_amount)
 
         order.conclude(
-            a_receipt(order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent")
+            a_receipt(
+                order_id=order.id, status=ReceiptStatus.REVERTED, revert_reason="NullifierSpent"
+            )
         )
 
         assert order.status is SettlementStatus.REVERTED
