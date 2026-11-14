@@ -23,6 +23,11 @@ services:
       NEXT_PUBLIC_API_PORT: "443"
       # The API is proxied at the origin root by the nginx proxy service, not under a subpath.
       NEXT_PUBLIC_API_BASE_PATH: /
+      # The page is served over HTTPS, so the socket must be wss. The image default is ws,
+      # which the browser blocks as mixed content — the WebSocket constructor throws, the
+      # error propagates to the app boundary, and every route renders
+      # "Oops! Something went wrong" even though SSR and every HTTP call succeed.
+      NEXT_PUBLIC_API_WEBSOCKET_PROTOCOL: wss
       # Favicon generation is fatal in this image: without one of FAVICON_MASTER_URL or
       # NEXT_PUBLIC_NETWORK_ICON the app throws during boot and every route renders
       # "Oops! Something went wrong". anvil.yml only sets the logo, not the icon.
