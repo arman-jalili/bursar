@@ -1,0 +1,125 @@
+---
+# Frontend (bursar.rigorix.eu) — Vite SPA behind nginx.
+#
+# The bundle is built with VITE_CONSOLE_API_URL=/api, so the browser calls
+# /api/... on the SAME origin. This is not optional: the backend's CORS
+# middleware only allows http://localhost:5173 and http://127.0.0.1:5173,
+# so a cross-origin call from bursar.rigorix.eu would be blocked. nginx
+# proxies /api to the console service and strips the prefix.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bursar-frontend
+  namespace: bursar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bursar-frontend
+  template:
+    metadata:
+      labels:
+        app: bursar-frontend
+    spec:
+      containers:
+        - name: nginx
+          image: bursar-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            periodSeconds: 10
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: bursar-frontend-nginx
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bursar-frontend-nginx
+  namespace: bursar
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name bursar.rigorix.eu;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Liveness/readiness. Must never redirect (a 301 makes kubelet follow
+        # the Location header and fail with "stopped after 10 redirects").
+        location = /healthz {
+            access_log off;
+            add_header Content-Type text/plain;
+            return 200 "ok\n";
+        }
+
+        # index.html references content-hashed assets; it must never be cached.
+        location = /index.html {
+            add_header Cache-Control "no-store, must-revalidate";
+        }
+
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+
+        # Same-origin API proxy: /api/v1/x -> console:8000/v1/x
+        location /api/ {
+            proxy_pass http://bursar-console:8000/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            # A governed run is a subprocess plus an audit envelope; the
+            # backend allows 30s for Rigorix and the LLM call can take 30s.
+            proxy_read_timeout 120s;
+            proxy_send_timeout 120s;
+        }
+
+        # SPA fallback — client-side routes resolve to index.html.
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bursar-frontend
+  namespace: bursar
+spec:
+  selector:
+    app: bursar-frontend
+  ports:
+    - port: 80
+      targetPort: 80

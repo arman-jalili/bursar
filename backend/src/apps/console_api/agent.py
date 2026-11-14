@@ -279,10 +279,15 @@ async def _llm_parse(message: str, payees: list[str], key: str) -> dict[str, Any
                             {"role": "user", "content": message},
                         ],
                         "temperature": 0,
+                        # Reasoning models (ling, nemotron, ...) spend tokens on
+                        # `reasoning` first. Without a generous cap they finish with
+                        # `content: null` and the caller silently falls back to the
+                        # local regex parser — which looks like "the LLM does not work".
+                        "max_tokens": 800,
                     },
                 )
                 response.raise_for_status()
-                content = response.json()["choices"][0]["message"]["content"]
+                content = response.json()["choices"][0]["message"].get("content")
                 # Free routed models vary: some wrap JSON in a fence or add a sentence around it.
                 text = str(content).strip()
                 match = re.search(r"\{.*\}", text, re.DOTALL)

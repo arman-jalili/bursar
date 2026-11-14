@@ -1,0 +1,8 @@
+---
+# Namespace for the Bursar demo stack (bursar.rigorix.eu)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bursar
+  labels:
+    name: bursar

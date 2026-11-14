@@ -1,0 +1,77 @@
+---
+# Local Anvil chain — mirrors docker-compose.yml so the settlement step can
+# actually broadcast instead of refusing at zeroed contract addresses.
+#
+# Anvil is an in-process EVM: state lives in RAM and is lost when the pod
+# restarts. That is acceptable for a demo (compose behaves the same way), but
+# a restart means contracts must be redeployed — see contracts.yaml, which
+# runs on every Anvil start.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bursar-anvil
+  namespace: bursar
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bursar-anvil
+  template:
+    metadata:
+      labels:
+        app: bursar-anvil
+    spec:
+      containers:
+        - name: anvil
+          image: ghcr.io/foundry-rs/foundry:stable
+          imagePullPolicy: IfNotPresent
+          args:
+            - anvil
+            - --host
+            - 0.0.0.0
+            - --chain-id
+            - "31337"
+            - --block-time
+            - "1"
+          ports:
+            - containerPort: 8545
+          env:
+            # The image binds through ANVIL_IP_ADDR; --host alone was ignored upstream.
+            - name: ANVIL_IP_ADDR
+              value: 0.0.0.0
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            tcpSocket:
+              port: 8545
+            initialDelaySeconds: 3
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: 8545
+            periodSeconds: 20
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bursar-anvil
+  namespace: bursar
+spec:
+  selector:
+    app: bursar-anvil
+  # NodePort so the host-run Blockscout compose stack can reach the chain.
+  # Do NOT expose this port publicly — only the compose network and localhost use it.
+  type: NodePort
+  ports:
+    - port: 8545
+      targetPort: 8545
+      nodePort: 30545

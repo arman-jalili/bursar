@@ -1,0 +1,19 @@
+# Override for running on the VPS host: the chain lives in k3s, reached through
+# the Anvil NodePort on 127.0.0.1:30545 (never publicly exposed).
+services:
+  backend:
+    environment:
+      ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:30545/
+      ETHEREUM_JSONRPC_TRACE_URL: http://host.docker.internal:30545/
+      ETHEREUM_JSONRPC_WS_URL: ws://host.docker.internal:30545
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  proxy:
+    ports:
+      - "172.17.0.1:4010:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+networks:
+  default:
+    name: bursar-explorer
+    external: false

@@ -1,0 +1,19 @@
+---
+# Shared SQLite volume. ADR-002 uses one file per deployable
+# (bursar.db for the console, authority.db for the authority), both on this PVC.
+#
+# ReadWriteOnce: the console and authority pods must land on the same node.
+# This is a single-node k3s cluster, so that is guaranteed; with more nodes
+# this needs a shared RWX volume (NFS/Longhorn) instead.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bursar-data
+  namespace: bursar
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path
