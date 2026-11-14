@@ -153,6 +153,22 @@ spec:
   ports:
     - { name: rpc, port: 8545, targetPort: rpc }
 ---
+---
+# The Blockscout compose stack runs on the host, so it needs a route to the chain that does not
+# go through cluster DNS. The Service above stays ClusterIP for in-cluster callers; this exposes
+# the same pods on a node port for the host only. No Ingress rule points at it, so it is never
+# publicly routed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: anvil-host
+  namespace: bursar
+spec:
+  type: NodePort
+  selector: { app: anvil }
+  ports:
+    - { name: rpc, port: 8545, targetPort: rpc, nodePort: 30545 }
+---
 # One-shot: deploy TestUsdc + PaymentRouter and write /shared/chain.env.
 apiVersion: batch/v1
 kind: Job
