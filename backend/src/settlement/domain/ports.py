@@ -49,6 +49,12 @@ class CommandAck:
     accepted: bool
     #: The framework's precondition string, kept for evidence; empty when accepted.
     precondition: str = ""
+    #: Additive Phase-B evidence fields (defaulted, so the frozen three-field shape still holds).
+    #: `execution_id` is the id the caller sent Rigorix — the settlement order id — and `audit_uri`
+    #: is the host's audit trail for this run. Neither is a permission and neither is a payment; they
+    #: exist so a dispatch can be reconciled with the governed-execution record it produced.
+    execution_id: str = ""
+    audit_uri: str = ""
 
 
 class PaymentExecutor(Protocol):

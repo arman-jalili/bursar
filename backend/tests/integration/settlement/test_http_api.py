@@ -7,8 +7,11 @@ These tests boot the **real composition root** (`console_api.app.build`) with a 
 settled order through the real repositories, and exercise the frozen endpoints over HTTP. That is the
 ADR-009 claim: not "the service exists and its tests pass", but "a client can reach it".
 
-The two write endpoints answer `501` today, and the test asserts the *reason* is stated. A 501 that names
-the blocker is honest; a silent success against a fake chain would be the gap ADR-009 exists to close.
+Dispatch is now composed from real adapters (Authority gate + Rigorix executor), so this suite asserts the
+*wiring* rather than calling it — an HTTP call here would reach a live Authority/Rigorix host, which a test
+must never do. The success and refusal paths are covered with fakes in
+`tests/unit/settlement/rigorix/test_dispatch_endpoint.py`. Anchoring still answers `501` and the test
+asserts the *reason* is stated.
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from src.settlement.application.dispatch import DispatchPaymentService
+from src.settlement.application.services import DispatchPayment
 from src.settlement.domain.settlement_order import SettlementOrder
 from src.settlement.infrastructure.repositories import (
     OutboxWriter,
@@ -163,17 +168,21 @@ class TestAuth:
 
 
 class TestBlockedWrites:
-    def test_dispatch_states_the_contract_blocker(
+    def test_dispatch_is_composed_with_its_adapters(
         self, settled: tuple[TestClient, SettlementOrder]
     ) -> None:
-        client, order = settled
+        """ADR-009: the deployable builds `DispatchPayment`, not a stub and not a fake.
 
-        response = client.post(f"/v1/intents/{order.intent_id}/dispatch", headers=OWNER)
+        The service is present in the app's service table and is a `DispatchPayment`; calling it here would
+        hit Authority and Rigorix over the network, so the call path is proven with fakes instead (see
+        `tests/unit/settlement/rigorix/test_dispatch_endpoint.py`).
+        """
+        client, _order = settled
 
-        assert response.status_code == 501
-        # The shared ADR-004 handler wraps an HTTPException in the error envelope; the message is where
-        # the blocker must be named (a 501 with no reason is indistinguishable from a bug).
-        assert "SC-3" in response.json()["error"]["message"]
+        services = client.app.state.settlement_services
+
+        assert isinstance(services["dispatch"], DispatchPayment)
+        assert isinstance(services["dispatch"], DispatchPaymentService)
 
     def test_anchor_states_the_adapter_gap(
         self, settled: tuple[TestClient, SettlementOrder]

@@ -7,12 +7,14 @@ Scope, stated honestly: `GetReceipt`, `ListOrders`, `CostSummary` and `AnchorHas
 and wired into the console composition root (see `src/apps/console_api/app.py`). They need a database
 and, for `AnchorHash`, a `ChainGateway` port — nothing they cannot get.
 
-`DispatchPayment` and `SettleOnce` are **not** implemented, and that is a recorded contract blocker, not
-an omission:
+`DispatchPayment` is implemented in `application/dispatch.py` (gate + governed command; the chain write is
+still a recorded contract blocker). `SettleOnce` is **not** implemented, and that is a blocker, not an
+omission:
 
 * `ChainGateway.submit(order) -> str` broadcasts and returns the hash, so there is no point at which the
   caller can persist the hash *before* broadcast — SC-3's ordering cannot be expressed with this
-  signature. It needs a sign/prepare step (or a two-phase port).
+  signature. It needs a sign/prepare step (or a two-phase port). That is why `DispatchPayment` stops after
+  the governed command and leaves the order `ORDERED` with no tx hash.
 * `SettlementStatus` declares `PENDING` and `ABANDONED`, and the module doc's state diagram transitions
   into them, but `SettlementOrder` has no intention method to make those moves. An application service
   would have to write `order.status = …` from outside, which is exactly what the aggregate forbids.
