@@ -22,6 +22,23 @@ indexer keeps up block by block.
   `Anchored` log. The gate's tx hash links straight here.
 - **Address page** — `http://localhost:4000/address/<address>`: balance and transfers.
 
+## Branding
+
+The UI is the standard Blockscout frontend — no fork and no injected CSS. It is branded through the
+runtime theme hooks Blockscout ships:
+
+| Env (in `anvil.yml`) | What it does |
+|---|---|
+| `NEXT_PUBLIC_COLOR_THEME_OVERRIDES` | The Bursar palette: paper background, ink text, forest links, pink primary buttons, mint selection, pink chart line. |
+| `NEXT_PUBLIC_FONT_FAMILY_HEADING` / `_BODY` | Bricolage Grotesque and Instrument Sans, loaded from Google Fonts. |
+| `NEXT_PUBLIC_NETWORK_LOGO` / `_DARK` | `file:///app/local/bursar-logo.svg`; the startup script copies it into the app's static assets, so no public URL is needed. |
+| `NEXT_PUBLIC_NAVIGATION_LAYOUT` | `horizontal`, so the logo and nav sit in one top bar like the Bursar pages. |
+| `NEXT_PUBLIC_HOMEPAGE_HERO_BANNER_CONFIG` | The dark hero with the pink title. |
+| `NEXT_PUBLIC_AD_BANNER_PROVIDER` | `none` — no third-party ads. |
+
+Color overrides and fonts are JSON strings parsed with `JSON.parse`, so keep the double quotes. The
+logo is `bursar-logo.svg` in this directory and is mounted into the frontend container.
+
 ## Networking
 
 The compose file defaults to the demo's network (`bursar_default`) and the Anvil service

@@ -57,6 +57,8 @@ services:
     extends:
       file: ./services/frontend.yml
       service: frontend
+    volumes:
+      - ./bursar-logo.svg:/app/local/bursar-logo.svg:ro
     environment:
       # Through the proxy below; the browser reaches both the UI and /api on EXPLORER_PORT.
       NEXT_PUBLIC_API_HOST: ${EXPLORER_HOST:-localhost}
@@ -77,6 +79,20 @@ services:
       NEXT_PUBLIC_VISUALIZE_API_HOST: ''
       # No third-party ad placement on the demo explorer.
       NEXT_PUBLIC_AD_BANNER_PROVIDER: none
+      # ── the Bursar design language ─────────────────────────────────────────
+      # Blockscout's own theme hooks: palette, typefaces, logo, light-only. JSON strings because
+      # the frontend parses these with JSON.parse.
+      NEXT_PUBLIC_COLOR_THEME_DEFAULT: light
+      NEXT_PUBLIC_COLOR_THEME_OVERRIDES: '{"bg":{"primary":{"_light":{"value":"#F6F1E8"}}},"text":{"primary":{"_light":{"value":"#12100D"}},"secondary":{"_light":{"value":"#6F6A61"}}},"icon":{"primary":{"_light":{"value":"#6F6A61"}},"secondary":{"_light":{"value":"#B9AE9B"}}},"link":{"primary":{"_light":{"value":"#0B4F45"}}},"button":{"primary":{"_light":{"value":"#FF90E8"},"text":{"_light":{"value":"#6D1550"}}}},"hover":{"_light":{"value":"#FF5CCF"}},"selected":{"control":{"bg":{"_light":{"value":"#DFF1EC"}},"text":{"_light":{"value":"#0B4F45"}}},"option":{"bg":{"_light":{"value":"#FF90E8"}}}},"navigation":{"bg":{"selected":{"_light":{"value":"#DFF1EC"}}},"text":{"selected":{"_light":{"value":"#0B4F45"}}}},"topbar":{"bg":{"_light":{"value":"rgba(255,253,249,0.92)"}}},"stats":{"bg":{"_light":{"value":"#FFFDF9"}}},"tabs":{"text":{"primary":{"_light":{"value":"#12100D"}}}},"graph":{"line":{"_light":{"value":"#FF5CCF"}},"gradient":{"start":{"_light":{"value":"rgba(255,144,232,0.3)"}},"stop":{"_light":{"value":"rgba(255,144,232,0)"}}}}}'
+      NEXT_PUBLIC_FONT_FAMILY_HEADING: '{"name":"Bricolage Grotesque","url":"https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&display=swap"}'
+      NEXT_PUBLIC_FONT_FAMILY_BODY: '{"name":"Instrument Sans","url":"https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"}'
+      # The startup downloader copies a file:// asset into the app's own static dir, so the logo does
+      # not need a public URL.
+      NEXT_PUBLIC_NETWORK_LOGO: file:///app/local/bursar-logo.svg
+      NEXT_PUBLIC_NETWORK_LOGO_DARK: file:///app/local/bursar-logo.svg
+      NEXT_PUBLIC_PROMOTE_BLOCKSCOUT_IN_TITLE: 'false'
+      NEXT_PUBLIC_NAVIGATION_LAYOUT: horizontal
+      NEXT_PUBLIC_HOMEPAGE_HERO_BANNER_CONFIG: '{"text":"Bursar demo chain","background":["#12100D"],"text_color":["#FF90E8"],"border":["1px solid #12100D"]}'
 
   proxy:
     depends_on:
