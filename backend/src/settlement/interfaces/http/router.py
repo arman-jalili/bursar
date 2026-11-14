@@ -5,20 +5,31 @@ Reference: docs/contracts/settlement-contract-freeze.md §2.11
 
 Thin on purpose: translate HTTP into a service call, map the result back. No module rule lives here.
 
-Two write endpoints are declared in the frozen contract but **not implemented** here: `POST
-/v1/intents/{intent_id}/dispatch` and `POST /v1/anchors`. They currently answer `501` with a message that
-names the reason (the `DispatchPayment`/`SettleOnce` and chain-adapter contract blockers documented in
-ADR-009 and the runbook). Returning 501 is deliberate: an endpoint that silently 500s, or one that
-"succeeds" against a fake chain, would hide the gap the freeze exists to make visible.
+`POST /v1/intents/{intent_id}/dispatch` is **live**: it calls the frozen `DispatchPayment` use case, which
+reads Authority's determination (SC-1), builds the order and runs the one fixed Rigorix `run_command`
+command (SC-2). The two adapters are installed by this context's startup hook (`build_services`), and a
+test replaces the service in `app.state.settlement_services` — no test reaches the network.
+
+`POST /v1/anchors` still answers `501` with the reason named. The frozen contract defines it, but its only
+implementation (`AnchorHash`) needs a `ChainGateway` adapter, which does not exist in this build (gap G-1,
+ADR-009). Returning 501 is deliberate: an endpoint that silently 500s, or one that "succeeds" against a
+fake chain, would hide the gap the freeze exists to make visible.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field
 
-from src.settlement.application.dto import CostSummaryQuery, ListOrdersQuery
+from src.settlement.application.dispatch import DispatchPaymentService
+from src.settlement.application.dto import (
+    CostSummaryQuery,
+    DispatchPaymentCommand,
+    ListOrdersQuery,
+)
+from src.settlement.application.services import DispatchPayment
 from src.settlement.application.services_impl import (
     CostSummaryService,
     GetOrderService,
@@ -27,6 +38,10 @@ from src.settlement.application.services_impl import (
     ListReceiptsService,
     NullifierStatusService,
 )
+from src.settlement.domain.ports import ChainGateway
+from src.settlement.domain.values import ChainNetwork
+from src.settlement.infrastructure.authority.determination_gate import AuthorityHttpAdapter
+from src.settlement.infrastructure.rigorix.command_adapter import RigorixCommandAdapter
 from src.settlement.interfaces.http.deps import require_any_scope, require_scope
 from src.settlement.interfaces.http.schemas import (
     CostSummaryResponse,
@@ -36,21 +51,39 @@ from src.settlement.interfaces.http.schemas import (
     ReceiptListResponse,
     ReceiptResponse,
 )
+from src.shared.infrastructure.config import Settings
 
-__all__ = ["build_router", "build_services", "install"]
+__all__ = ["DispatchResponse", "build_router", "build_services", "install"]
 
 _SETTLEMENT_READ = require_scope("settlement:read")
 _EVIDENCE_OR_SETTLEMENT_READ = require_any_scope({"evidence:read", "settlement:read"})
 
 _BLOCKED_DISPATCH = (
-    "settlement dispatch is not wired: DispatchPayment/SettleOnce are blocked on a frozen-contract "
-    "amendment (ChainGateway.submit cannot persist the hash before broadcast, SC-3; SettlementOrder has "
-    "no PENDING/ABANDONED transition). See ADR-009 and docs/runbook-settlement.md."
+    "settlement dispatch is not composed in this process: the DispatchPayment service was not built "
+    "at startup (it needs the Authority gate and the Rigorix executor). See ADR-009 and "
+    "docs/runbook-settlement.md."
 )
 _BLOCKED_ANCHOR = (
     "anchoring is not wired: a ChainGateway adapter (web3 + deployed PaymentRouter.sol) does not exist "
     "in this build. See ADR-009 and docs/runbook-settlement.md."
 )
+
+
+class DispatchResponse(BaseModel):
+    """What a dispatch produced: the order, and the write-ahead hash when one exists (SC-3).
+
+    Declared here rather than in `schemas.py` because the write surface is this router's: the freeze
+    fixes the endpoint shape (§2.11), and the response is a projection of the frozen
+    `DispatchPaymentResult`, not a second contract. `tx_hash` is `null` while the chain adapter is a
+    gap (G-1/B-1): no broadcast means no hash, and a fabricated one would fake SC-3.
+    """
+
+    order_id: str
+    intent_id: str
+    status: str
+    nullifier: str = ""
+    tx_hash: str | None = None
+    events: tuple[str, ...] = Field(default_factory=tuple)
 
 
 def _services(request: Request) -> dict[str, object]:
@@ -149,11 +182,34 @@ def build_router() -> APIRouter:
         spent, order_id = await service.execute(value)
         return NullifierStatusResponse(nullifier=value, spent=spent, order_id=order_id)
 
-    @router.post("/v1/intents/{intent_id}/dispatch", status_code=status.HTTP_501_NOT_IMPLEMENTED)
-    async def dispatch(intent_id: str) -> dict[str, str]:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail=_BLOCKED_DISPATCH,
+    @router.post(
+        "/v1/intents/{intent_id}/dispatch",
+        response_model=DispatchResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def dispatch(
+        intent_id: str,
+        request: Request,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        _scopes: frozenset[str] = Depends(_SETTLEMENT_READ),
+    ) -> DispatchResponse:
+        """Dispatch one allowed intent (FR-019). No body: there is no path, amount or address to send."""
+        services = _services(request)
+        if "dispatch" not in services:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=_BLOCKED_DISPATCH
+            )
+        service: DispatchPayment = services["dispatch"]  # type: ignore[assignment]
+        result = await service.execute(
+            DispatchPaymentCommand(intent_id=intent_id, idempotency_key=idempotency_key or "")
+        )
+        return DispatchResponse(
+            order_id=result.order_id,
+            intent_id=result.intent_id,
+            status=result.status,
+            nullifier=result.nullifier,
+            tx_hash=result.tx_hash,
+            events=result.events,
         )
 
     @router.post("/v1/anchors", status_code=status.HTTP_501_NOT_IMPLEMENTED)
@@ -166,9 +222,23 @@ def build_router() -> APIRouter:
     return router
 
 
-def build_services(session_factory: object) -> dict[str, object]:
-    """Build one instance of every Settlement read service for the app shell."""
-    return {
+def build_services(
+    session_factory: object,
+    settings: Settings | None = None,
+    chain_gateway: ChainGateway | None = None,
+) -> dict[str, object]:
+    """Build one instance of every Settlement service for the app shell.
+
+    The read services need only the session factory. The write service also needs its two external
+    adapters, which is why `settings` is required for it: the Authority gate and the Rigorix executor are
+    composed here, in the context's own install hook, so the deployable uses them and a test can put a
+    fake in `app.state.settlement_services` instead.
+
+    `chain_gateway` is `None` until the chain adapter lands (gap G-1, owned by the chain slice). The
+    dispatch service accepts that: the on-chain nullifier read is an additional lock, and the local store
+    is still the last one. Nothing here fakes a chain.
+    """
+    services: dict[str, object] = {
         "get_order": GetOrderService(session_factory),  # type: ignore[arg-type]
         "list_orders": ListOrdersService(session_factory),  # type: ignore[arg-type]
         "get_receipt": GetReceiptService(session_factory),  # type: ignore[arg-type]
@@ -176,6 +246,35 @@ def build_services(session_factory: object) -> dict[str, object]:
         "cost_summary": CostSummaryService(session_factory),  # type: ignore[arg-type]
         "nullifier_status": NullifierStatusService(session_factory),  # type: ignore[arg-type]
     }
+    if settings is not None:
+        services["dispatch"] = build_dispatch_service(
+            session_factory, settings, chain_gateway=chain_gateway
+        )
+    return services
+
+
+def build_dispatch_service(
+    session_factory: object,
+    settings: Settings,
+    *,
+    chain_gateway: ChainGateway | None = None,
+) -> DispatchPaymentService:
+    """Compose `DispatchPayment` with its three ports (SC-1, SC-2).
+
+    The network comes from configuration through `ChainNetwork.for_chain` — an unconfigured chain id is
+    refused rather than defaulted (SC-11), so a wrong `BURSAR_CHAIN_ID` fails at startup instead of
+    signing on the wrong chain.
+    """
+    authority = AuthorityHttpAdapter.from_settings(settings)
+    return DispatchPaymentService(
+        session_factory,  # type: ignore[arg-type]
+        # One adapter object serves both reads: the gate (determination) and the intent facts.
+        intents=authority,
+        determination=authority,
+        executor=RigorixCommandAdapter(settings),
+        network=ChainNetwork.for_chain(settings.chain_id),
+        chain=chain_gateway,
+    )
 
 
 def install(app: object) -> None:
@@ -183,8 +282,13 @@ def install(app: object) -> None:
     app.include_router(build_router())  # type: ignore[attr-defined]
 
     def _start(application: object) -> None:
+        settings = getattr(application.state, "settings", None)  # type: ignore[attr-defined]
+        #: The chain slice installs its gateway under this name once G-1 lands; absent today by design.
+        chain_gateway = getattr(application.state, "settlement_chain_gateway", None)  # type: ignore[attr-defined]
         application.state.settlement_services = build_services(  # type: ignore[attr-defined]
-            application.state.session_factory  # type: ignore[attr-defined]
+            application.state.session_factory,  # type: ignore[attr-defined]
+            settings=settings,
+            chain_gateway=chain_gateway,
         )
 
     app.state.startup_hooks.append(_start)  # type: ignore[attr-defined]
