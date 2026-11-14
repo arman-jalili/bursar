@@ -102,6 +102,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         metavar="HEX",
         help="0x-prefixed hex of the signed transaction bytes (nothing is signed here).",
     )
+    # The governed step runs inside Rigorix's sandbox, which does not inherit the deployment's
+    # environment, so a `BURSAR_RPC_URL` default alone silently sends the broadcast to a
+    # non-existent 127.0.0.1:8545. The rendered command carries the endpoint explicitly.
+    parser.add_argument(
+        "--rpc-url",
+        default=None,
+        metavar="URL",
+        help="JSON-RPC endpoint to send the bytes to (defaults to the configured BURSAR_RPC_URL).",
+    )
     return parser.parse_args(argv)
 
 
@@ -119,7 +128,8 @@ def main(
     args = parse_args(argv)
     resolved = settings or get_settings()
     try:
-        tx_hash = sender(resolved.rpc_url, require_signed_hex(str(args.raw_tx)))
+        rpc_url = str(getattr(args, "rpc_url", None) or resolved.rpc_url)
+        tx_hash = sender(rpc_url, require_signed_hex(str(args.raw_tx)))
     except SettlementRefusal as refused:
         reason = refused.details.get("reason") or str(refused)
         print(f"payments.broadcast: refused: {reason}", file=sys.stderr)

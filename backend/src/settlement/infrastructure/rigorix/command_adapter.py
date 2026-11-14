@@ -59,7 +59,7 @@ __all__ = ["DISPATCH_COMMAND", "RigorixClient", "RigorixCommandAdapter"]
 #: It sends one already-signed transaction and does nothing else — no database, no order lookup, no
 #: network re-derivation, no signing. `raw_transaction` is written by `SettlementOrder.mark_signed` from
 #: the bytes the chain gateway signed locally, so the hash that goes with them was persisted first (SC-3).
-DISPATCH_COMMAND = "payments.broadcast --raw-tx {raw_transaction}"
+DISPATCH_COMMAND = "payments.broadcast --rpc-url {rpc_url} --raw-tx {raw_transaction}"
 
 #: The completed status the host reports for a run whose steps all succeeded.
 _COMPLETED = "completed"
@@ -138,6 +138,19 @@ class RigorixCommandAdapter:
             )
         )
 
+    def _render_params(self, order: SettlementOrder) -> dict[str, object]:
+        """`order.command_params()` plus the one deployment value the command needs.
+
+        Rigorix's sandbox does not inherit this container's environment, so the governed step cannot
+        read `BURSAR_RPC_URL` and would fall back to the broadcast CLI's `127.0.0.1:8545` default —
+        a connection refused on every dispatch. The endpoint is therefore part of the rendered
+        command, sourced from configuration here rather than from the order (SC-2 still holds: the
+        caller supplies neither the path nor the bytes).
+        """
+        params: dict[str, object] = dict(order.command_params())
+        params["rpc_url"] = self._settings.rpc_url
+        return params
+
     @property
     def template_name(self) -> str:
         """The one template this adapter creates and runs (operational knob, see the runbook)."""
@@ -162,7 +175,7 @@ class RigorixCommandAdapter:
                 broadcast, and a `payments.broadcast --raw-tx` with no argument would fail in the shell
                 for a reason that has nothing to do with the settlement (SC-3).
         """
-        params = order.command_params()
+        params = self._render_params(order)
         if not params.get("raw_transaction"):
             # Checked before the handshake: an unsigned order has nothing to broadcast, so contacting
             # the host at all would be noise (SC-3).
@@ -223,7 +236,7 @@ class RigorixCommandAdapter:
                 execution_id=execution_id,
                 audit_uri=audit_uri,
                 # The rendered text, so the record says which bytes the host sent (SC-3).
-                command_text=DISPATCH_COMMAND.format(**order.command_params()),
+                command_text=DISPATCH_COMMAND.format(**self._render_params(order)),
             )
 
         # A Failed run — including the `run_command` refusal a server without a declared sandbox

@@ -157,9 +157,16 @@ class TestCompletedRun:
         assert step["tool"] == "run_command"
         assert step["requires_approval"] is False
         command = step["parameters"]["command"]
-        assert command == DISPATCH_COMMAND.format(**order.command_params())
+        # The RPC endpoint is rendered into the command: Rigorix's sandbox does not inherit this
+        # container's environment, so relying on BURSAR_RPC_URL would send the broadcast to the
+        # CLI's 127.0.0.1:8545 default.
+        assert command == DISPATCH_COMMAND.format(
+            **order.command_params(), rpc_url=adapter._settings.rpc_url
+        )
         # The governed step broadcasts the order's own signed bytes, and signs nothing itself.
-        assert command == f"payments.broadcast --raw-tx {RAW_TRANSACTION}"
+        assert command == (
+            f"payments.broadcast --rpc-url {adapter._settings.rpc_url} --raw-tx {RAW_TRANSACTION}"
+        )
         assert str(order.id) not in command  # the id travels as execution_id, not as an argument
         # No routing data: the payee, the amount and the nullifier are inside the signed bytes.
         assert order.payee_address.value not in command
