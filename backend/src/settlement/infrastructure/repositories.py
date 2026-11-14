@@ -52,6 +52,8 @@ __all__ = [
     "SqlChainReceiptRepository",
     "SqlNullifierRepository",
     "SqlSettlementOrderRepository",
+    "find_nullifier_spend",
+    "list_orders",
 ]
 
 
@@ -172,3 +174,32 @@ class SqlChainReceiptRepository(ChainReceiptRepository):
             .order_by(SettlementReceiptRow.observed_at, SettlementReceiptRow.id)
         )
         return tuple(receipt_to_domain(row) for row in result.scalars().all())
+
+
+async def list_orders(
+    session: AsyncSession,
+    *,
+    status: str | None = None,
+    limit: int = 50,
+) -> list[SettlementOrder]:
+    """Read-model query for `GET /v1/orders`.
+
+    A read model, not an aggregate load through the port: listing is not a domain decision, and
+    `SettlementOrderRepository` deliberately has no `list` method (a port that grows read models stops
+    being a consistency boundary). Newest first, because the console shows the latest settlements.
+    """
+    statement = (
+        select(SettlementOrderRow)
+        .order_by(SettlementOrderRow.created_at.desc(), SettlementOrderRow.id.desc())
+        .limit(limit)
+    )
+    if status:
+        statement = statement.where(SettlementOrderRow.status == status)
+    result = await session.execute(statement)
+    return [order_to_domain(row) for row in result.scalars().all()]
+
+
+async def find_nullifier_spend(session: AsyncSession, nullifier: Nullifier) -> str | None:
+    """The order that spent this marker, or None. Read-only companion to `is_spent`."""
+    row = await session.get(SettlementNullifierRow, nullifier.value)
+    return row.order_id if row else None

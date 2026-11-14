@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from datetime import UTC, datetime
 
 from src.authority.domain.ids import IntentId
 from src.mandate.domain.values import BankDigest, PayeeAddress
@@ -127,6 +128,10 @@ def receipt_to_row(receipt: ChainReceipt) -> SettlementReceiptRow:
         fee_micro_usdc=receipt.fee_usdc_estimate.micro_usdc,
         is_anchor=receipt.is_anchor,
         revert_reason=receipt.revert_reason,
+        # Set here, not with `func.now()`: SQLite's server clock has second precision, and a re-poll
+        # usually appends two receipts inside one second. Without microseconds "the latest receipt"
+        # would be decided by a random uuid tie-break.
+        observed_at=datetime.now(UTC).replace(tzinfo=None),
     )
 
 
