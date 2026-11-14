@@ -93,6 +93,15 @@ class Settings(BaseSettings):
     rigorix_base_url: str = "http://127.0.0.1:8080"
     rigorix_api_key: SecretStr = SecretStr("change-me-operator-key")
     precondition_url: str = "http://127.0.0.1:8001/v1/precondition/check"
+    #: The Rigorix template whose single `run_command` step IS the payment dispatch
+    #: (SC-2: the path comes from the template, never from the caller). Rigorix
+    #: `run_command` refuses to spawn anything unless the deployment declares its
+    #: boundary, so the template name and the sandbox claim travel together.
+    rigorix_run_template: str = "bursar-payment-dispatch"
+    #: `container` | `vm` | empty. Empty means "no declared boundary", and Rigorix
+    #: then refuses the run_command step instead of pretending filtering is isolation.
+    rigorix_sandbox: str = ""
+    rigorix_rpc_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
     precondition_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
 
     # ── validators ──────────────────────────────────────────────────────────

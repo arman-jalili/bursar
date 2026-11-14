@@ -12,15 +12,6 @@ if [ -f "poetry.lock" ] && command -v poetry &>/dev/null; then
     fi
 fi
 
-# Prefer the project environment: the system python may be older than requires-python,
-# and a validator that runs the wrong interpreter reports false failures.
-PYTEST_BIN="pytest"
-[ -x ".venv/bin/pytest" ] && PYTEST_BIN=".venv/bin/pytest"
-RUFF_BIN="ruff"
-[ -x ".venv/bin/ruff" ] && RUFF_BIN=".venv/bin/ruff"
-COVERAGE_BIN="coverage"
-[ -x ".venv/bin/coverage" ] && COVERAGE_BIN=".venv/bin/coverage"
-
 ERRORS=()
 WARNINGS=()
 PASS_COUNT=0
@@ -43,8 +34,8 @@ echo ""
 # Unit Tests
 # ---------------------------------------------------------------------------
 echo "--- Unit Tests ---"
-if [ -d "tests/unit" ] && { [ -x "$PYTEST_BIN" ] || command -v pytest >/dev/null 2>&1; }; then
-    if PYTHONPATH=src "$PYTEST_BIN" tests/unit -q 2>/dev/null; then
+if [ -d "tests/unit" ] && command -v pytest &>/dev/null; then
+    if PYTHONPATH=src pytest tests/unit -q 2>/dev/null; then
         pass "Unit tests passed"
     else
         fail "Unit tests failed"
@@ -58,8 +49,8 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Integration Tests ---"
-if [ -d "tests/integration" ] && { [ -x "$PYTEST_BIN" ] || command -v pytest >/dev/null 2>&1; }; then
-    if PYTHONPATH=src "$PYTEST_BIN" tests/integration -q 2>/dev/null; then
+if [ -d "tests/integration" ] && command -v pytest &>/dev/null; then
+    if PYTHONPATH=src pytest tests/integration -q 2>/dev/null; then
         pass "Integration tests passed"
     else
         fail "Integration tests failed"
@@ -73,8 +64,8 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Coverage ---"
-if { [ -x "$PYTEST_BIN" ] || command -v pytest >/dev/null 2>&1; } && { [ -x "$COVERAGE_BIN" ] || command -v coverage >/dev/null 2>&1; }; then
-    COVERAGE_OUTPUT=$(PYTHONPATH=src "$PYTEST_BIN" tests/ --cov=src --cov-report=term-missing 2>&1 || true)
+if command -v pytest &>/dev/null && command -v coverage &>/dev/null; then
+    COVERAGE_OUTPUT=$(PYTHONPATH=src pytest tests/ --cov=src --cov-report=term-missing 2>&1 || true)
     COVERAGE_PCT=$(echo "$COVERAGE_OUTPUT" | grep "^TOTAL" | awk '{print $NF}' | tr -d '%' || echo "0")
     if [ -z "$COVERAGE_PCT" ]; then
         COVERAGE_PCT="0"
