@@ -29,7 +29,7 @@ from src.console.application.services import (
     ProjectEvidence,
     ProjectPayerBills,
 )
-from src.console.interfaces.api import ConsoleDeps
+from src.console.interfaces.api import CONSOLE_ROUTES, ConsoleDeps
 from src.shared.infrastructure.config import Settings, load_settings
 
 OWNER = {"Authorization": "Bearer demo-owner-token"}
@@ -335,3 +335,45 @@ class TestComposition:
         assert isinstance(deps.approval_inbox, ProjectApprovalInbox)
         assert isinstance(deps.payer_bills, ProjectPayerBills)
         assert isinstance(deps.evidence, ProjectEvidence)
+
+
+@pytest.fixture
+def composed_client(tmp_path: Path) -> Iterator[TestClient]:
+    """The deployable with **no** test injection: the runtime path the demo actually serves."""
+    settings: Settings = load_settings(
+        env="ci",
+        console_database_url=f"sqlite+aiosqlite:///{tmp_path / 'composed.db'}",
+        hmac_key="test-hmac-key-not-a-secret",
+        settlement_private_key="0x" + "11" * 32,
+        rigorix_api_key="test",
+    )
+    with TestClient(build(settings)) as client:
+        yield client
+
+
+class TestRuntimeComposition:
+    def test_the_inbox_is_reachable_through_the_composition_root(
+        self, composed_client: TestClient
+    ) -> None:
+        """ADR-009: a console that only its own tests call is not integrated."""
+        response = composed_client.get("/v1/console/approvals", headers=OWNER)
+
+        assert response.status_code == 200
+        assert _json(response)[0]["payee_address"] == ADDRESS
+
+    def test_the_runtime_serves_exactly_the_eight_frozen_paths(
+        self, composed_client: TestClient
+    ) -> None:
+        schema = composed_client.get("/openapi.json").json()
+        console_paths = {path for path in schema["paths"] if path.startswith("/v1/console/")}
+
+        assert console_paths == {route.path for route in CONSOLE_ROUTES}
+
+    def test_the_payer_surface_renders_the_recorded_settlement(
+        self, composed_client: TestClient
+    ) -> None:
+        """CON-06 through the real adapters: the demo settlement carries the simulated label."""
+        bill = _json(composed_client.get("/v1/console/bills", headers=PAYER))[0]
+
+        assert bill["payout_simulated"] is True
+        assert "simulated" in bill["payout_label"]
