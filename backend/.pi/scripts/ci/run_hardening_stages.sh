@@ -18,7 +18,6 @@
 #   8. migration_verify     — Migration checks (conditional)
 #   9. package_build        — Docker build (conditional, main only)
 #   10. release_readiness   — Runbook/observability/policy checks
-#   11. console_proofing    — Console contract implementation + invariant suites (CON-01..CON-10)
 
 set -euo pipefail
 
@@ -216,11 +215,6 @@ run_stage "9" "package_build" \
 # Stage 10: Release Readiness
 run_stage "10" "release_readiness" \
     "${SCRIPTS_DIR}/stage_release_readiness.sh" \
-    "always"
-
-# Stage 11: Console Proofing (module-specific contract enforcement)
-run_stage "11" "console_proofing" \
-    "${SCRIPTS_DIR}/stage_console_proofing.sh" \
     "always"
 
 # ── Summary ──

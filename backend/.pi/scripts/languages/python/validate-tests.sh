@@ -4,14 +4,6 @@
 # ============================================================================
 set -euo pipefail
 
-# Prefer the project virtualenv when it exists. The harness resolves `pytest`/`ruff`/`coverage`
-# from PATH; on a machine where a distro pytest comes first, that runs the suite under the wrong
-# interpreter. `make test` already goes through `.venv` — this makes the validator agree with it.
-if [ -d ".venv/bin" ]; then
-    PATH="$PWD/.venv/bin:$PATH"
-    export PATH
-fi
-
 # Activate Poetry venv if available
 if [ -f "poetry.lock" ] && command -v poetry &>/dev/null; then
     POETRY_ENV=$(poetry env info --path 2>/dev/null || true)

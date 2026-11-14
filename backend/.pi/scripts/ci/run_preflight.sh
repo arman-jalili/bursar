@@ -14,13 +14,6 @@
 
 set -euo pipefail
 
-# Prefer the project virtualenv when it exists. The preflight resolves `pytest`/`ruff` from PATH,
-# and a distro pytest (Python 3.9 here) cannot run this project — `make test` already uses .venv.
-if [ -d ".venv/bin" ]; then
-    PATH="$PWD/.venv/bin:$PATH"
-    export PATH
-fi
-
 PI_DIR=".pi"
 CI_DIR="${PI_DIR}/scripts/ci"
 GIT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
