@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
 import type { Attempt, VerifyState } from "../data";
 import { envelopePreview, formatAmount, shortHash, timeLabel } from "../data";
-import { fetchEnvelope, type Source } from "../api";
+import type { Source } from "../api";
 
 interface Props {
   attempt: Attempt | null;
@@ -41,35 +40,39 @@ function consoleRecord(attempt: Attempt): Record<string, unknown> {
   };
 }
 
+function consoleEvidenceRecord(attempt: Attempt): Record<string, unknown> {
+  return {
+    envelope_id: attempt.evidenceId,
+    event_type: attempt.evidenceEvent,
+    occurred_at: attempt.evidenceAt ?? attempt.createdAt,
+    result: attempt.evidenceResult,
+    anchor_tx: attempt.anchorTx ?? null,
+    subject: {
+      invoice_id: attempt.invoiceId,
+      payee: attempt.payee.name,
+      payee_address: attempt.payee.address || null,
+      amount_usdc: attempt.amountUsdc,
+      status: attempt.status,
+    },
+    verification: `GET /v1/console/evidence/${attempt.evidenceId}/verify`,
+    note: "Console evidence record — the verdict is the Evidence service's, proxied by the console.",
+  };
+}
+
 export function EvidenceDrawer({ attempt, source, verified, onClose, onVerify, onFlip }: Props) {
-  const [liveJson, setLiveJson] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    setLiveJson(null);
-    if (!attempt || source !== "api" || !attempt.rigorix?.envelopeUri) {
-      return () => {
-        alive = false;
-      };
-    }
-    fetchEnvelope(attempt.id)
-      .then((envelope) => {
-        if (alive) setLiveJson(JSON.stringify(envelope, null, 2));
-      })
-      .catch(() => {
-        // Keep the representative preview when the API is unavailable.
-      });
-    return () => {
-      alive = false;
-    };
-  }, [attempt?.id, source]);
-
   if (!attempt) return null;
   const status = statusOf(attempt);
-  const hasEnvelope = Boolean(attempt.rigorix?.envelopeUri);
-  const json =
-    liveJson ??
-    JSON.stringify(hasEnvelope ? envelopePreview(attempt) : consoleRecord(attempt), null, 2);
+  const hasConsoleEvidence = Boolean(attempt.evidenceId);
+  const hasEnvelope = Boolean(attempt.rigorix?.envelopeUri) || hasConsoleEvidence;
+  const json = JSON.stringify(
+    hasConsoleEvidence
+      ? consoleEvidenceRecord(attempt)
+      : hasEnvelope
+        ? envelopePreview(attempt)
+        : consoleRecord(attempt),
+    null,
+    2,
+  );
 
   return (
     <>
@@ -103,7 +106,11 @@ export function EvidenceDrawer({ attempt, source, verified, onClose, onVerify, o
           ) : null}
 
           <div className="mono" style={{ color: "var(--muted)", margin: "2px 0 6px" }}>
-            {hasEnvelope ? "Rigorix envelope" : "Console refusal record (no engine envelope)"}
+            {hasConsoleEvidence
+              ? "Evidence envelope (console record)"
+              : hasEnvelope
+                ? "Rigorix envelope"
+                : "Console refusal record (no engine envelope)"}
           </div>
           <pre className="evidence-json">{json}</pre>
 
@@ -129,15 +136,22 @@ export function EvidenceDrawer({ attempt, source, verified, onClose, onVerify, o
                 <br />
               </>
             ) : null}
+            {attempt.evidenceId ? (
+              <>
+                evidence <b>{attempt.evidenceId}</b> · <b>{attempt.evidenceEvent}</b> ·{" "}
+                <b>{attempt.evidenceResult}</b>
+                <br />
+              </>
+            ) : null}
             {attempt.rigorix?.envelopeHash ? (
               <>
                 envelope <b>{shortHash(attempt.rigorix.envelopeHash, 8, 6)}</b>
                 <br />
               </>
             ) : null}
-            {attempt.rigorix?.anchoredTx ? (
+            {attempt.anchorTx ?? attempt.rigorix?.anchoredTx ? (
               <>
-                anchor <b>{shortHash(attempt.rigorix.anchoredTx, 8, 6)}</b>
+                anchor <b>{shortHash(attempt.anchorTx ?? attempt.rigorix?.anchoredTx ?? "", 8, 6)}</b>
                 <br />
               </>
             ) : null}
@@ -148,9 +162,9 @@ export function EvidenceDrawer({ attempt, source, verified, onClose, onVerify, o
         <div className="evidence-foot">
           <span>
             {source === "api"
-              ? liveJson
-                ? "live envelope from rigorix-server"
-                : "envelope preview — live fetch unavailable"
+              ? hasConsoleEvidence
+                ? "evidence envelope from the console API"
+                : "demo envelope — this surface has no raw envelope"
               : "demo envelope"}
           </span>
           <span>HMAC · chain · browser verify</span>

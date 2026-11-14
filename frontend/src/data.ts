@@ -47,6 +47,14 @@ export interface Attempt {
   };
   settlement?: { txHash?: string; block?: number; receipt?: string };
   narrative: string;
+  /** Console API: the approval this attempt is waiting on. */
+  approvalId?: string;
+  /** Console API: the Evidence envelope linked to this attempt. */
+  evidenceId?: string;
+  evidenceEvent?: string;
+  evidenceResult?: string;
+  evidenceAt?: string;
+  anchorTx?: string;
 }
 
 export interface Policy {
@@ -59,6 +67,7 @@ export interface Policy {
 }
 
 export interface ApprovalRequest {
+  approvalId?: string;
   attemptId: string;
   intentDigest: string;
   invoiceId: string;

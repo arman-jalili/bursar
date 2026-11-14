@@ -56,58 +56,72 @@ npm run build
 npm run preview
 ```
 
-The app is **API-first with a mock fallback**. It calls `GET /api/state`, `GET /api/attempts`
-and subscribes to `/api/events`. If the console API is not up, it uses the fixtures in
-`src/data.ts` and labels itself `demo data` in the header.
+The app is **console-first with a mock fallback**. It reads the live console surface at
+`http://127.0.0.1:8000` with a bearer token:
 
-Pure design/demo run without API 404s:
+```
+GET  /v1/console/constitution
+GET  /v1/console/approvals
+GET  /v1/console/bills
+GET  /v1/console/evidence
+GET  /v1/console/evidence/{id}/verify
+POST /v1/console/approvals/{id}/signature
+GET  /readyz
+```
+
+If the console is not up (or `VITE_FORCE_MOCK=1`), it uses the fixtures in `src/data.ts` and
+labels itself `demo data` in the header. Live rows are merged on top of the demo world so the
+story and Control Room stay explorable while the approval, bills and evidence are real.
 
 ```bash
+# live console must be running on :8000
+npm run dev
+
+# pure design/demo run, no network
 VITE_FORCE_MOCK=1 npm run dev
 ```
 
 ## Environment
 
-Copy `.env.example` to `.env.local`.
+Copy `.env.example` to `.env.local` (already present for local runs).
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VITE_API_BASE` | `/api` | Console API base. Public contract: `docs/BURSAR-BUILD-CONTRACT.md`. |
-| `VITE_FORCE_MOCK` | `0` | `1` = never call the API; use fixtures. |
-| `VITE_DEMO_HMAC_KEY` | `bursar-demo-hmac-key` | Demo key for browser envelope verification. Testnet/demo only. |
+| `VITE_CONSOLE_API_URL` | `http://127.0.0.1:8000` | Console API base (browser-facing surface). |
+| `VITE_OWNER_TOKEN` | `demo-owner-token` | Demo bearer token from the console auth matrix. |
+| `VITE_FORCE_MOCK` | `0` | `1` = never call the console; use fixtures. |
 
 ## What is real, what is demo
 
-- **Contract shapes:** `Attempt`, `Policy`, `ApprovalRequest`, statuses and decision sources
-  mirror the frozen contract.
-- **Browser evidence:** when the API returns an envelope, **Verify** calls
-  `rigorix-verifier/browser` (`verifySignature` + `validateEnvelope`) with WebCrypto. In mock
-  mode it simulates and says so. The receipt drawer fetches the live envelope from
-  `/api/attempts/:id/envelope` when the console API is up.
-- **Owner approval:** if `window.ethereum` exists, the attention card signs EIP-712 typed data
-  and POSTs `/api/attempts/:id/approve`; otherwise it uses a clearly labeled demo signer.
-  After approval it reloads `/api/state` and `/api/attempts` so the receipt is the backend's.
-- **Story scenes:** with the API up, each scene calls `POST /api/scenarios/:id` and reloads the
-  state; if the API is unavailable, it falls back to the local simulation and labels the source
-  `demo data`. The lab is always a local sandbox and says so.
-- **Amounts:** the demo uses a 1:1 EUR/USDC display for legibility. The chain settles USDC; the
-  receipt and chain card name the rail.
+- **Live approvals:** the attention card is `GET /v1/console/approvals[0]`. Signing POSTs the
+  signature bytes to `/v1/console/approvals/{approval_id}/signature` (the console's only write,
+  forwarded unmodified to Authority). The demo signer is used because Authority's typed-data
+  document is not exposed on the console surface; the card says so.
+- **Live bills:** `GET /v1/console/bills` is mapped onto the feed (SETTLED → paid, RECEIVED →
+  planned, REFUSED → refused). A bill with a pending approval is shown once, as waiting — never
+  as both paid and waiting.
+- **Live constitution:** `GET /v1/console/constitution` sets the daily cap and signature
+  threshold shown in the masthead and rules panel.
+- **Live evidence:** `GET /v1/console/evidence` attaches its envelope to the live intent;
+  **Verify** calls `GET /v1/console/evidence/{id}/verify` and renders the service's verdict
+  (`verified` / `tampered` / `unknown`), not a client-side guess.
+- **Story and Control Room:** always a local simulation layered on today's state, and labelled
+  as such. They never reset the console and never pretend a simulated settlement is live.
+- **Demo-only world:** the extra payees/refusals from `src/data.ts` remain so the story, feed,
+  and lab are fully populated offline.
+- **Amounts:** the demo uses a 1:1 EUR/USDC display for legibility. Console decimal strings are
+  converted to micro-units at the boundary.
 
-## Backend integration checklist
+## Backend integration notes
 
-- `GET /api/state` should include `approval` for the pending attempt, or the SSE
-  `approval.requested` event must carry the exact `ApprovalRequest` (intent, payee, amount,
-  nonce, deadline, EIP-712 domain/types/message). Without it the UI can only use the demo
-  approval fixture.
-- `POST /api/scenarios/:id` should accept `reset` plus `normal`, `poisoned`, `split`,
-  `new-payee`, `freeze`. If `reset` is missing, the story falls back to the local simulation.
-- `GET /api/attempts/:id/envelope` must return the raw Rigorix envelope. The drawer fetches it
-  and the Verify button runs `rigorix-verifier/browser` against it.
-- `POST /api/attempts/:id/approve` receives `{ signature, ownerAddress, nonce, deadline }` and
-  should return the updated attempt/state; the UI reloads `/api/state` and `/api/attempts`.
-- SSE event names: `attempt.updated`, `capacity.updated`, `approval.requested`, `chain.updated`.
-- If any endpoint is missing, the UI falls back to the local simulation and labels itself
-  `demo data`; it never pretends a simulated settlement is live.
+- The console has no deny, freeze, or scenario endpoints. **Deny** is a local refusal (no
+  dispatch happens; Authority keeps the intent until it expires). Freeze lives in the Control
+  Room sandbox.
+- The console exposes evidence records and a verdict, not the raw envelope bytes; the browser
+  verifier is therefore only used for demo envelopes.
+- CORS for `http://localhost:5173` and `http://127.0.0.1:5173` is already configured in the
+  console deployable (`backend/src/apps/shell.py`).
+- If any endpoint is missing, the UI falls back to the fixtures and labels itself `demo data`.
 
 ## Demo story
 
@@ -128,7 +142,7 @@ make €566.30 and is refused.
 ```
 src/
   App.tsx                 composition + story state machine + scenario mutations
-  api.ts                  API-first client, SSE, browser verification, EIP-712
+  api.ts                  console client + mapper, signature passthrough, evidence verdict
   data.ts                 contract types, fixtures, formatting, envelope preview
   styles.css              the design system
   components/

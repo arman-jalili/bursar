@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  approve,
-  deny,
+  approveConsole,
   demoState,
   loadState,
-  runScenario,
   signApproval,
-  subscribe,
-  verifyEnvelope,
+  verifyEvidence,
   type BursarState,
 } from "./api";
 import {
   INITIAL_APPROVAL,
-  INITIAL_ATTEMPTS,
   SPLIT,
   WIEN,
   ZAHNARZT,
@@ -38,6 +34,7 @@ function newId(prefix: string): string {
 function approvalFor(attempt: Attempt): ApprovalRequest {
   return {
     ...INITIAL_APPROVAL,
+    approvalId: attempt.approvalId,
     attemptId: attempt.id,
     invoiceId: attempt.invoiceId,
     payee: attempt.payee,
@@ -54,11 +51,10 @@ function approvalFor(attempt: Attempt): ApprovalRequest {
   };
 }
 
-function storyBase(): BursarState {
-  const base = demoState();
+function storyBase(current: BursarState): BursarState {
   return {
-    ...base,
-    attempts: INITIAL_ATTEMPTS.filter((a) => a.status === "settled"),
+    ...current,
+    attempts: current.attempts.filter((a) => a.status === "settled"),
     approval: null,
   };
 }
@@ -244,27 +240,13 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
-    let unsubscribe: () => void = () => undefined;
     loadState().then((next) => {
       if (!alive) return;
       setState(next);
-      if (next.source === "api") {
-        unsubscribe = subscribe(
-          (type, payload) => {
-            if (type !== "attempt.updated") return;
-            const updated = payload as Attempt;
-            setState((s) => ({
-              ...s,
-              attempts: s.attempts.map((a) => (a.id === updated.id ? updated : a)),
-            }));
-          },
-          setLive,
-        );
-      }
+      setLive(next.source === "api");
     });
     return () => {
       alive = false;
-      unsubscribe();
     };
   }, []);
 
@@ -275,12 +257,12 @@ export default function App() {
   }, [toast]);
 
   const pending = state.attempts.find((a) => a.status === "pending_approval") ?? null;
-  const approval: ApprovalRequest | null = pending
-    ? state.approval?.attemptId === pending.id
-      ? state.approval
-      : approvalFor(pending)
-    : signed
-      ? state.approval ?? null
+  const approval: ApprovalRequest | null = signed
+    ? state.approval ?? null
+    : pending
+      ? state.approval?.attemptId === pending.id
+        ? state.approval
+        : approvalFor(pending)
       : null;
 
   const counts = useMemo<Record<FeedFilter, number>>(
@@ -353,26 +335,11 @@ export default function App() {
     if (!request || signed || signing) return;
     setSigning(true);
     try {
-      if (state.source === "api") {
-        const { signature, ownerAddress } = await signApproval(request);
-        await approve(request.attemptId, {
-          signature,
-          ownerAddress,
-          nonce: request.nonce,
-          deadline: request.deadline,
-        });
-        try {
-          const loaded = await loadState();
-          if (loaded.source === "api") {
-            setSigned(true);
-            setFilter("all");
-            setState({ ...loaded, approval: request });
-            showToast("Signed. Dispatch authorised — the receipt is ready to verify.");
-            setSigning(false);
-            return;
-          }
-        } catch {
-          // Keep the optimistic local settlement below.
+      if (request.approvalId && state.source === "api") {
+        const { signature } = await signApproval(request);
+        const outcome = await approveConsole(request.approvalId, signature);
+        if (!outcome.granted) {
+          throw new Error(outcome.reason_plain ?? "authority refused the signature");
         }
       } else {
         await new Promise((resolve) => window.setTimeout(resolve, 700));
@@ -422,20 +389,8 @@ export default function App() {
   const onDeny = useCallback(async () => {
     const request = state.approval;
     if (!request) return;
-    if (state.source === "api") {
-      try {
-        await deny(request.attemptId);
-        const loaded = await loadState();
-        if (loaded.source === "api") {
-          setState(loaded);
-          setSigned(false);
-          showToast("Declined. No dispatch, no transaction.");
-          return;
-        }
-      } catch {
-        // The UI reflects the refusal locally; the API can retry on the next load.
-      }
-    }
+    // The console surface has no deny write: the refusal is recorded locally and
+    // no dispatch happens. Authority still holds the intent until it expires.
     setState((s) => ({
       ...s,
       approval: null,
@@ -456,7 +411,7 @@ export default function App() {
     }));
     setSigned(false);
     showToast("Declined. No dispatch, no transaction.");
-  }, [state.approval, state.source, showToast]);
+  }, [state.approval, showToast]);
 
   const onReview = useCallback(
     (attempt: Attempt) => {
@@ -470,20 +425,24 @@ export default function App() {
 
   const onVerify = useCallback(
     async (attempt: Attempt) => {
-      if (state.source === "mock") {
-        setVerified((v) => ({ ...v, [attempt.id]: "ok" }));
-        showToast("Verified in the browser — demo envelope. Flip a byte to see it fail.");
+      if (attempt.evidenceId && state.source === "api") {
+        try {
+          const result = await verifyEvidence(attempt.evidenceId);
+          const ok = result.outcome === "verified";
+          setVerified((v) => ({ ...v, [attempt.id]: ok ? "ok" : "bad" }));
+          showToast(
+            ok
+              ? `Evidence verified — ${result.envelope_id} is intact.`
+              : `Evidence verdict: ${result.outcome}. The envelope is not intact.`,
+          );
+        } catch (err) {
+          setVerified((v) => ({ ...v, [attempt.id]: "bad" }));
+          showToast(`Evidence check failed: ${(err as Error).message}`);
+        }
         return;
       }
-      const result = await verifyEnvelope(attempt);
-      setVerified((v) => ({ ...v, [attempt.id]: result.ok ? "ok" : "bad" }));
-      showToast(
-        result.ok
-          ? result.simulated
-            ? "Verified (demo)."
-            : "Verified in the browser with rigorix-verifier."
-          : `Verification failed: ${result.error ?? "signature mismatch"}`,
-      );
+      setVerified((v) => ({ ...v, [attempt.id]: "ok" }));
+      showToast("Verified — demo envelope. Flip a byte to see it fail.");
     },
     [state.source, showToast],
   );
@@ -497,19 +456,9 @@ export default function App() {
   );
 
   const startStory = useCallback(async () => {
-    let nextState: BursarState | null = null;
-    if (state.source === "api") {
-      try {
-        await runScenario("reset");
-        await runScenario("normal");
-        const loaded = await loadState();
-        if (loaded.source === "api") nextState = loaded;
-      } catch {
-        // Fall through to the local simulation.
-      }
-    }
-    if (!nextState) nextState = { ...applyScenario(storyBase(), "normal"), source: "mock" };
-    setState(nextState);
+    // The story is a local overlay on today's world: it never resets the console,
+    // so a live approval or receipt survives a run.
+    setState(applyScenario(storyBase(state), "normal"));
     setStoryStep(0);
     setSigned(false);
     setSigning(false);
@@ -519,7 +468,7 @@ export default function App() {
     setQuery("");
     window.scrollTo({ top: 0, behavior: "smooth" });
     showToast("Story started. Scene 1 — a normal bill pays and settles.");
-  }, [state.source, showToast]);
+  }, [state, showToast]);
 
   const nextStory = useCallback(async () => {
     if (storyStep === null) return;
@@ -530,18 +479,7 @@ export default function App() {
       return;
     }
     const scene = STORY[next];
-    let nextState: BursarState | null = null;
-    if (state.source === "api") {
-      try {
-        await runScenario(scene.id);
-        const loaded = await loadState();
-        if (loaded.source === "api") nextState = loaded;
-      } catch {
-        // Fall through to the local simulation.
-      }
-    }
-    if (!nextState) nextState = { ...applyScenario(state, scene.id), source: "mock" };
-    setState(nextState);
+    setState(applyScenario(state, scene.id));
     setStoryStep(next);
     if (scene.id === "new-payee") {
       setSigned(false);

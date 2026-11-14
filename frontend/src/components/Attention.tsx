@@ -49,8 +49,9 @@ export function Attention({
               {request.payee.name}?
             </h2>
             <p className="attention-sub">
-              New payee · above your {formatAmount(policy.approvalThresholdUsdc)} line. The agent
-              has not paid it. Sign the exact payment to authorise it.
+              {request.payee.new ? "New payee · " : ""}above your{" "}
+              {formatAmount(policy.approvalThresholdUsdc)} line. The agent has not paid it. Sign the
+              exact payment to authorise it.
             </p>
             <div className="attention-fields">
               <div className="attention-field">
@@ -80,7 +81,11 @@ export function Attention({
                 Deny
               </button>
               <span className="attention-note">
-                {hasWallet ? "EIP-712 via your wallet" : "No wallet detected — demo signer"}
+                {request.approvalId
+                  ? "Console approval — demo signer, signature forwarded unmodified"
+                  : hasWallet
+                    ? "EIP-712 via your wallet"
+                    : "No wallet detected — demo signer"}
               </span>
             </div>
           </div>

@@ -76,7 +76,7 @@ export function Constitution({
         </div>
         <div className="clause-note">
           {activeRule === "new-payee"
-            ? "The €240 dentist is waiting for your signature under this clause."
+            ? "A new payee above your line is waiting for your signature under this clause."
             : "Require an owner signature before the first payment."}
         </div>
       </div>
