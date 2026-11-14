@@ -1,0 +1,293 @@
+"""SC-3 / SC-6 / SC-7 / SC-10 — `Web3ChainGateway` against a real EVM.
+
+Canonical: `docs/contracts/settlement-contract-freeze.md` §1
+Reference: `.pi/architecture/modules/settlement.md#ports-infrastructure-adapters`
+
+The suite drives the adapter end to end: `submit` signs and broadcasts a `PaymentRouter.pay`, the
+transaction mines, `receipt` reads it back with gas and confirmations, and `is_nullifier_spent` reads the
+on-chain marker. Nothing is mocked — the provider is an in-process `eth-tester` chain, which is the
+injection point the constructor exists for (no anvil, no network, no fork).
+
+What each test defends:
+
+* **SC-3** — an order that already has a hash is never signed again (no second nonce, no second payment);
+* **SC-6** — a refusal is a `SettlementRefusal` naming the contract's error, and a bypassed replay reads
+  back from the chain as `REVERTED` rather than as an unexplained zero;
+* **SC-7** — confirmations are measured from the chain and compared against the stricter of the network
+  and the settings, never assumed;
+* **SC-9 / SC-10** — the amount moved is the order's frozen amount, and the receipt carries gas/fee.
+"""
+
+from __future__ import annotations
+
+import pytest
+from eth_account import Account
+from src.settlement.domain.chain_receipt import ChainReceipt
+from src.settlement.domain.errors import SecondTransactionRefused, SettlementRefusal, UnknownNetwork
+from src.settlement.domain.ids import OrderId
+from src.settlement.domain.settlement_order import SettlementOrder
+from src.settlement.domain.values import ChainNetwork, ReceiptStatus
+from src.settlement.infrastructure.chain.web3_gateway import Web3ChainGateway
+from src.shared.domain.errors import RefusalError, ValidationError
+from src.shared.infrastructure.config import Settings, load_settings
+from web3.logs import DISCARD
+
+from tests.unit.settlement._fixtures import a_determination, an_intent
+from tests.unit.settlement.chain._evm import LocalChain
+
+PAYEE_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+AMOUNT_MICRO_USDC = 42_500_000  # 42.50 USDC — taken from `an_intent()`, never passed to `submit`
+
+
+def an_order(network: ChainNetwork, **intent_overrides: object) -> SettlementOrder:
+    """An `ORDERED` order bound to `network`, built through the aggregate's only entry point (SC-1)."""
+    intent = an_intent(**intent_overrides)
+    return SettlementOrder.order(intent, network, a_determination(intent_id=intent.intent_id))
+
+
+class TestSubmit:
+    async def test_submit_broadcasts_a_payment_the_receipt_can_prove(
+        self, chain: LocalChain, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """The port's whole contract: a hash comes back, the money moved, the receipt records it."""
+        order = an_order(chain_network)
+
+        tx_hash = await gateway.submit(order)
+        receipt = await gateway.receipt(tx_hash, order_id=order.id)
+
+        assert len(tx_hash) == 66 and tx_hash.startswith("0x")
+        assert receipt is not None
+        assert receipt.status is ReceiptStatus.SUCCESS
+        assert receipt.order_id == order.id
+        assert receipt.tx_hash == tx_hash
+        # SC-10: a receipt without cost is not a receipt.
+        assert receipt.gas_used > 0
+        assert int(receipt.gas_price) > 0
+        # SC-9: exactly the frozen intent amount moved, and only to the intent's payee.
+        assert chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call() == AMOUNT_MICRO_USDC
+        # The signer is the key from settings, not a node-held account.
+        assert chain.w3.eth.get_transaction(tx_hash)["from"] == chain.operator
+
+    async def test_submit_flips_the_on_chain_nullifier(
+        self, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """SC-5 from the chain side: `spentNullifiers` is how the app refuses a replay first."""
+        order = an_order(chain_network)
+        assert await gateway.is_nullifier_spent(order.nullifier) is False
+
+        await gateway.submit(order)
+
+        assert await gateway.is_nullifier_spent(order.nullifier) is True
+
+    async def test_a_submitted_order_is_never_signed_twice(
+        self, chain: LocalChain, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """SC-3: a second signature is a second nonce and a second payment. Refuse, keep the hash."""
+        order = an_order(chain_network)
+        tx_hash = await gateway.submit(order)
+        order.mark_submitted(tx_hash, order.amount)  # the write-ahead record the caller persists
+        blocks = chain.w3.eth.block_number
+        balance = chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call()
+
+        with pytest.raises(SecondTransactionRefused) as raised:
+            await gateway.submit(order)
+
+        assert raised.value.details["existing_tx_hash"] == tx_hash
+        assert chain.w3.eth.block_number == blocks
+        assert chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call() == balance
+        assert order.tx_hash == tx_hash
+
+    async def test_an_order_requiring_the_owner_signature_is_refused(
+        self, chain: LocalChain, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """A-15: the settlement key cannot stand in for the owner — the lock is never downgraded."""
+        order = an_order(chain_network, requires_owner_signature=True)
+        blocks = chain.w3.eth.block_number
+
+        with pytest.raises(SettlementRefusal) as raised:
+            await gateway.submit(order)
+
+        assert raised.value.details["reason"] == "owner_signature_required"
+        assert isinstance(raised.value, RefusalError)
+        assert chain.w3.eth.block_number == blocks
+        assert chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call() == 0
+
+    async def test_a_node_rejection_is_a_refusal_not_a_traceback(
+        self, chain: LocalChain, chain_network: ChainNetwork
+    ) -> None:
+        """SC-6: an unfunded signer is a documented refusal (409), not a 500 from a provider trace."""
+        unfunded = Account.create().key.hex()
+        settings = load_settings(
+            settlement_private_key=unfunded,
+            payment_router_address=chain.router.address,
+            usdc_address=chain.usdc.address,
+            chain_id=chain.w3.eth.chain_id,
+            confirmations_required=1,
+        )
+        gateway = Web3ChainGateway(chain.w3, chain_network, settings)
+        order = an_order(chain_network)
+
+        with pytest.raises(SettlementRefusal) as raised:
+            await gateway.submit(order)
+
+        assert raised.value.details["stage"] == "submit"
+        assert chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call() == 0
+
+    async def test_submit_refuses_a_spent_nullifier_before_broadcasting(
+        self, chain: LocalChain, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """SC-6 / scenario 6: the node rejects the replay at estimation, so nothing is broadcast."""
+        first = an_order(chain_network)
+        await gateway.submit(first)
+        # Same invoice identity in the same household → the same nullifier, a different order id.
+        replay = an_order(chain_network)
+        assert replay.nullifier == first.nullifier
+        assert replay.id != first.id
+
+        with pytest.raises(SettlementRefusal) as raised:
+            await gateway.submit(replay)
+
+        # The named error is decoded from the revert, not guessed from a message.
+        assert raised.value.details["reason"] == "NullifierSpent"
+        assert chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call() == AMOUNT_MICRO_USDC
+
+
+class TestReceipt:
+    async def test_a_bypassed_replay_reads_back_as_a_refusal(
+        self, chain: LocalChain, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """SC-6: even a transaction the app never sent is reported as a refusal, with its reason.
+
+        This is the scenario-6 bypass: an attacker with the operator's key sends the call directly. The
+        gateway did not sign it, and must still be able to read the outcome and the contract's error.
+        """
+        first = an_order(chain_network)
+        await gateway.submit(first)
+        replay = an_order(chain_network)
+        bypassed = chain.wait(
+            chain.send(
+                chain.router.functions.pay(
+                    Web3ChainGateway.order_ref(replay.id),
+                    bytes.fromhex(replay.nullifier.value[2:]),
+                    PAYEE_ADDRESS,
+                    replay.amount.micro_usdc,
+                    False,
+                    b"",
+                )
+            )
+        )
+
+        receipt = await gateway.receipt(
+            "0x" + bytes(bypassed.transactionHash).hex(), order_id=replay.id
+        )
+
+        assert receipt is not None
+        assert receipt.status is ReceiptStatus.REVERTED
+        assert receipt.revert_reason == "NullifierSpent"
+        assert receipt.confirmed is False
+        assert chain.usdc.functions.balanceOf(PAYEE_ADDRESS).call() == AMOUNT_MICRO_USDC
+
+    async def test_receipt_is_none_while_the_transaction_is_unknown(
+        self, gateway: Web3ChainGateway
+    ) -> None:
+        """The port returns `None` for "not mined yet" — it never invents a receipt or a hash."""
+        assert await gateway.receipt("0x" + "00" * 32) is None
+
+    async def test_confirmations_are_measured_and_finality_uses_the_stricter_policy(
+        self, chain: LocalChain, chain_network: ChainNetwork
+    ) -> None:
+        """SC-7: the depth is a chain fact; the threshold is `max(network, settings)`."""
+        settings = load_settings(
+            settlement_private_key=chain.operator_key.hex(),
+            payment_router_address=chain.router.address,
+            usdc_address=chain.usdc.address,
+            chain_id=chain.w3.eth.chain_id,
+            confirmations_required=2,  # stricter than the network's 1, and never weaker
+        )
+        gateway = Web3ChainGateway(chain.w3, chain_network, settings)
+        assert gateway.confirmations_required == 2
+
+        order = an_order(chain_network)
+        tx_hash = await gateway.submit(order)
+        shallow = await gateway.receipt(tx_hash, order_id=order.id)
+        assert shallow is not None
+        assert shallow.confirmations == 1
+        assert gateway.is_final(shallow) is False
+
+        chain.tester.mine_blocks(1)
+        deep = await gateway.receipt(tx_hash, order_id=order.id)
+        assert deep is not None
+        assert deep.confirmations == 2
+        assert gateway.is_final(deep) is True
+
+    async def test_a_receipt_without_a_named_order_uses_the_on_chain_reference(
+        self, gateway: Web3ChainGateway, chain_network: ChainNetwork
+    ) -> None:
+        """The `Anchored` event is the chain's own order reference — readable without a lookup table."""
+        order = an_order(chain_network)
+        tx_hash = await gateway.submit(order)
+
+        receipt = await gateway.receipt(tx_hash)
+
+        assert isinstance(receipt, ChainReceipt)
+        assert receipt.order_id == OrderId("0x" + Web3ChainGateway.order_ref(order.id).hex())
+        assert receipt.is_anchor is False
+
+
+class TestAnchor:
+    async def test_an_anchor_write_is_readable_and_never_a_settlement(
+        self, chain: LocalChain, gateway: Web3ChainGateway
+    ) -> None:
+        """ADR-006: an anchor timestamps a hash; it spends no nullifier and names no order."""
+        anchored = "0x" + "5a" * 32
+
+        tx_hash = await gateway.anchor(anchored)
+        receipt = await gateway.receipt(tx_hash)
+        mined = chain.wait(bytes.fromhex(tx_hash[2:]))
+
+        assert receipt is not None
+        assert receipt.status is ReceiptStatus.SUCCESS
+        assert receipt.is_anchor is True
+        assert receipt.order_id == OrderId("0x" + "00" * 32)
+        assert mined.status == 1
+        logs = [
+            log
+            for log in chain.router.events.Anchored().process_receipt(mined, errors=DISCARD)
+            if log["address"] == chain.router.address
+        ]
+        assert len(logs) == 1
+        assert bytes(logs[0]["args"]["txRef"]).hex() == anchored[2:]
+
+    async def test_a_malformed_anchor_hash_is_a_validation_refusal(
+        self, gateway: Web3ChainGateway
+    ) -> None:
+        """A malformed reference is 422 data, refused before a transaction is signed."""
+        with pytest.raises(ValidationError):
+            await gateway.anchor("0xdeadbeef")
+
+
+class TestConfiguration:
+    def test_a_network_from_another_chain_is_refused(
+        self, chain: LocalChain, chain_settings: Settings
+    ) -> None:
+        """SC-11: signing for a chain this adapter was not configured for is the address leak."""
+        with pytest.raises(UnknownNetwork):
+            Web3ChainGateway(chain.w3, ChainNetwork.anvil(), chain_settings)
+
+    def test_a_gateway_without_a_settlement_key_is_refused(self, chain: LocalChain) -> None:
+        """An adapter that exists is an adapter that can sign — otherwise it must not be built."""
+        settings = load_settings(settlement_private_key="")
+
+        with pytest.raises(SettlementRefusal) as raised:
+            Web3ChainGateway(
+                chain.w3,
+                ChainNetwork(
+                    chain_id=chain.w3.eth.chain_id,
+                    router_address=chain.router.address,
+                    usdc_address=chain.usdc.address,
+                    confirmations_required=1,
+                ),
+                settings,
+            )
+
+        assert raised.value.details["setting"] == "BURSAR_SETTLEMENT_PRIVATE_KEY"
