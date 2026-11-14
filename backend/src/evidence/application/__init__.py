@@ -1,12 +1,13 @@
-"""Evidence application layer — use cases, DTOs and the unit-of-work boundary.
+"""Evidence application layer — use cases, DTOs and concrete composition wrappers.
 
 Canonical: .pi/architecture/modules/evidence.md#application-services
 Reference: docs/contracts/evidence-contract-freeze.md §2.7
 
-Phase A: signatures only. `SealEvidence` and `VerifyEvidence` are dataclasses whose `execute` raises
-`NotImplementedError("E-n — see module doc")`.
+`services.py` holds the two catalog use cases (`SealEvidence`, `VerifyEvidence`) plus the
+`WitnessReport` read model, written against ports only. `services_impl.py` gives them a session and
+adapters for the runtime; it is the only application file that names infrastructure.
 
-What the implementations will own (and the domain will not): exactly one `claim` + `append` + anchor
-attempt per delivery, the outbox append in the same transaction, and the witness-only decision that a
-signing/anchoring failure is recorded as a gap rather than propagated to the publisher (E-10).
+The application layer owns exactly one transaction per call (ADR-002): one `claim` + `append` per
+delivery, an anchor attempt in the same unit of work, and the witness-only decision that a
+signing/anchoring failure is a reported gap rather than a publisher error (E-10).
 """
