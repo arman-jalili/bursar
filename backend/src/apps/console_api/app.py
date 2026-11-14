@@ -17,6 +17,7 @@ from fastapi import FastAPI
 
 from src.apps.shell import ServiceName, build_app, install_context
 from src.billing.interfaces.http import router as billing
+from src.console.interfaces import api as console
 from src.evidence.interfaces.http import router as evidence
 from src.mandate.interfaces.http import router as mandate
 from src.settlement.interfaces.http import router as settlement
@@ -31,7 +32,7 @@ HOSTED_CONTEXTS = (
     billing,  # Billing (Phase 2) — invoices, payment attempts, duplicate + one-active guards
     settlement,  # Settlement (Phase 4) — orders, receipts, cost, nullifier status (read side)
     evidence,  # Evidence (Phase 5) — append-only envelopes, anchors, verify/tamper surface
-    # Console (Phase 6) follows.
+    console,  # Console (Phase 6) — read models, one signature passthrough (no domain layer)
 )
 
 

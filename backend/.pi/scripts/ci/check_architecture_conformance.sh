@@ -13,6 +13,13 @@
 
 set -euo pipefail
 
+# Prefer the project virtualenv when it exists: the runtime baseline check resolves `python3`
+# from PATH, and a distro 3.9 must not decide whether the project's 3.12 runtime is acceptable.
+if [ -d ".venv/bin" ]; then
+    PATH="$PWD/.venv/bin:$PATH"
+    export PATH
+fi
+
 PI_DIR=".pi"
 ARCH_DIR="${PI_DIR}/architecture"
 MODULES_DIR="${ARCH_DIR}/modules"
@@ -701,8 +708,11 @@ check_import_boundaries() {
     module_dirs=$(find src -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
     for module_dir in $module_dirs; do
         module=$(basename "$module_dir")
-        # Skip non-DDD modules (CLI, config, shared)
-        case "$module" in shared|common|config|lib|bin) continue ;; esac
+        # Skip non-DDD modules (CLI, config, shared) and adapter-depth contexts.
+        # Console is the one context whose canonical module doc forbids a domain layer
+        # (ADR-008 / CON-09): its absence is the architecture, so a "missing domain" here
+        # would invert the rule the module exists to defend.
+        case "$module" in shared|common|config|lib|bin|console) continue ;; esac
         
         # Check contracts/ anti-pattern
         if [[ -d "${module_dir}/contracts" ]]; then

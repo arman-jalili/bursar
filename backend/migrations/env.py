@@ -37,7 +37,12 @@ from src.evidence.infrastructure.models import Base as EvidenceBase  # noqa: E40
 from src.mandate.infrastructure.models import Base as MandateBase  # noqa: E402
 from src.settlement.infrastructure.models import Base as SettlementBase  # noqa: E402
 
-target_metadata = [MandateBase.metadata, BillingBase.metadata, SettlementBase.metadata, EvidenceBase.metadata]
+target_metadata = [
+    MandateBase.metadata,
+    BillingBase.metadata,
+    SettlementBase.metadata,
+    EvidenceBase.metadata,
+]
 
 
 def _selected_database() -> str:

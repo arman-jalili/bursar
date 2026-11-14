@@ -21,7 +21,9 @@ from collections.abc import Iterable
 from enum import StrEnum
 from typing import Final
 
-__all__ = ["REFUSAL_COPY", "DenialReasonCode", "refusal_copy"]
+from src.console.application.errors import RefusalReasonMissing, UnknownReasonCode
+
+__all__ = ["REFUSAL_COPY", "DenialReasonCode", "coerce_code", "refusal_copy"]
 
 
 class DenialReasonCode(StrEnum):
@@ -51,11 +53,38 @@ REFUSAL_COPY: Final[dict[DenialReasonCode, str]] = {
 }
 
 
-def refusal_copy(codes: Iterable[DenialReasonCode]) -> str:
+def coerce_code(code: DenialReasonCode | str) -> DenialReasonCode:
+    """Turn one upstream code into the frozen enum, refusing anything outside the set (CON-07)."""
+    if isinstance(code, DenialReasonCode):
+        return code
+    try:
+        return DenialReasonCode(code)
+    except ValueError as exc:
+        raise UnknownReasonCode(
+            f"Authority sent a reason code outside the frozen set: {code!r}"
+        ) from exc
+
+
+def refusal_copy(codes: Iterable[DenialReasonCode | str]) -> str:
     """Render the owner-facing reason for a refusal (scenarios 2/3/4).
 
     Raises:
         RefusalReasonMissing: `codes` is empty — a refusal with no reason cannot be explained.
         UnknownReasonCode: a code is outside the frozen set (CON-07).
     """
-    raise NotImplementedError("CON-07 — see module doc")
+    materialised = tuple(codes)
+    if not materialised:
+        # CON-07: a generic "Payment failed" is the failure this rule exists to prevent.
+        raise RefusalReasonMissing("a refusal with no reason code cannot be explained to the owner")
+
+    reasons: list[str] = []
+    for raw_code in materialised:
+        code = coerce_code(raw_code)
+        reason = REFUSAL_COPY.get(code)
+        if reason is None:  # pragma: no cover - the table is complete by construction
+            raise UnknownReasonCode(f"no household copy for reason code {code!r}")
+        if reason not in reasons:
+            reasons.append(reason)
+
+    # Deterministic order: Authority's order is the order the owner reads them in.
+    return "; ".join(reasons)

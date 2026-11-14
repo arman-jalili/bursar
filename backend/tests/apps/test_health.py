@@ -35,13 +35,23 @@ def test_readyz_checks_database_and_reports_build_state(
     assert body["status"] == "ready"
     assert body["checks"]["database"] == "ok"
     assert body["build"]["phase"] == 0
-    assert body["build"]["pending_contexts"], "the gap between planned and wired must stay visible"
-    # console-api hosts Mandate (Phase 1) and Billing (Phase 2); authority-service wires its
-    # context in Phase 3.
+    # The gap between planned and wired must stay visible: a build that hosts every planned
+    # context says so with an empty list, not by omitting the key.
+    assert "pending_contexts" in body["build"]
+    # console-api is the edge deployable: it hosts every read model the console renders
+    # (Mandate, Billing, Settlement, Evidence, Console). authority-service wires its context later.
     if body["service"] == "console-api":
-        assert body["build"]["wired_contexts"] == ["Mandate", "Billing"]
+        assert body["build"]["wired_contexts"] == [
+            "Mandate",
+            "Billing",
+            "Settlement",
+            "Evidence",
+            "Console",
+        ]
+        assert body["build"]["pending_contexts"] == []
     else:
         assert body["build"]["wired_contexts"] == []
+        assert body["build"]["pending_contexts"] == ["Authority"]
 
 
 def test_readyz_never_leaks_secrets(console_client: TestClient) -> None:

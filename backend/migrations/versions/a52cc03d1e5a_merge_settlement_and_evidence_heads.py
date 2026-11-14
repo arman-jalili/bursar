@@ -10,12 +10,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from alembic import op
-import sqlalchemy as sa
-
-
-revision: str = 'a52cc03d1e5a'
-down_revision: str | None = ('003_evidence', '003_settlement')
+revision: str = "a52cc03d1e5a"
+down_revision: str | None = ("003_evidence", "003_settlement")
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
