@@ -48,8 +48,10 @@ class DispatchPaymentCommand:
 class DispatchPaymentResult:
     order_id: str
     intent_id: str
-    #: `None` only if the framework precondition refused after the order was persisted — in which case
-    #: the order is `ABANDONED`, never re-signed (SC-3, SC-8).
+    #: The hash of the transaction this dispatch **signed** (`ChainGateway.prepare`), whether or not the
+    #: governed broadcast step accepted it. `None` only when nothing reached the signing step (the gate
+    #: refused). It is never invented (SC-3): a `SIGNED` order carries this hash and the signed bytes,
+    #: and recovery re-broadcasts them.
     tx_hash: str | None
     status: str
     nullifier: str = ""

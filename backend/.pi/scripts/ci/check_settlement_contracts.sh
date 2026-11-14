@@ -11,6 +11,9 @@
 #   2. every frozen interface either has a concrete implementation or is a
 #      *documented* deferral (ADR-009 + runbook) — an undocumented stub fails;
 #   3. the implemented surface no longer raises NotImplementedError;
+#   3b. the two-phase chain port (freeze §7) is the shape that can express SC-3's
+#      write-ahead ordering, and the governed broadcast step signs nothing and
+#      reads no database;
 #   4. every application service that is wired is registered at the runtime seam;
 #   5. the storage mirrors of SC-3/SC-5/SC-10 exist in the migration;
 #   6. every invariant SC-1…SC-12 is named by at least one suite;
@@ -130,6 +133,40 @@ if grep -qF "SC-3" src/settlement/interfaces/http/router.py 2>/dev/null; then
     pass "the deferred dispatch endpoint names its blocker (SC-3)"
 else
     fail "the deferred dispatch endpoint does not name its blocker"
+fi
+
+# ── 2c. The two-phase chain port and the governed broadcast (freeze §7) ────
+echo ""
+echo "--- Two-phase chain port (B-1 closed) ---"
+require_symbol "class SignedPayment" "src/settlement/domain/ports.py"
+require_symbol "async def prepare(self, order: SettlementOrder) -> SignedPayment" "src/settlement/domain/ports.py"
+require_symbol "async def broadcast(self, signed: SignedPayment) -> None" "src/settlement/domain/ports.py"
+require_symbol "class ChainGateway(Protocol)" "src/settlement/domain/ports.py"
+if grep -qF "async def submit(self, order: SettlementOrder)" src/settlement/domain/ports.py; then
+    fail "ChainGateway.submit is back — a sign-then-send call cannot express SC-3's ordering"
+else
+    pass "ChainGateway no longer signs and sends in one call (SC-3)"
+fi
+require_symbol "def mark_signed(self" "src/settlement/domain/settlement_order.py"
+require_symbol "SIGNED = \"signed\"" "src/settlement/domain/values.py"
+require_symbol "raw_transaction" "src/settlement/infrastructure/models.py"
+require_symbol "ck_settlement_orders_status" "migrations/versions/005_settlement_signed.py"
+require_symbol "raw_transaction" "migrations/versions/005_settlement_signed.py"
+
+echo ""
+echo "--- Governed broadcast step (SC-2) ---"
+require_file "src/settlement/infrastructure/chain/broadcast_cli.py"
+require_symbol "payments.broadcast --raw-tx {raw_transaction}" "src/settlement/infrastructure/rigorix/command_adapter.py"
+require_symbol '"payments.broadcast"' "pyproject.toml"
+if grep -qE "^\s*(from|import)\s+(sqlalchemy|src\.settlement\.infrastructure\.repositories)" src/settlement/infrastructure/chain/broadcast_cli.py 2>/dev/null; then
+    fail "payments.broadcast reads the database — that is the rejected second payment path"
+else
+    pass "payments.broadcast has no database access (one signed payload, nothing else)"
+fi
+if grep -qE "sign_transaction|settlement_private_key" src/settlement/infrastructure/chain/broadcast_cli.py 2>/dev/null; then
+    fail "payments.broadcast can sign — the hash would no longer precede the broadcast (SC-3)"
+else
+    pass "payments.broadcast signs nothing (SC-3)"
 fi
 
 # ── 3. The implemented surface no longer raises NotImplementedError ─────────

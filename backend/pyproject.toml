@@ -58,6 +58,11 @@ dev = [
 [project.scripts]
 authority-service = "src.apps.authority_service.app:main"
 console-api = "src.apps.console_api.app:main"
+# The governed broadcast step (SC-2). It sends ONE already-signed transaction and nothing else: no
+# database, no order lookup, no network re-derivation, no signing. Rigorix renders it as
+# `payments.broadcast --raw-tx <hex>` from the order's persisted `raw_transaction`, so the payment
+# action keeps the HMAC-signed audit envelope while the tx hash was already known (SC-3).
+"payments.broadcast" = "src.settlement.infrastructure.chain.broadcast_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

@@ -12,6 +12,9 @@ not enforce is a guarantee two concurrent requests can forget:
   second spend is an integrity error, not a lost update (SC-5, scenario 6). This is the last local lock.
 * `uq_settlement_orders_tx_hash` — a hash belongs to exactly one order. The hash is the write-ahead
   record (SC-3), so two orders sharing one means two orders claiming one payment.
+* `ck_settlement_orders_status` — the stored status is one `SettlementStatus` declares. Since the two
+  phase write path there is a state between "order exists" and "the chain has it" (`signed`), and a row
+  in a state the domain cannot name is an order the recovery procedure does not cover.
 
 `settlement_receipts` is append-only and deliberately has **no** uniqueness on `tx_hash`: a reorg or a
 deeper confirmation is a new fact about the same hash, not an update (SC-7). It carries gas and fee as
@@ -27,6 +30,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Index,
     Integer,
@@ -44,6 +48,19 @@ __all__ = [
     "SettlementOutboxRow",
     "SettlementReceiptRow",
 ]
+
+#: The closed lifecycle `SettlementStatus` declares, mirrored into a CHECK constraint (migration
+#: `005_settlement_signed`). A status the domain cannot name must not be storable: a row in an unknown
+#: state is an order no state machine owns, and the recovery procedure silently stops applying.
+STATUS_VALUES: tuple[str, ...] = (
+    "ordered",
+    "signed",
+    "submitted",
+    "pending",
+    "confirmed",
+    "reverted",
+    "abandoned",
+)
 
 
 class Base(DeclarativeBase):
@@ -74,8 +91,12 @@ class SettlementOrderRow(Base):
     requires_owner_signature: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     status: Mapped[str] = mapped_column(String(20), nullable=False)
-    #: `NULL` before submission; never `NULL` afterwards. `uq_…_tx_hash` ignores NULLs.
+    #: `NULL` before signing; never `NULL` afterwards. `uq_…_tx_hash` ignores NULLs.
     tx_hash: Mapped[str | None] = mapped_column(String(66), nullable=True)
+    #: The signed bytes that carry `tx_hash`. Written with the hash so the write-ahead record is
+    #: re-broadcastable without re-signing (SC-3): a crash between signing and sending is recovered by
+    #: replaying the same transaction, never by taking a second nonce.
+    raw_transaction: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
@@ -89,6 +110,10 @@ class SettlementOrderRow(Base):
         UniqueConstraint("intent_id", name="uq_settlement_orders_intent"),
         UniqueConstraint("nullifier", name="uq_settlement_orders_nullifier"),
         UniqueConstraint("tx_hash", name="uq_settlement_orders_tx_hash"),
+        CheckConstraint(
+            "status IN (" + ", ".join(f"'{value}'" for value in STATUS_VALUES) + ")",
+            name="ck_settlement_orders_status",
+        ),
         Index("ix_settlement_orders_status", "status"),
         Index("ix_settlement_orders_invoice", "invoice_id"),
     )

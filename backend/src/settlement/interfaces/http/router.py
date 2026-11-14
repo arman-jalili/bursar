@@ -6,14 +6,16 @@ Reference: docs/contracts/settlement-contract-freeze.md §2.11
 Thin on purpose: translate HTTP into a service call, map the result back. No module rule lives here.
 
 `POST /v1/intents/{intent_id}/dispatch` is **live**: it calls the frozen `DispatchPayment` use case, which
-reads Authority's determination (SC-1), builds the order and runs the one fixed Rigorix `run_command`
-command (SC-2). The two adapters are installed by this context's startup hook (`build_services`), and a
-test replaces the service in `app.state.settlement_services` — no test reaches the network.
+reads Authority's determination (SC-1), signs the payment locally with the chain gateway (so the tx hash
+exists before anything is sent — SC-3), persists the hash and the signed bytes, and then runs the one
+fixed Rigorix `run_command` that broadcasts them (SC-2). The adapters are installed by this context's
+startup hook (`build_services`), and a test replaces the service in `app.state.settlement_services` — no
+test reaches the network.
 
-`POST /v1/anchors` still answers `501` with the reason named. The frozen contract defines it, but its only
-implementation (`AnchorHash`) needs a `ChainGateway` adapter, which does not exist in this build (gap G-1,
-ADR-009). Returning 501 is deliberate: an endpoint that silently 500s, or one that "succeeds" against a
-fake chain, would hide the gap the freeze exists to make visible.
+`POST /v1/anchors` still answers `501` with the reason named. The frozen contract defines it and
+`AnchorHashService` implements it, but no `PaymentRouter.sol` is deployed on any network this process can
+reach (gap G-2, ADR-009). Returning 501 is deliberate: an endpoint that silently 500s, or one that
+"succeeds" against a fake chain, would hide the gap the freeze exists to make visible.
 """
 
 from __future__ import annotations
@@ -67,18 +69,19 @@ _BLOCKED_DISPATCH = (
     "docs/runbook-settlement.md."
 )
 _BLOCKED_ANCHOR = (
-    "anchoring is not wired: a ChainGateway adapter (web3 + deployed PaymentRouter.sol) does not exist "
-    "in this build. See ADR-009 and docs/runbook-settlement.md."
+    "anchoring is not wired: the ChainGateway adapter exists, but no PaymentRouter.sol is deployed on "
+    "the configured chain, so an anchor could only be faked. See ADR-009 and docs/runbook-settlement.md."
 )
 
 
 class DispatchResponse(BaseModel):
-    """What a dispatch produced: the order, and the write-ahead hash when one exists (SC-3).
+    """What a dispatch produced: the order, and the hash that was persisted before broadcast (SC-3).
 
     Declared here rather than in `schemas.py` because the write surface is this router's: the freeze
     fixes the endpoint shape (§2.11), and the response is a projection of the frozen
-    `DispatchPaymentResult`, not a second contract. `tx_hash` is `null` while the chain adapter is a
-    gap (G-1/B-1): no broadcast means no hash, and a fabricated one would fake SC-3.
+    `DispatchPaymentResult`, not a second contract. `tx_hash` is the hash this dispatch **signed**; it is
+    `null` only when the request was refused before signing. A `signed` order already carries it, so a
+    refused governed broadcast leaves a re-broadcastable record rather than a lie (SC-3).
     """
 
     order_id: str
@@ -237,9 +240,11 @@ def build_services(
     composed here, in the context's own install hook, so the deployable uses them and a test can put a
     fake in `app.state.settlement_services` instead.
 
-    `chain_gateway` is `None` until the chain adapter lands (gap G-1, owned by the chain slice). The
-    dispatch service accepts that: the on-chain nullifier read is an additional lock, and the local store
-    is still the last one. Nothing here fakes a chain.
+    `chain_gateway` is `None` when this deployment cannot sign (no settlement key, or no reachable
+    node). The dispatch service then refuses every dispatch with `no_chain_gateway` rather than running
+    a governed command that has nothing to broadcast — an order that can never be paid would occupy the
+    intent's only dispatch slot. The on-chain nullifier read is an additional lock; the local store is
+    still the last one. Nothing here fakes a chain.
     """
     services: dict[str, object] = {
         "get_order": GetOrderService(session_factory),  # type: ignore[arg-type]
@@ -280,7 +285,6 @@ def build_dispatch_service(
     )
 
 
-
 def _build_chain_gateway(settings: Settings) -> object | None:
     """Build the real `Web3ChainGateway`, or `None` when this deployment cannot sign (G-1).
 
@@ -295,7 +299,11 @@ def _build_chain_gateway(settings: Settings) -> object | None:
         from src.settlement.domain.values import ChainNetwork
         from src.settlement.infrastructure.chain.web3_gateway import Web3ChainGateway
 
-        return Web3ChainGateway(Web3(Web3.HTTPProvider(settings.rpc_url)), ChainNetwork.for_chain(settings.chain_id), settings)
+        return Web3ChainGateway(
+            Web3(Web3.HTTPProvider(settings.rpc_url)),
+            ChainNetwork.for_chain(settings.chain_id),
+            settings,
+        )
     except Exception:
         logger.warning("settlement chain gateway not built; on-chain nullifier read is unavailable")
         return None

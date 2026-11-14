@@ -6,11 +6,17 @@ SC-7, SC-9, SC-10, SC-11)
 
 What this adapter is responsible for, and what it deliberately is not:
 
-* **`submit(order)` signs once.** The order is the only input: the calldata is built from
-  `order.payee_address`, `order.amount` and `order.nullifier`, never from a parameter a caller could
-  taint (SC-2, SC-9). An order that already carries a `tx_hash` is refused with
-  `SecondTransactionRefused` *before* a nonce is taken: re-signing a submitted order is a second
-  payment, which is the one thing SC-3 exists to make impossible.
+* **`prepare(order)` signs once and broadcasts nothing.** The order is the only input: the calldata is
+  built from `order.payee_address`, `order.amount` and `order.nullifier`, never from a parameter a
+  caller could taint (SC-2, SC-9). `eth_account` hands back the signed bytes *and* their hash from the
+  same call, so the hash exists before the transaction does — which is what lets the caller persist it
+  first (SC-3). An order that already carries a `tx_hash` is refused with `SecondTransactionRefused`
+  *before* a nonce is taken: re-signing a submitted order is a second payment.
+* **`broadcast(signed)` sends those exact bytes and nothing else.** It re-derives no call, takes no
+  order and signs nothing, so it cannot be talked into paying something else. Re-sending the same bytes
+  is a node-level replay of one transaction (same hash, same nonce), and the on-chain nullifier is what
+  actually refuses a second payment (SC-5) — which is why re-broadcasting a persisted hash is the
+  recovery, not a risk.
 * **`receipt(tx_hash)` reports chain facts only.** Status, block, confirmations, gas, gas price and a
   fee estimate — the fields `ChainReceipt` refuses to be incomplete without (SC-10). Finality is *not*
   decided here: `is_final` compares the measured depth against `confirmations_required`, and the
@@ -52,7 +58,7 @@ from src.settlement.domain.errors import (
     UnknownNetwork,
 )
 from src.settlement.domain.ids import OrderId, ReceiptId, new_id
-from src.settlement.domain.ports import ChainGateway
+from src.settlement.domain.ports import ChainGateway, SignedPayment
 from src.settlement.domain.values import ChainNetwork, Nullifier, ReceiptStatus
 from src.settlement.infrastructure.chain.abi import ROUTER_ABI, ROUTER_ERROR_SELECTORS
 from src.shared.domain.errors import ErrorCode, ValidationError
@@ -85,7 +91,7 @@ _BYTES_REPR: Final[re.Pattern[str]] = re.compile(r"b'(?:\\.|[^'\\])*'")
 
 
 class Web3ChainGateway(ChainGateway):
-    """`ChainGateway` over web3: one signature per order, receipts with cost, nullifier reads."""
+    """`ChainGateway` over web3: sign locally, broadcast the signed bytes, receipts with cost."""
 
     def __init__(
         self,
@@ -199,15 +205,17 @@ class Web3ChainGateway(ChainGateway):
 
     # ── writes ──────────────────────────────────────────────────────────────
 
-    async def submit(self, order: SettlementOrder) -> str:
-        """Sign and broadcast `PaymentRouter.pay` for this order; return the tx hash (SC-3, SC-9).
+    async def prepare(self, order: SettlementOrder) -> SignedPayment:
+        """Sign `PaymentRouter.pay` for this order; return the hash and the bytes, broadcast nothing.
 
         Raises:
             SecondTransactionRefused: the order already carries a tx hash. Re-signing would take a new
-                nonce and could pay twice (SC-3); the caller re-polls the existing hash instead.
+                nonce and could pay twice (SC-3); the caller re-broadcasts and re-polls the existing
+                hash instead.
             SettlementRefusal: the order needs the owner's EIP-712 signature, which the settlement key
                 cannot produce — the second lock is never silently downgraded (A-15).
-            SettlementRefusal: the node refused the transaction (nothing was broadcast).
+            SettlementRefusal: any provider failure, including a node that rejects the call at gas
+                estimation (a spent nullifier, an insufficient balance). Nothing was broadcast.
         """
         if order.tx_hash is not None:
             raise SecondTransactionRefused(order_id=str(order.id), existing_tx_hash=order.tx_hash)
@@ -231,24 +239,77 @@ class Web3ChainGateway(ChainGateway):
             b"",
         )
         try:
-            raw_hash = await asyncio.to_thread(self._send_sync, call)
+            return await asyncio.to_thread(self._sign_sync, call)
         except SettlementRefusal:
             raise
         except Exception as exc:  # provider boundary: every failure is a refusal
-            raise self._refusal(exc, stage="submit", order_id=str(order.id)) from exc
-        return "0x" + bytes(raw_hash).hex()
+            raise self._refusal(exc, stage="prepare", order_id=str(order.id)) from exc
+
+    async def broadcast(self, signed: SignedPayment) -> None:
+        """Send already-signed bytes; return nothing, because the hash is not news to the caller.
+
+        Two guards, and both exist to protect the persisted record rather than the transaction:
+
+        * the bytes must hash to `signed.tx_hash` **before** they are sent — otherwise the persisted
+          hash and the payment would be two different things, and the order would point at a hash
+          nobody can re-poll;
+        * the node's echoed hash must match — a node that answers with a different id means the bytes
+          are not the transaction this caller recorded.
+
+        Re-sending the same bytes is a node-level replay of the *same* transaction (same hash, same
+        nonce), so it is safe to repeat and cannot become a second payment; the on-chain nullifier is
+        what refuses an actual double spend (SC-5).
+
+        Raises:
+            SettlementRefusal: the bytes are not the recorded transaction (`tx_hash_mismatch`), the node
+                rejected them (already known, nonce too low, underpriced) or the RPC failed. A refused
+                re-broadcast of accepted bytes is harmless: the caller's receipt poll decides what
+                happened.
+        """
+        expected = signed.tx_hash.lower()
+        local = "0x" + keccak(HexBytes(signed.raw_transaction)).hex()
+        if local != expected:
+            raise SettlementRefusal(
+                ErrorCode.CONFLICT,
+                "The signed bytes hash to a different transaction id than the one on the order.",
+                details={
+                    "stage": "broadcast",
+                    "reason": "tx_hash_mismatch",
+                    "expected_tx_hash": signed.tx_hash,
+                    "actual_tx_hash": local,
+                },
+            )
+        try:
+            sent = await asyncio.to_thread(self._send_sync, signed.raw_transaction)
+        except SettlementRefusal:
+            raise
+        except Exception as exc:  # provider boundary: every failure is a refusal
+            raise self._refusal(exc, stage="broadcast", order_id=signed.tx_hash) from exc
+        echoed = "0x" + bytes(sent).hex()
+        if echoed != expected:
+            raise SettlementRefusal(
+                ErrorCode.CONFLICT,
+                "The node accepted bytes that hash to a different transaction id.",
+                details={
+                    "stage": "broadcast",
+                    "reason": "tx_hash_mismatch",
+                    "expected_tx_hash": signed.tx_hash,
+                    "node_tx_hash": echoed,
+                },
+            )
 
     async def anchor(self, anchored_hash: str) -> str:
         """Write a 32-byte reference on-chain and return the anchor tx hash (ADR-006)."""
         data = _word(anchored_hash, field="anchored_hash")
         call = self._router.functions.anchor(data)
         try:
-            raw_hash = await asyncio.to_thread(self._send_sync, call)
+            signed = await asyncio.to_thread(self._sign_sync, call)
+            await asyncio.to_thread(self._send_sync, signed.raw_transaction)
         except SettlementRefusal:
             raise
         except Exception as exc:  # provider boundary: every failure is a refusal
             raise self._refusal(exc, stage="anchor") from exc
-        return "0x" + bytes(raw_hash).hex()
+        return signed.tx_hash
 
     # ── the order -> calldata mapping (SC-2, SC-9) ───────────────────────────
 
@@ -349,11 +410,13 @@ class Web3ChainGateway(ChainGateway):
             return self._named_error(exc)
         return ""
 
-    def _send_sync(self, call: Any) -> bytes:
-        """Estimate, sign (EIP-1559) and broadcast one call. Nothing here is retried.
+    def _sign_sync(self, call: Any) -> SignedPayment:
+        """Estimate, sign (EIP-1559) and return the signed bytes with their hash. Sends nothing.
 
         Signing is local: the private key never leaves this process, so a compromised RPC endpoint
         cannot redirect the payment — it can only refuse it, and a refusal is a `SettlementRefusal`.
+        The split from `_send_sync` is the whole point of the port change: this method is where the
+        hash comes from, and it runs before any transaction exists on the network (SC-3).
         """
         transaction = call.build_transaction(
             {
@@ -368,7 +431,14 @@ class Web3ChainGateway(ChainGateway):
         # settlement into an out-of-gas revert, which the app records as a refusal (SC-6).
         transaction["gas"] = int(transaction["gas"]) * (100 + self._gas_headroom_percent) // 100
         signed = Account.sign_transaction(transaction, self._account.key)
-        sent: bytes = bytes(self._w3.eth.send_raw_transaction(signed.raw_transaction))
+        return SignedPayment(
+            tx_hash="0x" + bytes(signed.hash).hex(),
+            raw_transaction="0x" + bytes(signed.raw_transaction).hex(),
+        )
+
+    def _send_sync(self, raw_transaction: str) -> bytes:
+        """Hand already-signed bytes to the node once. Nothing here is retried or re-signed."""
+        sent: bytes = bytes(self._w3.eth.send_raw_transaction(HexBytes(raw_transaction)))
         return sent
 
     def _fee_fields(self) -> dict[str, int]:

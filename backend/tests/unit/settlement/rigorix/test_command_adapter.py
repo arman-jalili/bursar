@@ -10,7 +10,8 @@ written against.
 The rules under test:
 
 * the command text is the module constant rendered from `order.command_params()` — never a caller's string
-  (SC-2);
+  (SC-2) — and it broadcasts the order's own signed bytes, signing nothing (SC-3);
+* an order with no signed transaction is refused before the host is contacted: there is nothing to send;
 * a `Completed` run is an ack carrying the execution id and the audit URI (the evidence link back to the
   governed execution);
 * a `Failed` run is a refusal that carries the step's error **verbatim** — the `run_command` refusal a
@@ -43,11 +44,23 @@ BOUNDARY_REFUSAL = (
 )
 
 
+#: Stand-in for `eth_account`'s signed bytes: `0x`-prefixed hex, never a real transaction.
+RAW_TRANSACTION = "0x02f8" + "ab" * 60
+TX_HASH = "0x" + "cd" * 32
+
+
 def an_order() -> SettlementOrder:
     intent: PaymentIntentView = an_intent()
     return SettlementOrder.order(
         intent, an_anvil_network(), a_determination(intent_id=intent.intent_id)
     )
+
+
+def a_signed_order() -> SettlementOrder:
+    """The order as the use case hands it to the executor: hash and signed bytes already persisted."""
+    order = an_order()
+    order.mark_signed(TX_HASH, RAW_TRANSACTION, order.amount)
+    return order
 
 
 class FakeRigorixClient:
@@ -107,7 +120,7 @@ def a_settings(*, timeout_seconds: float = 30.0) -> Settings:
 
 class TestCompletedRun:
     async def test_a_completed_run_is_an_ack_with_the_execution_and_audit_uri(self) -> None:
-        order = an_order()
+        order = a_signed_order()
         client = FakeRigorixClient()
         adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
 
@@ -125,8 +138,8 @@ class TestCompletedRun:
     async def test_the_template_carries_the_generated_command_and_the_required_timestamps(
         self,
     ) -> None:
-        """SC-2: the command is the module constant rendered from the order — and nothing else."""
-        order = an_order()
+        """SC-2/SC-3: the command is the module constant rendered from the order — and nothing else."""
+        order = a_signed_order()
         client = FakeRigorixClient()
         adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
 
@@ -145,19 +158,32 @@ class TestCompletedRun:
         assert step["requires_approval"] is False
         command = step["parameters"]["command"]
         assert command == DISPATCH_COMMAND.format(**order.command_params())
-        # The order's own frozen facts, and the command path that is a module constant.
-        assert command.startswith("payments.dispatch ")
+        # The governed step broadcasts the order's own signed bytes, and signs nothing itself.
+        assert command == f"payments.broadcast --raw-tx {RAW_TRANSACTION}"
         assert str(order.id) not in command  # the id travels as execution_id, not as an argument
-        assert order.payee_address.value in command
-        assert str(order.amount.micro_usdc) in command
-        assert order.nullifier.value in command
+        # No routing data: the payee, the amount and the nullifier are inside the signed bytes.
+        assert order.payee_address.value not in command
+        assert order.nullifier.value not in command
+
+    async def test_an_unsigned_order_is_refused_before_the_host_is_contacted(self) -> None:
+        """SC-3: there is nothing to broadcast, so the governed step must not run at all."""
+        client = FakeRigorixClient()
+        adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
+
+        with pytest.raises(SettlementRefusal) as refused:
+            await adapter.execute(an_order())
+
+        assert refused.value.details["reason"] == "unsigned_order"
+        assert client.version_calls == 0
+        assert client.templates == []
+        assert client.runs == []
 
     async def test_the_protocol_version_is_negotiated_once(self) -> None:
         client = FakeRigorixClient()
         adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
 
-        await adapter.execute(an_order())
-        await adapter.execute(an_order())
+        await adapter.execute(a_signed_order())
+        await adapter.execute(a_signed_order())
 
         assert client.version_calls == 1
 
@@ -184,7 +210,7 @@ class TestRefusals:
         adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
 
         with pytest.raises(SettlementRefusal) as refused:
-            await adapter.execute(an_order())
+            await adapter.execute(a_signed_order())
 
         assert BOUNDARY_REFUSAL in str(refused.value)
         assert refused.value.details["status"] == "Failed"
@@ -200,7 +226,7 @@ class TestRefusals:
         )
 
         with pytest.raises(SettlementRefusal) as refused:
-            await adapter.execute(an_order())
+            await adapter.execute(a_signed_order())
 
         assert "did not answer" in str(refused.value)
         assert refused.value.details["reason"] == "rigorix_timeout"
@@ -210,7 +236,7 @@ class TestRefusals:
         adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
 
         with pytest.raises(SettlementRefusal) as refused:
-            await adapter.execute(an_order())
+            await adapter.execute(a_signed_order())
 
         assert "transport: HTTP 502" in str(refused.value)
         assert refused.value.details["reason"] == "rigorix_transport"
@@ -220,7 +246,7 @@ class TestRefusals:
         adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
 
         with pytest.raises(SettlementRefusal) as refused:
-            await adapter.execute(an_order())
+            await adapter.execute(a_signed_order())
 
         assert "template not found" in str(refused.value)
 
@@ -234,6 +260,6 @@ class TestRefusals:
         )
 
         with pytest.raises(SettlementRefusal) as refused:
-            await adapter.execute(an_order())
+            await adapter.execute(a_signed_order())
 
         assert refused.value.details["reason"] == "malformed_result"

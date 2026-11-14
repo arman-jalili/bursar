@@ -193,9 +193,16 @@ class SettlementStatus(enum.StrEnum):
     `REVERTED` and `ABANDONED` are terminal on purpose: a revert is a refusal, and an abandoned order
     keeps its tx hash forever. A state that could re-open is how the timeout double-pay happens
     (SC-4, SC-6, SC-8).
+
+    `SIGNED` is the state between "an order exists" and "the chain has it": the payment was signed
+    locally, so a tx hash **and** the signed bytes are persisted, and nothing has been broadcast yet
+    (SC-3). It is a real state, not an error: the governed broadcast step may not have run, may have
+    been refused, or the process may have died in between — in every case the order keeps its one hash
+    and is recovered by re-broadcasting those same bytes, never by signing again.
     """
 
     ORDERED = "ordered"
+    SIGNED = "signed"
     SUBMITTED = "submitted"
     PENDING = "pending"
     CONFIRMED = "confirmed"

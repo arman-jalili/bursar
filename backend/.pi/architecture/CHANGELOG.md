@@ -393,6 +393,77 @@ Each entry follows this structure:
 
 ---
 
+## [2026-11-15] - Settlement: two-phase `ChainGateway` (B-1 closed) and the governed broadcast step
+
+### Changed
+- Module: settlement
+  - `ChainGateway`: `submit(order) -> str` replaced by `prepare(order) -> SignedPayment` and
+    `broadcast(signed) -> None`. The hash now exists before anything is broadcast, so SC-3's
+    write-ahead ordering is expressible at last (blocker B-1).
+  - `SignedPayment` added to `domain/ports.py` (`tx_hash`, `raw_transaction`); `CommandAck` gained
+    `command_text` (the rendered command the governed step executed).
+  - `SettlementStatus.SIGNED` (`"signed"`) and `SettlementOrder.mark_signed(tx_hash, raw_transaction,
+    signed_amount)`; `mark_submitted` now also accepts `SIGNED -> SUBMITTED`, and `raw_transaction`
+    travels with the hash so a recovery re-sends the same bytes instead of signing a second nonce.
+  - `Web3ChainGateway`: `_send_sync` split into `_sign_sync` (local signing, returns `SignedPayment`) and
+    `_send_sync(raw)` (sends bytes); `broadcast` refuses bytes whose hash is not the recorded one, before
+    the node sees them.
+  - `DispatchPaymentService`: live gate → `prepare` → persist hash **and** signed bytes (`signed`) →
+    governed `payments.broadcast` → `SUBMITTED`. A refused governed step leaves the order `signed` with
+    its hash. Signing happens before the row is inserted, so a signing refusal persists nothing.
+  - `RigorixCommandAdapter`: `DISPATCH_COMMAND` is now `payments.broadcast --raw-tx {raw_transaction}`
+    (still a module constant rendered from the order, SC-2); an unsigned order is refused before the host
+    is contacted.
+  - New console script `payments.broadcast` (`src/settlement/infrastructure/chain/broadcast_cli.py`): one
+    option, no database, no order lookup, no network re-derivation, no signer.
+  - Migration `005_settlement_signed`: `settlement_orders.raw_transaction` and
+    `ck_settlement_orders_status` (the closed lifecycle, now including `signed`).
+- Files affected:
+  - src/settlement/domain/ports.py
+  - src/settlement/domain/settlement_order.py
+  - src/settlement/domain/values.py
+  - src/settlement/application/dispatch.py
+  - src/settlement/application/dto.py
+  - src/settlement/application/services.py
+  - src/settlement/application/services_impl.py
+  - src/settlement/infrastructure/chain/{web3_gateway,broadcast_cli,__init__}.py
+  - src/settlement/infrastructure/rigorix/command_adapter.py
+  - src/settlement/infrastructure/{models,mappers,repositories}.py
+  - src/settlement/interfaces/http/router.py
+  - migrations/versions/005_settlement_signed.py
+  - pyproject.toml (`[project.scripts]`)
+  - tests/unit/settlement/{chain,rigorix,write-ahead-hash}/
+- Canonical refs to update:
+  - docs/contracts/settlement-contract-freeze.md §2.8, §7 (the amendment)
+  - .pi/architecture/modules/settlement.md#ports-infrastructure-adapters
+  - .pi/architecture/modules/settlement.md#aggregate-settlementorder
+  - .pi/architecture/modules/settlement.md#acceptance-criteria
+  - docs/runbook-settlement.md §1, §4, §6, §7
+
+### Impact Analysis
+- B-1 is closed; **B-2 remains open** (`PENDING`/`ABANDONED` still have no intention method), so
+  `SettleOnce` and finality are still unimplemented and an order stops at `submitted`.
+- `ChainGateway.broadcast` has no production caller: the governed path broadcasts through Rigorix's
+  `run_command`. It is the adapter-level form of the same single operation (same bytes, no new
+  transaction) and is exercised by the chain suite.
+- Validators required: ci, tests, security, operations, integration, architecture, canonical,
+  composition-root, settlement contract proofing.
+
+### Migration Steps
+1. `make db-upgrade` (revision `005_settlement_signed`).
+2. Install the console script in the Rigorix sandbox image (`pip install .`) so the governed step can run
+   `payments.broadcast`.
+3. Start `rigorix-server` with `RIGORIX_SANDBOX=container RIGORIX_HMAC_KEY=<key>`; keep
+   `BURSAR_RIGORIX_SANDBOX=container` in the API environment.
+4. Pre-existing `ordered` rows are unaffected; the new state only appears on a dispatch.
+
+### Status
+- [x] Architecture doc updated
+- [x] Contract amendment recorded (`settlement-contract-freeze.md` §7)
+- [x] Runbook updated with the operating procedure for a `signed` order
+
+---
+
 <!-- Add new entries above this line -->
 
 ---
@@ -427,8 +498,9 @@ Track which changes have been synced to implementation:
 | 2026-11-13 | Mandate contract freeze v1 — values, aggregates, ports, DTOs, events, 9 contract tests | mandate | complete (stubs) | all four gates pass; 267 tests |
 | 2026-11-14 | **Billing implementation** — value objects, aggregates (B-1…B-7), repositories, migration `002_billing`, HTTP surface, settlement/refusal handlers, contract proofing stage | billing | complete | ci/tests/security/wiring/guards/drift/shell/claims/floors: pass |
 | 2026-11-14 | **Settlement implementation** — value objects, aggregate + domain services, SQL repositories + migration `003_settlement`, read API wired into console-api, ADR-009, runbook + DR plan, proofing stage 2c | settlement | complete (write path deferred on B-1/B-2) | architecture/canonical/security/operations/runtime-wiring/composition-root: pass; settlement proofing 74/74 |
+| 2026-11-15 | **Settlement write path** — two-phase `ChainGateway` (`prepare`/`broadcast`), `SIGNED` state + `mark_signed`, governed `payments.broadcast` step, migration `005_settlement_signed`; B-1 closed, B-2 open | settlement | complete (B-2 open) | architecture/canonical/security/operations/integration/ci/tests: pass; settlement proofing 89/89 |
 
 ---
 
-*Last updated: 2026-11-14*
+*Last updated: 2026-11-15*
 *Framework version: 1.2.0*
