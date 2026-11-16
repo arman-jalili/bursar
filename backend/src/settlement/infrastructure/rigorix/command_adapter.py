@@ -225,7 +225,14 @@ class RigorixCommandAdapter:
         result = _as_mapping(
             await self._call(
                 "run",
-                {"template_name": self.template_name, "execution_id": str(order.id)},
+                {
+                    "template_name": self.template_name,
+                    "execution_id": str(order.id),
+                    # Attribution: the envelope's `author` is signed and stored as evidence, and
+                    # answers "who triggered this". It stays null unless the caller sets it, and
+                    # the owner is the identity this deployment acts for.
+                    "author": self._settings.owner_address,
+                },
             )
         )
         status = str(result.get("status", ""))
