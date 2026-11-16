@@ -6,6 +6,7 @@ import {
   getTrail,
   runAgent,
   setWorld,
+  verifyEnvelope,
   type AgentState,
   type AgentTrace,
   type Capacity,
@@ -168,20 +169,18 @@ function VerifyEnvelope({
     setStatus("checking");
     setDetail("");
     try {
-      const mod = await import("rigorix-verifier/browser");
-      await mod.verifySignature(envelope as never, RIGORIX_HMAC_KEY);
-      mod.validateEnvelope(envelope as never);
-      setStatus("ok");
+      // The server holds the verification key, so it stays out of this bundle. It returns the
+      // verdict; the page never needs the secret.
+      const verdict = await verifyEnvelope(executionId);
+      if (verdict.verified) {
+        setStatus("ok");
+        return;
+      }
+      setStatus("bad");
+      setDetail(verdict.detail || "The envelope did not verify.");
     } catch (err) {
       setStatus("bad");
-      const message = (err as Error).message;
-      setDetail(
-        message.includes("signature mismatch")
-          ? "This envelope was signed with a different HMAC key than this page was built with. " +
-              "In enterprise mode, verify it in the enterprise dashboard, or rebuild the " +
-              "frontend with VITE_RIGORIX_HMAC_KEY set to the same key as the host."
-          : message.slice(0, 140),
-      );
+      setDetail((err as Error).message.slice(0, 160));
     }
   };
 
@@ -212,7 +211,7 @@ function VerifyEnvelope({
           {status === "checking"
             ? "verifying…"
             : status === "ok"
-              ? "Verified in your browser ✓"
+              ? "Verified ✓"
               : status === "tampered"
                 ? "Tampered ✕ — verify original"
                 : status === "bad"
@@ -224,7 +223,7 @@ function VerifyEnvelope({
             Flip a byte
           </button>
         ) : null}
-        <span className="gate-verify-key">WebCrypto · HMAC · demo operator key</span>
+        <span className="gate-verify-key">HMAC-SHA256 · verified server-side</span>
       </div>
       {status === "tampered" ? (
         <span className="gate-verify-bad">one byte changed — signature rejected</span>

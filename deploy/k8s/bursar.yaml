@@ -552,6 +552,11 @@ spec:
             - { name: BURSAR_PRECONDITION_DIR, value: "/tmp/bursar-preconditions" }
             # Must match the authority service: the run path proposes only; Rigorix disposes.
             - { name: BURSAR_GATE_MODE, value: "rigorix" }
+            # The same key Rigorix signs envelopes with, so /envelope/{id}/verify can check them
+            # server-side. Never inlined into the frontend bundle: this key signs every envelope.
+            - name: BURSAR_ENVELOPE_HMAC_KEY
+              valueFrom:
+                secretKeyRef: { name: bursar-audit, key: BURSAR_AUDIT_HMAC_KEY }
             # The page's public origin, for CORS (edit to the ingress host).
             - { name: BURSAR_CORS_ORIGINS, value: "https://bursar.rigorix.eu" }
           ports:

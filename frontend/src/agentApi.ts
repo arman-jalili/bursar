@@ -129,6 +129,29 @@ export function getEnvelope(executionId: string): Promise<EnvelopePayload> {
   return request<EnvelopePayload>(`/v1/agent/envelope/${encodeURIComponent(executionId)}`, {}, 20_000);
 }
 
+export interface EnvelopeVerdict {
+  execution_id: string;
+  verified: boolean;
+  /** `ok` | `signature_mismatch` | `no_verifier_key` | `unsigned` */
+  reason: string;
+  detail: string;
+}
+
+/**
+ * Ask the server to check the envelope's HMAC.
+ *
+ * The browser verifier needs the signing key inlined into this bundle, which is fine with the
+ * demo key and unacceptable when Rigorix signs with the enterprise envelope secret — that key
+ * signs every envelope. The server holds it instead and answers here.
+ */
+export function verifyEnvelope(executionId: string): Promise<EnvelopeVerdict> {
+  return request<EnvelopeVerdict>(
+    `/v1/agent/envelope/${encodeURIComponent(executionId)}/verify`,
+    {},
+    20_000,
+  );
+}
+
 export interface TrailItem {
   execution_id: string;
   sequence: number | null;

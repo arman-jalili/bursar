@@ -1089,7 +1089,7 @@ async def envelope(execution_id: str) -> dict[str, Any]:
     """Return the signed Rigorix audit envelope for one governed run.
 
     The file is the artifact Rigorix wrote under its own repository; this endpoint does not
-    re-sign or reshape it. The browser verifier is what checks the HMAC.
+    re-sign or reshape it, and it does not verify it — `/envelope/{id}/verify` does that.
     """
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", execution_id):
         raise HTTPException(status_code=400, detail="execution_id must be a UUID")
@@ -1097,6 +1097,75 @@ async def envelope(execution_id: str) -> dict[str, Any]:
     if not path.exists():
         raise HTTPException(status_code=404, detail="no signed envelope for this execution")
     return {"execution_id": execution_id, "envelope": json.loads(path.read_text())}
+
+
+@router.get(
+    "/envelope/{execution_id}/verify",
+    dependencies=[Depends(require_scope("console:read"))],
+)
+async def verify_envelope(execution_id: str) -> dict[str, Any]:
+    """Verify one envelope's HMAC here, on the server, so the key stays out of the browser.
+
+    The browser verifier recomputes the HMAC in WebCrypto, which means the signing key has to be
+    inlined into a public JS bundle. That is fine with the demo key and unacceptable once Rigorix
+    signs with the enterprise `AUDIT_ENVELOPE_HMAC_SECRET`: that key signs every envelope, so
+    shipping it lets any visitor forge evidence the enterprise will accept.
+
+    This endpoint reads the key from the environment instead and returns the verdict. The envelope
+    is not re-signed or reshaped — `canonical_bytes` nulls the signature and canonicalises the rest,
+    exactly as the signer did.
+    """
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", execution_id):
+        raise HTTPException(status_code=400, detail="execution_id must be a UUID")
+    path = _audit_dir() / f"{execution_id}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no signed envelope for this execution")
+
+    key = os.environ.get("BURSAR_ENVELOPE_HMAC_KEY") or ""
+    if not key:
+        # Not an error the caller can fix, and not a mismatch either: say which it is, so the page
+        # does not blame the envelope for a deployment that cannot check it.
+        return {
+            "execution_id": execution_id,
+            "verified": False,
+            "reason": "no_verifier_key",
+            "detail": (
+                "This server has no envelope verification key configured, so the signature "
+                "cannot be checked here. Verify it in the enterprise dashboard."
+            ),
+        }
+
+    envelope = json.loads(path.read_text())
+    signature = str(envelope.get("signature") or "")
+    if not signature:
+        return {
+            "execution_id": execution_id,
+            "verified": False,
+            "reason": "unsigned",
+            "detail": "This envelope carries no signature.",
+        }
+
+    from rigorix_verifier import canonical
+
+    import hashlib
+    import hmac as hmaclib
+
+    computed = hmaclib.new(
+        key.encode(), canonical.canonical_bytes(envelope), hashlib.sha256
+    ).hexdigest()
+    if computed == signature:
+        return {"execution_id": execution_id, "verified": True, "reason": "ok", "detail": ""}
+
+    return {
+        "execution_id": execution_id,
+        "verified": False,
+        "reason": "signature_mismatch",
+        "detail": (
+            "This envelope was signed with a different key than this server verifies with. "
+            "If Rigorix signs with the enterprise AUDIT_ENVELOPE_HMAC_SECRET, set "
+            "BURSAR_ENVELOPE_HMAC_KEY to the same value, or verify it in the enterprise dashboard."
+        ),
+    }
 
 
 @router.get("/trail", dependencies=[Depends(require_scope("console:read"))])
