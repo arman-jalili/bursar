@@ -439,10 +439,18 @@ spec:
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef: { name: bursar-env }
+            # Audit backend URL + API key + the shared envelope HMAC secret. Secrets, never the
+            # ConfigMap: the key authorises writes to the enterprise audit log, and the HMAC
+            # secret is what the enterprise verifies each envelope against.
+            - secretRef: { name: bursar-audit }
           env:
             - { name: RIGORIX_SERVER_BIND, value: "0.0.0.0:3001" }
             - { name: RIGORIX_SANDBOX, value: "container" }
-            - { name: RIGORIX_HMAC_KEY, value: "bursar-demo-operator-held-evidence-key-4c1f9a" }
+            # One key signs approvals and envelopes; Rigorix refuses to start if they differ, so
+            # this is sourced from the same Secret as BURSAR_AUDIT_HMAC_KEY rather than inlined.
+            - name: RIGORIX_HMAC_KEY
+              valueFrom:
+                secretKeyRef: { name: bursar-audit, key: BURSAR_AUDIT_HMAC_KEY }
             - { name: RIGORIX_REPO_ROOT, value: "/workspace" }
           ports:
             - { name: rpc, containerPort: 3001 }
