@@ -122,7 +122,8 @@ class TestCompletedRun:
     async def test_a_completed_run_is_an_ack_with_the_execution_and_audit_uri(self) -> None:
         order = a_signed_order()
         client = FakeRigorixClient()
-        adapter = RigorixCommandAdapter(a_settings(), client=client)  # type: ignore[arg-type]
+        settings = a_settings()
+        adapter = RigorixCommandAdapter(settings, client=client)  # type: ignore[arg-type]
 
         ack = await adapter.execute(order)
 
@@ -132,7 +133,12 @@ class TestCompletedRun:
         assert ack.execution_id == str(order.id)
         assert ack.audit_uri == "rigorix://audit/fake-execution"
         assert client.runs == [
-            {"template_name": "bursar-test-dispatch", "execution_id": str(order.id)}
+            {
+                "template_name": "bursar-test-dispatch",
+                "execution_id": str(order.id),
+                # Attribution: the governed run says who it acts for (signed in the envelope).
+                "author": settings.owner_address,
+            }
         ]
 
     async def test_the_template_carries_the_generated_command_and_the_required_timestamps(
