@@ -427,6 +427,14 @@ export function Precondition() {
           <span className="gate-live">
             <i className="dot" /> live
           </span>
+          {state && state.gate_mode !== "rigorix" ? (
+            <span
+              className="gate-mode-warn"
+              title="BURSAR_GATE_MODE is not rigorix: refusals are decided before Rigorix and leave no signed trail."
+            >
+              gate mode off
+            </span>
+          ) : null}
           <span className="gate-chain">
             {authority?.payees.filter((payee) => payee.status === "frozen").length ?? 0} payee
             {(authority?.payees.filter((payee) => payee.status === "frozen").length ?? 0) === 1

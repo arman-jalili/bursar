@@ -141,6 +141,11 @@ reachable from a browser (no CORS); `console-api` is the only browser-facing sur
 both against one SQLite file so Authority's reads see Mandate/Billing writes immediately;
 production keeps the per-deployable split.
 
+**Deployment requirement:** both `authority-service` and `console-api` must run with
+`BURSAR_GATE_MODE=rigorix` (compose reads it from `.env.demo`; the k8s manifests pin it explicitly).
+Without it, capacity refusals are decided at proposal time, never reach Rigorix, and therefore have
+no signed envelope or trail entry; the UI shows a red *gate mode off* badge in the header.
+
 Rigorix runs three operator-owned checks **inside** the governed step, in this order, all fail
 closed:
 

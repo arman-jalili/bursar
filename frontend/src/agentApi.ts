@@ -31,6 +31,7 @@ export interface AgentState {
   payees: AgentPayee[];
   chain: ChainInfo;
   llm: { ready: boolean; model: string };
+  gate_mode?: string;
 }
 
 export interface GateStep {

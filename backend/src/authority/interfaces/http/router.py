@@ -68,6 +68,7 @@ from src.authority.interfaces.http.schemas import (
     SignatureResponse,
 )
 from src.shared.domain.errors import ErrorCode
+from src.shared.infrastructure.logging import get_logger
 
 __all__ = ["build_router", "build_services", "install"]
 
@@ -467,6 +468,16 @@ def build_services(session_factory: object) -> dict[str, object]:
     # Demo mode: Rigorix is the only decider/executor. This service keeps the intent, the approval
     # request and the facts the gate checks; it neither refuses on capacity nor reserves it.
     gate_mode = os.environ.get("BURSAR_GATE_MODE", "authority").strip().lower() == "rigorix"
+    logger = get_logger(__name__)
+    if gate_mode:
+        logger.info("authority.gate_mode", extra={"gate_mode": "rigorix"})
+    else:
+        # The demo's refusals must reach Rigorix to be signed. In authority mode a cap refusal
+        # happens before dispatch, so no envelope and no trail exist for it.
+        logger.warning(
+            "authority.gate_mode.disabled",
+            extra={"gate_mode": "authority", "effect": "refusals leave no signed envelope"},
+        )
     return {
         "precondition": PreconditionCheck(session_factory),  # type: ignore[arg-type]
         "evaluate": EvaluateAuthorityService(  # type: ignore[arg-type]

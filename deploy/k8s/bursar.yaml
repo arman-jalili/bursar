@@ -384,6 +384,11 @@ spec:
               exec uvicorn src.apps.authority_service.app:app --host 0.0.0.0 --port 8001
           envFrom:
             - configMapRef: { name: bursar-env }
+          env:
+            # The single-gate model: Rigorix decides capacity and the operator check at the
+            # moment of sending. Without this, refusals happen before Rigorix and leave no
+            # signed envelope (and no trail).
+            - { name: BURSAR_GATE_MODE, value: "rigorix" }
           ports:
             - { name: http, containerPort: 8001 }
           readinessProbe:
@@ -545,6 +550,8 @@ spec:
             - { name: BURSAR_RIGORIX_BASE_URL, value: "http://rigorix:3001" }
             - { name: RIGORIX_AUDIT_DIR, value: "/rigorix-audit" }
             - { name: BURSAR_PRECONDITION_DIR, value: "/tmp/bursar-preconditions" }
+            # Must match the authority service: the run path proposes only; Rigorix disposes.
+            - { name: BURSAR_GATE_MODE, value: "rigorix" }
             # The page's public origin, for CORS (edit to the ingress host).
             - { name: BURSAR_CORS_ORIGINS, value: "https://bursar.rigorix.eu" }
           ports:

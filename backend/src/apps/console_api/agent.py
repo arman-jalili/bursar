@@ -500,6 +500,9 @@ async def _state(request: Request) -> dict[str, Any]:
             "ready": bool(os.environ.get("LLM_API_KEY")),
             "model": os.environ.get("LLM_MODEL", "google/gemma-4-26b-a4b-it:free"),
         },
+        # Diagnostics: "rigorix" is the single-gate model. Anything else means refusals are
+        # decided before the governed step and leave no signed trail.
+        "gate_mode": os.environ.get("BURSAR_GATE_MODE", "authority").strip().lower(),
     }
 
 
