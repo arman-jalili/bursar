@@ -174,7 +174,14 @@ function VerifyEnvelope({
       setStatus("ok");
     } catch (err) {
       setStatus("bad");
-      setDetail((err as Error).message.slice(0, 140));
+      const message = (err as Error).message;
+      setDetail(
+        message.includes("signature mismatch")
+          ? "This envelope was signed with a different HMAC key than this page was built with. " +
+              "In enterprise mode, verify it in the enterprise dashboard, or rebuild the " +
+              "frontend with VITE_RIGORIX_HMAC_KEY set to the same key as the host."
+          : message.slice(0, 140),
+      );
     }
   };
 

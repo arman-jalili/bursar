@@ -200,9 +200,17 @@ BURSAR_AUDIT_HMAC_KEY=<AUDIT_ENVELOPE_HMAC_SECRET> # the key the enterprise veri
 - **The HMAC key must match the enterprise's `AUDIT_ENVELOPE_HMAC_SECRET`.** One key signs both
   approvals and envelopes. If it does not match, ingest answers `400 INVALID_SIGNATURE` and the
   envelope is kept in `.rigorix-runtime/.rigorix/audit/queue` for retry.
-- "Verify in browser" uses the demo HMAC key baked into the frontend. With an enterprise signing
-  key, use the enterprise dashboard as the verification surface, or rebuild the frontend with
-  `VITE_RIGORIX_HMAC_KEY` set to the same value (that makes the key public — demo only).
+- "Verify in browser" uses the HMAC key baked into the frontend at build time. If Rigorix signs
+  with the enterprise key, the page must be built with the same key or the check reports a
+  signature mismatch:
+  ```bash
+  BURSAR_AUDIT_HMAC_KEY=<AUDIT_ENVELOPE_HMAC_SECRET> docker compose build --no-cache frontend
+  # or: docker build --build-arg VITE_RIGORIX_HMAC_KEY="$BURSAR_AUDIT_HMAC_KEY" \
+  #       -t bursar-frontend:dev frontend
+  ```
+  The key ends up in the public bundle, so this is acceptable only for the demo. The safer
+  alternative is to keep the demo key for local verification and use the enterprise dashboard for
+  enterprise-signed envelopes.
 - No variables set: the signed trail stays local and nothing is uploaded.
 
 ## Running on a server

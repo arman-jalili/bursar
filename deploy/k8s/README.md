@@ -34,7 +34,10 @@ docker build -t bursar-backend:dev backend
 # version. Build it on the VPS for a native amd64 image.
 ./scripts/build-rigorix-image.sh
 
-# frontend: the API and explorer URLs are baked at build time
+# frontend: the API and explorer URLs are baked at build time. If Rigorix signs envelopes with
+# the enterprise HMAC secret, pass the same key so the in-browser verification matches — this
+# puts the key in the public bundle (demo only). Otherwise use the enterprise dashboard to verify.
+BURSAR_AUDIT_HMAC_KEY=<AUDIT_ENVELOPE_HMAC_SECRET> \
 PUBLIC_CONSOLE_URL=https://api.bursar.example.com \
 PUBLIC_EXPLORER_URL=https://explorer.bursar.example.com \
   docker compose build frontend
