@@ -178,6 +178,28 @@ LLM_FALLBACK_MODEL=inclusionai/ling-3.2-flash:free
 The full variable list, with the server-deployment values (public console/explorer URLs, CORS), is
 in [`.env.example`](.env.example).
 
+## Enterprise audit dashboard (optional)
+
+Every governed run can also ship its signed envelope to a Rigorix enterprise ingest endpoint, where
+it appears in the dashboard alongside the local trail.
+
+```bash
+# .env
+BURSAR_AUDIT_BACKEND_URL=https://app.rigorix.eu/api/v1/audit/oss-envelope
+BURSAR_AUDIT_BACKEND_KEY=rgx_live_sk_...           # the Bearer token from the dashboard
+BURSAR_AUDIT_HMAC_KEY=<AUDIT_ENVELOPE_HMAC_SECRET> # the key the enterprise verifies with
+```
+
+- The container entrypoint renders these into the host config at boot; restart Rigorix after
+  changing them: `docker compose --profile container-rigorix restart rigorix`.
+- **The HMAC key must match the enterprise's `AUDIT_ENVELOPE_HMAC_SECRET`.** One key signs both
+  approvals and envelopes. If it does not match, ingest answers `400 INVALID_SIGNATURE` and the
+  envelope is kept in `.rigorix-runtime/.rigorix/audit/queue` for retry.
+- "Verify in browser" uses the demo HMAC key baked into the frontend. With an enterprise signing
+  key, use the enterprise dashboard as the verification surface, or rebuild the frontend with
+  `VITE_RIGORIX_HMAC_KEY` set to the same value (that makes the key public — demo only).
+- No variables set: the signed trail stays local and nothing is uploaded.
+
 ## Running on a server
 
 The quick start is already the server shape: Rigorix runs in its own container. For a public host,

@@ -8,4 +8,5 @@ default_timeout_secs = 120
 
 [logging]
 level = "info"
-format = "text"
+format = "Text"
+destination = "Stderr"
