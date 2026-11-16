@@ -710,6 +710,22 @@
   font-size: 10px;
   color: var(--muted);
 }
+.gate-trail-outcome {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+.gate-trail-outcome.refused,
+.gate-trail-outcome.failed {
+  color: var(--red);
+}
 .gate-trail-detail-head b { font-weight: 600; }
 .gate-trail-detail-head b.ok { color: var(--green); }
 .gate-trail-detail-head b.bad { color: var(--red); }

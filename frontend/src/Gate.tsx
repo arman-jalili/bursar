@@ -340,6 +340,27 @@ export function GateCard({ trace }: { trace: AgentTrace }) {
   );
 }
 
+/** The outcome a trail entry records, read from the signed envelope itself. */
+function envelopeOutcome(envelope: Record<string, unknown>): "allowed" | "refused" | "failed" {
+  const findings = Array.isArray(envelope.precondition_findings)
+    ? (envelope.precondition_findings as Record<string, unknown>[])
+    : [];
+  if (findings.some((finding) => finding.outcome && finding.outcome !== "passed")) {
+    return "refused";
+  }
+  const events = Array.isArray(envelope.events)
+    ? (envelope.events as Record<string, unknown>[])
+    : [];
+  if (
+    events.some(
+      (event) => event.event_type === "node_failed" || event.status === "Failure",
+    )
+  ) {
+    return "failed";
+  }
+  return "allowed";
+}
+
 export function Trail({ refresh }: { refresh: number }) {
   const [items, setItems] = useState<TrailItem[]>([]);
   const [hashes, setHashes] = useState<string[]>([]);
@@ -456,24 +477,30 @@ export function Trail({ refresh }: { refresh: number }) {
         <p className="gate-trail-empty">No governed runs yet. Ask the agent to pay something.</p>
       ) : (
         <div className="gate-trail-seq">
-          {items.map((item, index) => (
-            <button
-              key={item.execution_id}
-              className={`gate-trail-item${selected === item.execution_id ? " active" : ""}`}
-              onClick={() => setSelected(item.execution_id)}
-              title={item.execution_id}
-            >
-              <span className="gate-trail-n">#{item.sequence ?? index + 1}</span>
-              <span className="gate-trail-id">{short(item.execution_id)}</span>
-              <span className="gate-trail-hash">{hashes[index] ? short(hashes[index]) : "…"}</span>
-              <span className="gate-trail-time">
-                {new Date(item.timestamp).toLocaleTimeString("de-AT", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </button>
-          ))}
+          {items.map((item, index) => {
+            const outcome = envelopeOutcome(item.envelope);
+            return (
+              <button
+                key={item.execution_id}
+                className={`gate-trail-item${selected === item.execution_id ? " active" : ""}`}
+                onClick={() => setSelected(item.execution_id)}
+                title={item.execution_id}
+              >
+                <span className="gate-trail-n">#{item.sequence ?? index + 1}</span>
+                <span className="gate-trail-id">{short(item.execution_id)}</span>
+                <span className="gate-trail-hash">
+                  {hashes[index] ? short(hashes[index]) : "…"}
+                </span>
+                <span className="gate-trail-time">
+                  {new Date(item.timestamp).toLocaleTimeString("de-AT", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                <span className={`gate-trail-outcome ${outcome}`}>{outcome}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -560,7 +587,6 @@ export function Gate() {
         setState((current) =>
           current ? { ...current, capacity: trace.gate.capacity.after } : current,
         );
-        if (trace.gate.execution_id) setTrailVersion((value) => value + 1);
       } catch (err) {
         setMessages((all) => [
           ...all,
@@ -573,6 +599,10 @@ export function Gate() {
       } finally {
         busyRef.current = false;
         setBusy(false);
+        // Every attempt can write a signed envelope, refused ones included. Reload the trail
+        // whatever happened: a refusal whose trace lost the execution id must not leave the page
+        // showing only the successful runs.
+        setTrailVersion((value) => value + 1);
       }
     },
     [],

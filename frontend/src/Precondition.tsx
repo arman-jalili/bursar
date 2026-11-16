@@ -334,7 +334,6 @@ export function Precondition() {
       setState((current) =>
         current ? { ...current, capacity: trace.gate.capacity.after } : current,
       );
-      if (trace.gate.execution_id) setTrailVersion((value) => value + 1);
     } catch (err) {
       setMessages((all) => [
         ...all,
@@ -343,6 +342,9 @@ export function Precondition() {
     } finally {
       busyRef.current = false;
       setBusy(false);
+      // Refused attempts write envelopes too; reload the trail whatever happened, even when the
+      // trace does not carry an execution id, so a failure never leaves only the successes.
+      setTrailVersion((value) => value + 1);
     }
   }, []);
 
